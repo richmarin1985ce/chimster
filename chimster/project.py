@@ -46,14 +46,17 @@ class Project:
         except Exception:shutil.rmtree(meta);raise
         return cls(p)
     def read(self):
-        m=read_json(self.head)
-        if m.get("schema")!=1 or m.get("game") not in PROFILES or type(m.get("revision")) is not int or m["revision"]<0:raise ValueError("unsupported project manifest")
+        return self.validate(read_json(self.head))
+    @staticmethod
+    def validate(m):
+        if not isinstance(m,dict) or m.get("schema")!=1 or m.get("game") not in PROFILES or type(m.get("revision")) is not int or m["revision"]<0:raise ValueError("unsupported project manifest")
         identifier(m["name"])
         if not isinstance(m.get("artifacts"),dict) or len(m["artifacts"])>50000:raise ValueError("invalid artifact table")
+        if len({k.casefold() for k in m["artifacts"]})!=len(m["artifacts"]):raise ValueError("case-insensitive artifact collision")
         for k,a in m["artifacts"].items():
             identifier(k)
-            if a.get("kind") not in KINDS or not re.fullmatch(r"[0-9a-f]{64}",a.get("sha256","")) or type(a.get("size")) is not int or a["size"]<0:raise ValueError("invalid artifact")
-            if not isinstance(a.get("filename"),str) or Path(a["filename"]).name!=a["filename"] or any(c in a["filename"] for c in "\\/:") or not a["filename"]:raise ValueError("invalid filename")
+            if not isinstance(a,dict) or a.get("kind") not in KINDS or not re.fullmatch(r"[0-9a-f]{64}",a.get("sha256","")) or type(a.get("size")) is not int or a["size"]<0:raise ValueError("invalid artifact")
+            if not isinstance(a.get("filename"),str) or Path(a["filename"]).name!=a["filename"] or any(c in a["filename"] for c in "\\/:") or a["filename"] in {"",".",".."} or a["filename"].endswith(("."," ")) or any(ord(c)<32 for c in a["filename"]):raise ValueError("invalid filename")
         return m
     @contextmanager
     def lock(self):
@@ -70,7 +73,7 @@ class Project:
         if current["revision"]!=expected:raise ValueError("stale project revision")
         n=expected+1
         while (self.meta/"revisions"/f"{n}.json").exists():n+=1
-        m["revision"]=n
+        m["revision"]=n;self.validate(m)
         atomic_json(self.meta/"revisions"/f"{n}.json",m);atomic_json(self.head,m)
         return m
     def add(self,key,kind,source,expected,replace=False):
@@ -106,7 +109,9 @@ class Project:
                 finally:tmp.unlink(missing_ok=True)
             return self.commit(m,expected)
     def object(self,key,verify=True):
-        a=self.read()["artifacts"][identifier(key)];p=self.meta/"objects"/a["sha256"]
+        return self._object(self.read()["artifacts"][identifier(key)],verify)
+    def _object(self,a,verify=True):
+        p=self.meta/"objects"/a["sha256"]
         if p.is_symlink() or not p.is_file() or p.stat().st_size!=a["size"] or verify and digest(p)!=a["sha256"]:raise ValueError("missing/corrupt artifact")
         return p
     def export(self,key,destination):
@@ -131,7 +136,8 @@ class Project:
     def rollback(self,revision,expected):
         if type(revision) is not int or not 0<=revision<=expected:raise ValueError("invalid revision")
         with self.lock():
-            m=read_json(self.meta/"revisions"/f"{revision}.json")
+            m=self.validate(read_json(self.meta/"revisions"/f"{revision}.json"))
+            if m["revision"]!=revision:raise ValueError("snapshot revision mismatch")
             current=self.read()
             if m["game"]!=current["game"] or m["name"]!=current["name"]:raise ValueError("wrong project snapshot")
             for a in m["artifacts"].values():
@@ -143,6 +149,6 @@ class Project:
     def verify(self):
         m=self.read();issues=[]
         for k in m["artifacts"]:
-            try:self.object(k)
+            try:self._object(m["artifacts"][k])
             except (ValueError,OSError) as e:issues.append({"id":k,"error":str(e)})
         return {"valid":not issues,"revision":m["revision"],"artifacts":len(m["artifacts"]),"issues":issues}
