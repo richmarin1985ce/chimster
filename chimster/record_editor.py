@@ -1,7 +1,7 @@
 """Bounded FNV record inspection and same-name staged text edit.
 Preserves other records and raw subrecords; never mutates source or remaps FormIDs."""
 from pathlib import Path
-import struct,hashlib,os
+import struct,hashlib,math
 from .fnv_records import HEADER,MAX_RECORD,scan,subs,text
 from .fnv_patch import sub
 
@@ -31,6 +31,10 @@ def edit_typed(source,output,origin,local,field,value,expected_hash,text_only=Fa
     matches=[f for f in info.get("fields") or [] if f["tag"]==field and f["writable"]]
     if len(matches)!=1 or info["flags"]&0x40020 or text_only and matches[0]["type"] not in {"text","model"}:raise ValueError("unsupported field or record flags")
     v=encode(matches[0]["type"],value)
+    if matches[0]["type"]=="transform":
+        before=matches[0]["value"]
+        after=struct.unpack("<6f",v)
+        if any(math.floor(before[i]/4096)!=math.floor(after[i]/4096) for i in (0,1)):raise ValueError("cross-cell movement requires hierarchy relocation, not a field edit")
     raw=p.read_bytes();source_hash=hashlib.sha256(raw).hexdigest();target=info["offset"];parents=[]
     def rebuild(start,end,depth=0):
         if depth>64:raise ValueError("group depth")
