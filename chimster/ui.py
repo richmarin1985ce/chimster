@@ -129,6 +129,9 @@ def launch():
  f=tab('Books & notes')
  from .book_ui import mount as mount_books
  mount_books(f)
+ f=tab('Quest editor')
+ from .quest_ui import mount as mount_quests
+ mount_quests(f)
  f=tab('Minigame editor')
  from .minigame_ui import mount as mount_minigames
  mount_minigames(f)
