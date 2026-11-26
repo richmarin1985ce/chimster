@@ -1,0 +1,26 @@
+name: Modern NIF backend
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  modern-nif:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: ousnius/nifly
+          ref: 47993ec6540a09453f6d53fded6c1eec91dcf3eb
+          path: external-nifly
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: cmake -S native/nifbridge -B build/nifbridge -DNIFLY_SOURCE="${{ github.workspace }}/external-nifly" -DCMAKE_BUILD_TYPE=Release
+      - run: cmake --build build/nifbridge --parallel 2
+      - run: python -m unittest discover -s tests -p test_modern_nif.py -v
+        env:
+          CHIMSTER_NIFBRIDGE: ${{ github.workspace }}/build/nifbridge/chimster-nifbridge
