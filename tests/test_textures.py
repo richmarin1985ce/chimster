@@ -26,3 +26,13 @@ class TextureTests(unittest.TestCase):
     def test_invalid(self):
         with self.assertRaises(ValueError):cube_from_panorama(3,2,bytes(24))
         with self.assertRaises(ValueError):normal_map(1,1,b"\x00",convention="unknown")
+
+    def test_mips(self):
+        from chimster.textures import mip_chain,mip_dds
+        n=normal_map(5,3,bytes([100])*15)
+        levels=mip_chain(5,3,n,normal=True)
+        self.assertEqual([(w,h) for w,h,_ in levels],[(5,3),(2,1),(1,1)])
+        self.assertEqual(levels[-1][2],bytes([128,128,255,255]))
+        d=mip_dds(5,3,n,normal=True)
+        self.assertEqual(struct.unpack_from("<I",d,28)[0],3)
+        self.assertEqual(len(d),128+4*(15+2+1))
