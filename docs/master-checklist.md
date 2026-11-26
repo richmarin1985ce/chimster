@@ -46,3 +46,6 @@ The user clarified that quads means per-cell landscape texture quadrants, not me
 - Check final merged LAND records and shared quad/cell boundaries; never silently discard or normalize authored layers.
 - Test limit and limit+1, zero-alpha allocations, duplicate layers, four independent quadrants, merge overrides and deterministic terrain LOD compositing.
 - Native classic Oblivion landscape writing remains pending.
+
+## Sections 1–16 development pass
+See checklist-01-16-progress.md. Implemented narrow native staged record edits and payload comparison, quadrant budget checks/desktop inspector, modular buildings and collision recipes, mixed-LOD shared-perimeter terrain tiles, chunk storage and selective loading, portable quest/dialogue authoring/playtest, skill book fields and Papyrus structural checks. New CI pending. Do not mark broader categories complete.
