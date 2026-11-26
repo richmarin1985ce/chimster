@@ -32,8 +32,11 @@ def staged_build(builder,output,ledger_output,previous=None):
     if p.exists() or p.is_symlink() or q.exists() or q.is_symlink() or p.resolve()==q.resolve():raise ValueError("expected distinct new plugin and ledger")
     ids=FormIDs(p.name,load(previous) if previous else None)
     result=builder(ids)
+    created=False
     try:
-        with q.open("x",encoding="utf-8") as f:json.dump(ids.snapshot(),f,indent=2)
+        with q.open("x",encoding="utf-8") as f:
+            created=True;json.dump(ids.snapshot(),f,indent=2)
     except Exception:
+        if created:q.unlink(missing_ok=True)
         p.unlink(missing_ok=True);raise
     return {**result,"formid_ledger":str(q),"allocated_ids":len(ids.entries),"inactive_ids":len(ids.entries)-len(ids.active)}
