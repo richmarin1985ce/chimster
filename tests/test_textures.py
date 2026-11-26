@@ -1,4 +1,4 @@
-import unittest,struct
+import unittest,struct,os
 from chimster.textures import normal_map,specular_map,cube_from_panorama,cube_dds,direction,FACES
 class TextureTests(unittest.TestCase):
     def test_flat(self):
@@ -36,3 +36,23 @@ class TextureTests(unittest.TestCase):
         d=mip_dds(5,3,n,normal=True)
         self.assertEqual(struct.unpack_from("<I",d,28)[0],3)
         self.assertEqual(len(d),128+4*(15+2+1))
+
+    @unittest.skipUnless(os.environ.get("CHIMSTER_TEST_PILLOW"),"optional image decoder")
+    def test_real_files(self):
+        from tempfile import TemporaryDirectory
+        from pathlib import Path
+        from PIL import Image
+        from chimster.textures import build_material,build_cube
+        with TemporaryDirectory() as d:
+            p=Path(d)
+            Image.new("L",(8,8),127).save(p/"height.png")
+            Image.new("L",(8,8),255).save(p/"mask.png")
+            build_material(p/"height.png",p/"mask.png",p/"material",pack_alpha=True)
+            with Image.open(p/"material/material_n.dds") as im:
+                self.assertEqual(im.size,(8,8))
+                self.assertEqual(im.convert("RGBA").getpixel((0,0)),(128,128,255,128))
+            Image.new("RGBA",(16,8),(12,34,56,255)).save(p/"panorama.png")
+            build_cube(p/"panorama.png",p/"cube",8)
+            with Image.open(p/"cube/environment.dds") as im:
+                self.assertEqual(im.size,(8,8))
+                self.assertEqual(im.convert("RGBA").getpixel((0,0)),(12,34,56,255))
