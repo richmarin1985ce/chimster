@@ -9,13 +9,17 @@ from .lod import validate_mesh
 
 VERTEX="""#version 330
 in vec3 pos; in vec3 norm; in vec2 uv;
-uniform vec3 origin, eye, rightv, upv, backv;
-uniform vec2 rotation, projection;
-uniform float scale, nearp, farp;
+in vec3 origin; in vec2 rotation; in float scale;
+in vec3 instance_id; in float instance_selected;
+uniform vec3 eye, rightv, upv, backv;
+uniform vec2 projection;
+uniform float nearp, farp;
+flat out vec3 object_id; flat out float selected;
 out vec3 world, normal; out vec2 texcoord;
 void main(){
  mat3 r=mat3(rotation.x,rotation.y,0,-rotation.y,rotation.x,0,0,0,1);
  world=origin+r*pos*scale; normal=r*norm; texcoord=uv;
+ object_id=instance_id; selected=instance_selected;
  vec3 d=world-eye; float z=-dot(d,backv);
  gl_Position=vec4(dot(d,rightv)*projection.x,dot(d,upv)*projection.y,
  (farp+nearp)/(farp-nearp)*z-2.0*farp*nearp/(farp-nearp),z);
@@ -24,8 +28,8 @@ FRAGMENT="""#version 330
 in vec3 world, normal; in vec2 texcoord;
 uniform sampler2D albedo, normalmap, specmap;
 uniform vec3 eye, tint, sun;
-uniform float alpha_cut, normal_strength, normal_y, spec_strength, selected, gloss;
-uniform vec3 object_id;
+uniform float alpha_cut, normal_strength, normal_y, spec_strength, gloss;
+flat in vec3 object_id; flat in float selected;
 layout(location=0) out vec4 color;
 layout(location=1) out vec4 picking;
 void main(){
@@ -98,6 +102,8 @@ class Settings:
     near:float=.05
     fov:float=45.
     cull:bool=True
+    instancing:bool=True
+    hierarchy:bool=True
     light:tuple=(.3,.4,.866)
     def validate(self):
         if len(self.lod_distances)!=3 or not all(isfinite(x) and x>0 for x in self.lod_distances) or not self.lod_distances[0]<self.lod_distances[1]<self.lod_distances[2]:raise ValueError("LOD distances must increase")
@@ -177,6 +183,8 @@ class Renderer:
             except Exception:self.ctx=moderngl.create_standalone_context(require=330,backend="egl")
         self.program=self.ctx.program(vertex_shader=VERTEX,fragment_shader=FRAGMENT)
         self.program["albedo"].value=0;self.program["normalmap"].value=1;self.program["specmap"].value=2
+        self.instance_buffer=self.ctx.buffer(reserve=5000*40,dynamic=True)
+        self.spatial_key=None;self.spatial_root=None;self.spatial_entries=()
         self.meshes={};self.radii={};self.textures={};self.targets=None;self.ids={};self.size=(0,0)
         self.white=ImageMap(1,1,b"\xff\xff\xff\xff");self.flat=ImageMap(1,1,bytes((128,128,255,255)))
     def radius(self,m):
@@ -189,7 +197,7 @@ class Renderer:
         raw,groups=vertex_data(m);vbo=self.ctx.buffer(raw.tobytes());parts=[]
         for mat,indices in groups.items():
             ibo=self.ctx.buffer(array("I",indices).tobytes())
-            vao=self.ctx.vertex_array(self.program,[(vbo,"3f 3f 2f","pos","norm","uv")],ibo,index_element_size=4)
+            vao=self.ctx.vertex_array(self.program,[(vbo,"3f 3f 2f","pos","norm","uv"),(self.instance_buffer,"3f 2f 1f 3f 1f /i","origin","rotation","scale","instance_id","instance_selected")],ibo,index_element_size=4)
             parts.append((mat,ibo,vao,len(indices)//3))
         radius=self.radius(m)
         self.meshes[key]=(m,vbo,parts,radius);return vbo,parts,radius
@@ -231,26 +239,49 @@ class Renderer:
         fbo.clear(0,0,0,0,depth=1.)
         view=basis(camera,w,h,settings);eye,right,up,back,tx,ty=view;p=self.program
         for key,value in {"eye":eye,"rightv":right,"upv":up,"backv":back,"projection":(1/tx,1/ty),"nearp":settings.near,"farp":settings.far,"sun":settings.light}.items():p[key].value=value
-        self.ids={};stats={"objects":len(scene.instances),"visible":0,"culled":0,"triangles":0,"draw_calls":0,"lod_counts":[0]*4}
-        for index,i in enumerate(scene.instances,1):
-            base=scene.assets[i.asset];options=[base,*variants(scene,i.asset)]
-            center=(i.x,i.y,i.z);distance=length(tuple(center[k]-eye[k] for k in range(3)))
+        from .spatial import Entry,build,query
+        key=(scene.instances,tuple(sorted((k,id(m)) for k,m in scene.assets.items())))
+        if self.spatial_key!=key:
+            entries=[]
+            for index,i in enumerate(scene.instances,1):
+                options=[scene.assets[i.asset],*variants(scene,i.asset)]
+                radius=max(self.radius(m) for m in options if m is not None)*i.scale
+                entries.append(Entry(index,i,(i.x,i.y,i.z),radius))
+            self.spatial_entries=tuple(entries);self.spatial_root=build(entries);self.spatial_key=key
+        pred=lambda c,r:visible(c,r,view,settings)
+        if settings.cull and settings.hierarchy:
+            candidates,spatial_stats=query(self.spatial_root,pred)
+        elif settings.cull:
+            candidates=[e for e in self.spatial_entries if pred(e.center,e.radius)]
+            spatial_stats={"chunks_tested":0,"chunks_rejected":0,"objects_tested":len(self.spatial_entries),"objects_rejected":len(self.spatial_entries)-len(candidates)}
+        else:
+            candidates=self.spatial_entries
+            spatial_stats={"chunks_tested":0,"chunks_rejected":0,"objects_tested":0,"objects_rejected":0}
+        self.ids={};stats={"objects":len(scene.instances),"visible":len(candidates),"culled":len(scene.instances)-len(candidates),"triangles":0,"draw_calls":0,"lod_counts":[0]*4,**spatial_stats}
+        batches={}
+        for e in candidates:
+            index,i,center=e.index,e.instance,e.center
+            options=[scene.assets[i.asset],*variants(scene,i.asset)]
+            distance=length(tuple(center[k]-eye[k] for k in range(3)))
             lod=lod_index(distance,settings.lod_distances)
             while options[lod] is None:lod-=1
-            # Bound all variants, not only the selected geometry.
-            radius=max(self.radius(m) for m in options if m is not None)*i.scale
-            if settings.cull and not visible(center,radius,view,settings):
-                stats["culled"]+=1;continue
-            _,parts,_=self.mesh(options[lod]);stats["visible"]+=1;stats["lod_counts"][lod]+=1
+            mesh=options[lod];stats["lod_counts"][lod]+=1
             self.ids[index]=i.id;r=radians(i.yaw)
-            p["origin"].value=center;p["rotation"].value=(cos(r),sin(r));p["scale"].value=i.scale
-            p["object_id"].value=((index&255)/255,((index>>8)&255)/255,((index>>16)&255)/255)
-            p["selected"].value=float(i.id==selected)
+            row=(*center,cos(r),sin(r),i.scale,(index&255)/255,((index>>8)&255)/255,((index>>16)&255)/255,float(i.id==selected))
+            batch_key=id(mesh) if settings.instancing else (id(mesh),index)
+            if batch_key not in batches:batches[batch_key]=(mesh,[])
+            batches[batch_key][1].append(row)
+        stats["batches"]=len(batches)
+        for mesh,rows in batches.values():
+            raw_instances=array("f")
+            for row in rows:raw_instances.extend(row)
+            self.instance_buffer.write(raw_instances.tobytes())
+            _,parts,_=self.mesh(mesh)
             for mat,_,vao,count in parts:
                 m=materials.get(mat,default_material(mat)).validate()
                 self.texture(m.diffuse or self.white).use(0);self.texture(m.normal or self.flat).use(1);self.texture(m.specular or self.white).use(2)
                 for key,value in {"tint":m.tint,"alpha_cut":m.cutout,"normal_strength":m.normal_strength if m.normal else 0.,"normal_y":-1. if m.directx else 1.,"spec_strength":m.spec_strength,"gloss":m.gloss}.items():p[key].value=value
-                vao.render(self.gl.TRIANGLES);stats["triangles"]+=count;stats["draw_calls"]+=1
+                vao.render(self.gl.TRIANGLES,instances=len(rows));stats["triangles"]+=count*len(rows);stats["draw_calls"]+=1
         raw=a.read(alignment=1);stride=w*4
         raw=b"".join(raw[y:y+stride] for y in range((h-1)*stride,-1,-stride))
         stats["frame_ms"]=(perf_counter()-start)*1000;stats["renderer"]=self.ctx.info.get("GL_RENDERER","unknown")
@@ -268,7 +299,7 @@ class Renderer:
         if self.targets:
             for obj in reversed(self.targets):obj.release()
         self.meshes.clear();self.radii.clear();self.textures.clear();self.targets=None
-        self.program.release();self.ctx.release()
+        self.instance_buffer.release();self.program.release();self.ctx.release()
 
 def load_materials(path):
     """Explicit JSON mapping of material IDs to relative texture files/settings."""
