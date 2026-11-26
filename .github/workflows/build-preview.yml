@@ -1,0 +1,28 @@
+name: Preview builds
+on:
+  workflow_dispatch:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest discover -s tests -v
+      - run: python -m pip install build pyinstaller
+      - run: python -m build
+      - run: python -m PyInstaller --onedir --name chimster --paths . --collect-data chimster --hidden-import chimster.ui --distpath preview build_entry.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chimster-preview-${{ matrix.os }}
+          path: |
+            preview/
+            dist/

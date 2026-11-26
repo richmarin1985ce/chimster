@@ -27,3 +27,6 @@ See [OpenMW integration](docs/openmw.md). Use the desktop OpenMW bridge tab or `
 
 ## Load order and AutoPatch
 See [architecture and limitations](docs/loadorder.md). `python -m chimster loadorder profile.json --cache cache.sqlite` reads a JSON profile containing game, data_dirs (low to high priority), plugins (active order) and optional after pairs. `python -m chimster autopatch snapshot.json` produces a review-only consolidation plan from externally normalized plugin and record evidence. It does not write or deactivate plugins. Full libloot integration and native patch writing are future work.
+
+## Experimental quick-win pass
+See [quick wins](docs/quick-wins.md). Run `python -m chimster --help` for new commands: tool discovery, isolated mod ZIP installs, profiles, TES3 inventory and narrow static overrides, loose-asset audit, FOMOD metadata, Git history/branches, FFDec command previews. These are experimental; do not use with original game files or production saves. Cross-platform portable builds are proposed through CI, not yet released.
