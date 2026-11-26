@@ -49,3 +49,26 @@ class ViewportTests(unittest.TestCase):
             c,_=r.render(s,cam,192,128,m,Settings(lod_distances=(500,1000,1500)))
             self.assertNotEqual(a,c)
         finally:r.close()
+
+    @unittest.skipUnless(os.environ.get("CHIMSTER_TEST_GL"),"optional GL context")
+    def test_instancing_preserves_pixels_and_picking(self):
+        from dataclasses import replace
+        m=Mesh([(-1,0,-1),(1,0,-1),(1,0,1),(-1,0,1)],[(0,0),(1,0),(1,1),(0,1)],[((0,1,2),"quad"),((0,2,3),"quad")])
+        scene=Scene({"quad":m},[Instance("left","quad",x=-2),Instance("right","quad",x=2),Instance("offscreen","quad",x=10000)])
+        r=Renderer(backend="egl")
+        try:
+            cam=Camera(yaw=0,pitch=0,zoom=16)
+            settings=Settings()
+            a,base=r.render(scene,cam,128,128,settings=replace(settings,instancing=False,hierarchy=False),selected="left")
+            b,fast=r.render(scene,cam,128,128,settings=settings,selected="left")
+            self.assertEqual(a,b)
+            self.assertEqual(base["triangles"],fast["triangles"])
+            self.assertEqual(base["draw_calls"],2)
+            self.assertEqual(fast["draw_calls"],1)
+            self.assertEqual(r.pick(32,64),"left")
+            self.assertEqual(r.pick(96,64),"right")
+            scene.update("right",x=10000)
+            _,changed=r.render(scene,cam,128,128,settings=settings)
+            self.assertEqual(changed["visible"],1)
+            self.assertIsNone(r.pick(96,64))
+        finally:r.close()
