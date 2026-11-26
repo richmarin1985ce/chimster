@@ -9,7 +9,9 @@ from .fnv_records import scan
 from .record_schema import encode
 from .formids import FormIDs
 from .quest_editor import check_id
-KINDS=("GMST","GLOB","FACT","MISC","STAT","FLST")
+from .gameplay_records import KINDS as GAMEPLAY,encode as gameplay_encode
+from .template_records import KINDS as TEMPLATES,clone
+KINDS=("GMST","GLOB","FACT","RACE","MGEF","SPEL","ARMO","CONT","MISC","STAT","WEAP","AMMO","NPC_","LVLI","PACK","FLST","PERK","ECZN","REPU")
 def export(project,output,masters=(),allocator=None):
     p=Path(output)
     if p.suffix.lower()!=".esp" or p.exists() or p.is_symlink():raise ValueError("expected new ESP")
@@ -21,16 +23,21 @@ def export(project,output,masters=(),allocator=None):
         k=r["id"];sig=r["type"]
         if sig not in KINDS or not check_id(k) or k.casefold() in ids:raise ValueError("invalid or duplicate record ID")
         ids[k.casefold()]=b.slot|a.get(sig+"/"+k.casefold());sigs[k.casefold()]=sig
-    def link(ref):
+    def link(ref,kinds=None):
+        kinds=kinds or (set(KINDS)|{"BOOK","NOTE","ALCH","CREA","QUST","DIAL","REFR","ACHR","CELL"})
         if isinstance(ref,str):
             if ref.casefold() not in ids:raise ValueError("unknown local reference "+ref)
+            if sigs[ref.casefold()] not in kinds:raise ValueError("wrong local reference type: "+ref)
             return ids[ref.casefold()]
         # Narrow allowed base types. No opaque or deleted links.
-        return b.resolve(ref,set(KINDS)|{"BOOK","NOTE","WEAP","ARMO","AMMO","ALCH","NPC_","CREA","QUST","DIAL","REFR","ACHR","CELL"})
+        return b.resolve(ref,kinds)
+    check_list_cycles(rows)
     for r in rows:
         sig=r["type"];k=r["id"];f=r["fields"];fid=ids[k.casefold()]
         body=sub(b"EDID",ident(k))
-        if sig=="STAT":
+        if sig in TEMPLATES:
+            raw=record(sig.encode(),clone(sig,k,f,b,link),fid)
+        elif sig=="STAT":
             if set(f)!={"model","bounds"}:raise ValueError("invalid static fields")
             raw=static(fid,{"id":k,**f})
         else:
@@ -43,9 +50,8 @@ def export(project,output,masters=(),allocator=None):
             elif sig=="MISC":
                 if set(f)!={"title","model","bounds","value","weight"}:raise ValueError("invalid item")
                 body+=bounds(f["bounds"])+sub(b"FULL",cstr(f["title"]))+sub(b"MODL",asset(f["model"],".nif"))+sub(b"DATA",encode("item",{"value":f["value"],"weight":f["weight"]}))
-            elif sig=="FACT":
-                if set(f)!={"title"}:raise ValueError("invalid faction")
-                body+=sub(b"FULL",cstr(f["title"]))+sub(b"DATA",bytes(4))
+            elif sig in GAMEPLAY:
+                body+=gameplay_encode(sig,f,link)
             elif sig=="FLST":
                 if set(f)!={"entries"} or not isinstance(f["entries"],list) or len(f["entries"])>50000:raise ValueError("invalid list")
                 refs=[link(v) for v in f["entries"]]
@@ -69,6 +75,35 @@ def remove(project,key):
     rows=project["records"];key=key.casefold()
     if sum(r["id"].casefold()==key for r in rows)!=1:raise ValueError("unknown or ambiguous ID")
     for r in rows:
-        if r["type"]=="FLST" and any(isinstance(v,str) and v.casefold()==key for v in r["fields"]["entries"]):raise ValueError("record referenced by "+r["id"])
+        if r["id"].casefold()!=key and key in local_links(r):raise ValueError("record referenced by "+r["id"])
     if len(rows)==1:raise ValueError("project cannot be empty")
     return {"schema":1,"records":[r for r in rows if r["id"].casefold()!=key]}
+
+def local_links(row):
+    """Known symbolic reference fields only; external bindings are dictionaries."""
+    f=row["fields"];sig=row["type"];refs=[]
+    if sig=="FLST":refs.extend(f["entries"])
+    if sig=="LVLI":refs.extend(e["ref"] for e in f["entries"]);refs.append(f.get("global"))
+    if sig in {"CONT","NPC_"}:refs.extend(e["ref"] for e in f.get("items",[]))
+    if sig=="FACT":refs.extend(e["ref"] for e in f.get("relations",[]));refs.append(f.get("reputation"))
+    if sig=="ECZN":refs.append(f.get("owner"))
+    if sig=="AMMO":refs.append(f.get("projectile"))
+    if sig in {"PERK","SPEL"}:refs.extend(e["ref"] for e in f["effects"])
+    if sig=="NPC_":
+        refs.extend(e["ref"] for e in f.get("factions",[]));refs.extend(f.get("packages",[]))
+        refs.extend(f.get(k) for k in ("race","voice","class"))
+    return {v.casefold() for v in refs if isinstance(v,str)}
+def check_list_cycles(rows):
+    from collections import deque
+    lists={r["id"].casefold():r for r in rows if r["type"]=="LVLI"}
+    edges={k:local_links(v)&lists.keys() for k,v in lists.items()}
+    counts={k:len(v) for k,v in edges.items()};rev={k:[] for k in lists}
+    for k,v in edges.items():
+        for x in v:rev[x].append(k)
+    q=deque(k for k,n in counts.items() if n==0);seen=0
+    while q:
+        x=q.popleft();seen+=1
+        for k in rev[x]:
+            counts[k]-=1
+            if not counts[k]:q.append(k)
+    if seen!=len(lists):raise ValueError("cyclic local leveled lists")
