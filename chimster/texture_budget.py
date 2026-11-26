@@ -57,3 +57,46 @@ def enforce_plan(game,layers):
     overflow=[(k,n+1) for k,n in sorted(counts.items()) if n+1>limit]
     if overflow:raise ValueError("quadrant texture budget exceeded: "+str(overflow[:8]))
     return {"limit":limit,"quadrants":[{"cell":[x,y],"quadrant":q,"allocated":n+1,"remaining":limit-n-1} for (x,y,q),n in sorted(counts.items())]}
+
+def scan_land(path,game,max_records=2000000):
+    """Inspect LAND records from a single plugin with classic TES4 header sizes.
+    No master resolution or merged winner analysis here; FNV world-check does that."""
+    from pathlib import Path
+    import zlib
+    from .fnv_records import subs,MAX_RECORD
+    if game not in LIMITS:raise ValueError("unknown game-specific texture limit")
+    p=Path(path);hs=20 if game=="oblivion" else 24
+    total=0;lands=[]
+    with p.open("rb") as f:
+        size=p.stat().st_size
+        def read(n):
+            b=f.read(n)
+            if len(b)!=n:raise ValueError("truncated plugin")
+            return b
+        def walk(end,depth=0):
+            nonlocal total
+            if depth>64:raise ValueError("group depth")
+            while f.tell()<end:
+                off=f.tell()
+                if end-off<hs:raise ValueError("short header")
+                h=read(hs);sig,n,flags,form=struct.unpack_from("<4sIII",h)
+                total+=1
+                if total>max_records:raise ValueError("record limit")
+                if off==0 and sig!=b"TES4":raise ValueError("not TES4")
+                if sig==b"GRUP":
+                    stop=off+n
+                    if stop<off+hs or stop>end:raise ValueError("invalid group")
+                    walk(stop,depth+1);continue
+                if n>MAX_RECORD or f.tell()+n>end:raise ValueError("record exceeds bounds")
+                if sig!=b"LAND" or flags&0x20:f.seek(n,1);continue
+                body=read(n)
+                if flags&0x40000:
+                    if len(body)<4:raise ValueError("short compressed LAND")
+                    expected=struct.unpack_from("<I",body)[0]
+                    if expected>MAX_RECORD:raise ValueError("decompressed LAND exceeds limit")
+                    d=zlib.decompressobj();body=d.decompress(body[4:],expected+1)
+                    if len(body)!=expected or not d.eof or d.unused_data or d.unconsumed_tail:raise ValueError("invalid compressed LAND")
+                report=audit(subs(body),game);lands.append({"form_id":f"{form:08X}","offset":off,**report})
+        if size<hs:raise ValueError("plugin too short")
+        walk(size)
+    return {"game":game,"file":p.name,"valid":all(r["valid"] for r in lands),"land_records":len(lands),"records":lands}
