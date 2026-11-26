@@ -33,8 +33,9 @@ def invoke(trust_file,capability,payload,*,timeout=30,execute=False):
         # No project cwd or inherited API tokens by default. An approved program
         # still has the same OS permissions as the user and can access files/network.
         env={k:v for k,v in os.environ.items() if k in {"PATH","SystemRoot","WINDIR","TEMP","TMP","TMPDIR","LANG","LC_ALL"}}
-        with (p/"stdout").open("wb") as out,(p/"stderr").open("wb") as err:
-            cp=subprocess.run([str(e),str(p/"request.json"),str(p/"response.json")],cwd=d,env=env,stdin=subprocess.DEVNULL,stdout=out,stderr=err,timeout=timeout,shell=False)
+        try:
+            cp=subprocess.run([str(e),str(p/"request.json"),str(p/"response.json")],cwd=d,env=env,stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=timeout,shell=False)
+        except subprocess.TimeoutExpired as err:raise ValueError("extension timed out") from err
         if cp.returncode:raise ValueError("extension failed with exit code "+str(cp.returncode))
         response=read_json(p/"response.json",4*1024*1024)
         if response.get("api_version")!=1 or type(response.get("ok")) is not bool or set(response)-{"api_version","ok","result","error"}:raise ValueError("invalid extension response")
