@@ -14,3 +14,11 @@ class NifTests(unittest.TestCase):
             r=export_legacy(generate(Recipe(),2),p)
             self.assertEqual(r["triangles"],176)
             self.assertTrue(p.read_bytes().startswith(b"NetImmerse File Format"))
+
+    @unittest.skipUnless(os.environ.get("CHIMSTER_TEST_PYFFI"),"optional PyFFI integration")
+    def test_textured_billboard(self):
+        from chimster.nif_export import export_billboard
+        with TemporaryDirectory() as d:
+            r=export_billboard(Recipe(),Path(d)/"out",size=32,views=2)
+            self.assertEqual(r["triangles"],8)
+            self.assertTrue(Path(r["texture"]).read_bytes().startswith(b"DDS "))
