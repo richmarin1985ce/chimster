@@ -45,12 +45,21 @@ def main():
  b=l.add_parser('openmw-settings'); b.add_argument('--distance',type=float,default=32768); b.add_argument('--min-size',type=float,default=.023)
  b=l.add_parser('mge'); b.add_argument('game_copy')
  a=s.add_parser('localization-audit'); a.add_argument('source'); a.add_argument('target')
+ a=s.add_parser('flagstaff'); f=a.add_subparsers(dest='fop',required=True)
+ b=f.add_parser('fetch'); b.add_argument('recipe'); b.add_argument('dem')
+ b=f.add_parser('build'); b.add_argument('recipe'); b.add_argument('dem'); b.add_argument('output')
  n=p.parse_args()
  try:
   if n.cmd=='ui':
    from .ui import launch
    launch(); return
-  if n.cmd=='localization-audit':
+  if n.cmd=='flagstaff':
+   from .flagstaff import load_recipe,fetch_dem,read_dem,build
+   recipe=load_recipe(n.recipe)
+   if n.fop=='fetch':result=fetch_dem(recipe,n.dem)
+   else:
+    grid,metadata=read_dem(recipe,n.dem);result=build(recipe,grid,metadata,n.output)
+  elif n.cmd=='localization-audit':
    from pathlib import Path
    from .localization_audit import audit_tables
    result=audit_tables(json.loads(Path(n.source).read_text(encoding='utf-8')),json.loads(Path(n.target).read_text(encoding='utf-8')))
