@@ -31,3 +31,5 @@ Flagstaff remains a regression testbed; creative design is separate. Keep origin
 - Experimental native static placement (STAT/REFR), landscape base texture records (TXST/LTEX/BTXT), desktop terrain sculpt/paint brushes and undo/redo, FNV book and text-note writers, portable collision proxy and experimental native static box collision. Pending CI and independent game validation.
 - Oblivion Remastered separate legacy/Unreal package classification and release snapshot comparison. Fallout 76 offline client-file metadata inspection only; no backend emulation, live integration or online modification.
 - Minigame editor: portable original grid adventure, map validation, desktop editing and playable standalone browser export. Native game integrations pending; neutral feature names across the application.
+
+- Worldspace Validator: New Vegas group hierarchy, ownership and coordinates, master-relative FormID resolution and merged-load-order conflict checks. CLI/desktop, Flagstaff CI gate; pending verification. Source-versus-merge preservation, other game schemas, navmesh connectivity and external LOD chunk checking remain outstanding.
