@@ -33,3 +33,5 @@ Flagstaff remains a regression testbed; creative design is separate. Keep origin
 - Minigame editor: portable original grid adventure, map validation, desktop editing and playable standalone browser export. Native game integrations pending; neutral feature names across the application.
 
 - Worldspace Validator: New Vegas group hierarchy, ownership and coordinates, master-relative FormID resolution and merged-load-order conflict checks. CLI/desktop, Flagstaff CI gate; pending verification. Source-versus-merge preservation, other game schemas, navmesh connectivity and external LOD chunk checking remain outstanding.
+
+- Five-task follow-up: terrain-snapped static/readable placements, sparse alpha layer encoding, smooth/flatten and terrain project reopening, compound portable collision proxies, same-plugin book/note placements. Validator gate on native world output. All new changes await CI; actual game compatibility is still unverified.
