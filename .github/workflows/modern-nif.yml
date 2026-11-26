@@ -24,3 +24,6 @@ jobs:
       - run: python -m unittest discover -s tests -p test_modern_nif.py -v
         env:
           CHIMSTER_NIFBRIDGE: ${{ github.workspace }}/build/nifbridge/chimster-nifbridge
+      - run: python -m unittest discover -s tests -p test_native_flora.py -v
+        env:
+          CHIMSTER_NIFBRIDGE: ${{ github.workspace }}/build/nifbridge/chimster-nifbridge
