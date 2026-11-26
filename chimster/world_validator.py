@@ -15,7 +15,7 @@ def validate(paths,max_records=2000000,max_issues=10000):
     paths=[Path(p).resolve(strict=True) for p in paths]
     names=[plugin_name(p.name) for p in paths]
     if not names or len(set(names))!=len(names):raise ValueError("supply distinct plugins in active load order, masters first")
-    issues=[];counts=Counter();winning={};history={};reports=[];total=0;incomplete=False
+    issues=[];counts=Counter();winning={};reports=[];total=0;incomplete=False
     def issue(code,provider,offset,detail,severity="error"):
         nonlocal incomplete
         counts[severity]+=1
@@ -102,7 +102,6 @@ def validate(paths,max_records=2000000,max_issues=10000):
                                 if len(data)!=size or not d.eof or d.unused_data or d.unconsumed_tail:raise ValueError("invalid compressed record")
                             parts=list(subs(data));fields=dict(parts)
                             if kind=="CELL":
-                                if "XCLC" in fields:pass
                                 if b"XCLC" in fields:
                                     v=fields[b"XCLC"]
                                     if len(v) not in (8,12):issue("cell-coordinates",name,off,"Invalid XCLC size")
@@ -120,7 +119,7 @@ def validate(paths,max_records=2000000,max_issues=10000):
                             if kind in REFS:
                                 if b"NAME" in fields:
                                     target=val32(fields[b"NAME"],off)
-                                    if target:item["links"].append((target,None,"base-object"))
+                                    if target:item["links"].append((target,{"NPC_"} if kind=="ACHR" else {"CREA"} if kind=="ACRE" else None,"base-object"))
                                     else:issue("missing-base",name,off,"Null or invalid NAME")
                                 else:issue("missing-base",name,off,"No NAME subrecord")
                                 if kind=="REFR" and b"DATA" in fields and len(fields[b"DATA"])==24 and pt==9:
@@ -174,7 +173,7 @@ def validate(paths,max_records=2000000,max_issues=10000):
         name,off,kind=r["provider"],r["offset"],r["kind"]
         for target,types,role in r["links"]:
             t=live(target)
-            if t is None or types and t["kind"] not in types:issue("unresolved-"+role,name,off,f"{identity} -> {target}")
+            if t is None or types and t["kind"] not in types or role=="base-object" and t["kind"] in {"WRLD","CELL","LAND","NAVM","ROAD","LTEX","TXST","REFR","ACHR","ACRE"}:issue("unresolved-"+role,name,off,f"{identity} -> {target}")
         if r["world"] is not None and (not live(r["world"]) or live(r["world"])["kind"]!="WRLD"):issue("orphan-world",name,off,str(identity))
         if r["owner"] is not None:
             c=live(r["owner"])
