@@ -13,12 +13,17 @@ def main():
  b=o.add_parser('launch'); b.add_argument('profile'); b.add_argument('--executable')
  b=o.add_parser('editor'); b.add_argument('--executable')
  b=o.add_parser('reload-plan'); b.add_argument('paths',nargs='+')
+ a=s.add_parser('flora'); a.add_argument('output'); a.add_argument('--species',choices=['tree','shrub','grass'],default='tree'); a.add_argument('--seed',type=int,default=42); a.add_argument('--count',type=int,default=1); a.add_argument('--height',type=float,default=8.0); a.add_argument('--branches',type=int,default=24); a.add_argument('--leaves',type=int,default=240)
  n=p.parse_args()
  try:
   if n.cmd=='ui':
    from .ui import launch
    launch(); return
-  if n.cmd=='openmw':
+  if n.cmd=='flora':
+   from .flora import Recipe, batch
+   if not 1<=n.count<=1000: raise ValueError('count must be 1..1000')
+   result=batch([Recipe(species=n.species,seed=n.seed+i,height=n.height,radius=n.height*.0275,branches=n.branches,leaves=n.leaves) for i in range(n.count)],n.output)
+  elif n.cmd=='openmw':
    from .openmw import discover, Profile, launch_game, launch_editor, reload_plan
    if n.operation=='discover': result=discover()
    elif n.operation=='preview': result=Profile.load(n.profile).engine_args()
