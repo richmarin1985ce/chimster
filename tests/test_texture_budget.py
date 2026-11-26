@@ -17,3 +17,18 @@ class BudgetTests(unittest.TestCase):
     def test_bad_alpha(self):
         r=audit(self.parts(2)[:-1]+[(b"VTXT",struct.pack("<H2xf",289,1.))],"newvegas")
         self.assertFalse(r["valid"])
+
+    def test_classic_layout(self):
+        from tempfile import TemporaryDirectory
+        from pathlib import Path
+        from chimster.texture_budget import scan_land
+        from chimster.fnv_patch import sub
+        def rec(sig,body,form=0):return struct.pack("<4sIIII",sig,len(body),0,form,0)+body
+        with TemporaryDirectory() as d:
+            p=Path(d)/"Test.esp"
+            body=rec(b"LAND",b"".join(sub(k,v) for k,v in self.parts(10)),0x800)
+            grp=struct.pack("<4sI4sII",b"GRUP",20+len(body),b"LAND",0,0)+body
+            p.write_bytes(rec(b"TES4",b"")+grp)
+            report=scan_land(p,"oblivion")
+            self.assertEqual(report["land_records"],1)
+            self.assertFalse(report["valid"])
