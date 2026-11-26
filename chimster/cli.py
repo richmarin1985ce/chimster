@@ -75,12 +75,28 @@ def main():
  a=s.add_parser('fnv-world'); a.add_argument('heightmap'); a.add_argument('output'); a.add_argument('--spacing-m',type=float,required=True); a.add_argument('--datum-m',type=float); a.add_argument('--origin',type=int,nargs=2,default=[-4,-4]); a.add_argument('--editor-id',default='ChimsterWorld'); a.add_argument('--title',default='Chimster World'); a.add_argument('--vertical-scale',type=float,default=1)
  a.add_argument('--content')
  a=s.add_parser('collision-box'); a.add_argument('obj'); a.add_argument('output')
+ a=s.add_parser('minigame'); a.add_argument('project'); a.add_argument('output')
+ a=s.add_parser('compatibility'); c=a.add_subparsers(dest='compatop',required=True)
+ b=c.add_parser('inspect'); b.add_argument('game',choices=['oblivionremastered','fallout76']); b.add_argument('path')
+ b=c.add_parser('snapshot'); b.add_argument('game',choices=['oblivionremastered','fallout76']); b.add_argument('root'); b.add_argument('release')
+ b=c.add_parser('compare'); b.add_argument('old'); b.add_argument('new')
+ b=c.add_parser('package-layout'); b.add_argument('paths',nargs='+')
  n=p.parse_args()
  try:
   if n.cmd=='ui':
    from .ui import launch
    launch(); return
-  if n.cmd=='fnv-world':
+  if n.cmd=='minigame':
+   from .pipgames import load,export
+   result=export(load(n.project),n.output)
+  elif n.cmd=='compatibility':
+   from . import compatibility as c
+   from pathlib import Path
+   if n.compatop=='inspect':result=c.inspect(n.path,n.game)
+   elif n.compatop=='snapshot':result=c.snapshot(n.root,n.game,n.release)
+   elif n.compatop=='compare':result=c.compare(json.loads(Path(n.old).read_text(encoding='utf-8')),json.loads(Path(n.new).read_text(encoding='utf-8')))
+   else:result=c.remaster_package(n.paths)
+  elif n.cmd=='fnv-world':
    from .worldspace import Terrain
    from .fnv_world import build
    terrain=Terrain.load(n.heightmap,n.spacing_m,n.datum_m)
