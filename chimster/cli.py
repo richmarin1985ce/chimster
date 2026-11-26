@@ -82,12 +82,58 @@ def main():
  b=c.add_parser('compare'); b.add_argument('old'); b.add_argument('new')
  b=c.add_parser('package-layout'); b.add_argument('paths',nargs='+')
  a=s.add_parser('world-check'); a.add_argument('plugins',nargs='+'); a.add_argument('--strict',action='store_true')
+ a=s.add_parser('landscape-budget'); a.add_argument('game',choices=['oblivion','fallout3','newvegas']); a.add_argument('plugin')
+ a=s.add_parser('record-inspect'); a.add_argument('plugin'); a.add_argument('origin'); a.add_argument('id',type=lambda x:int(x,0))
+ a=s.add_parser('record-edit-text'); a.add_argument('plugin'); a.add_argument('output'); a.add_argument('origin'); a.add_argument('id',type=lambda x:int(x,0)); a.add_argument('field'); a.add_argument('value'); a.add_argument('hash')
+ a=s.add_parser('record-compare'); a.add_argument('old'); a.add_argument('new')
+ a=s.add_parser('building'); a.add_argument('output'); a.add_argument('--width',type=float,default=8); a.add_argument('--depth',type=float,default=6); a.add_argument('--height',type=float,default=3)
+ a=s.add_parser('terrain-tile'); a.add_argument('heights'); a.add_argument('output'); a.add_argument('--spacing-m',type=float,required=True); a.add_argument('--x',type=int,default=0); a.add_argument('--y',type=int,default=0); a.add_argument('--step',type=int,default=4)
+ a=s.add_parser('chunk-build'); a.add_argument('placements'); a.add_argument('output'); a.add_argument('--size',type=float,default=128)
+ a=s.add_parser('chunk-load'); a.add_argument('folder'); a.add_argument('x',type=float); a.add_argument('y',type=float); a.add_argument('--radius',type=int,default=1)
+ a=s.add_parser('quest-check'); a.add_argument('project')
  n=p.parse_args()
  try:
   if n.cmd=='ui':
    from .ui import launch
    launch(); return
-  if n.cmd=='world-check':
+  if n.cmd=='landscape-budget':
+   from .texture_budget import scan_land
+   result=scan_land(n.plugin,n.game)
+   print(json.dumps(result,indent=2))
+   if not result['valid']:raise SystemExit(1)
+   return
+  elif n.cmd=='record-inspect':
+   from .record_editor import inspect
+   result=inspect(n.plugin,n.origin,n.id)
+  elif n.cmd=='record-edit-text':
+   from .record_editor import edit_text
+   result=edit_text(n.plugin,n.output,n.origin,n.id,n.field,n.value,n.hash)
+  elif n.cmd=='record-compare':
+   from .plugin_compare import compare
+   result=compare(n.old,n.new)
+  elif n.cmd=='building':
+   from .architecture import Building,export
+   result=export(Building(width=n.width,depth=n.depth,height=n.height),n.output)
+  elif n.cmd=='terrain-tile':
+   from .worldspace import Terrain
+   from .terrain_tiles import tile
+   from .flora import write_obj
+   m=tile(Terrain.load(n.heights,n.spacing_m),n.x,n.y,n.step)
+   write_obj(m,n.output);result=m.stats()
+  elif n.cmd=='chunk-build':
+   from .world_chunks import build
+   from pathlib import Path
+   result=build(json.loads(Path(n.placements).read_text(encoding='utf-8')),n.output,n.size)
+  elif n.cmd=='chunk-load':
+   from .world_chunks import load
+   result=load(n.folder,n.x,n.y,n.radius)
+  elif n.cmd=='quest-check':
+   from .quest_editor import load,validate
+   result=validate(load(n.project))
+   print(json.dumps(result,indent=2))
+   if not result['valid']:raise SystemExit(1)
+   return
+  elif n.cmd=='world-check':
    from .world_validator import validate
    result=validate(n.plugins)
    print(json.dumps(result,indent=2))
