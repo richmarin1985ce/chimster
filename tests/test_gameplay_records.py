@@ -46,3 +46,10 @@ class GameplayTests(unittest.TestCase):
             value={"reputation":{"plugin":p.name,"id":result["records"]["rep"]&0xffffff},"axis":"fame","operator":"ge","value":.5}
             raw=list(subs(conditions([value],0x02000800,{0},b)))[0][1]
             self.assertEqual(struct.unpack("<B3xfIIIII",raw),(0x60,.5,574,result["records"]["rep"],1,0,0))
+
+    def test_flagstaff_example(self):
+        import json
+        p=Path(__file__).resolve().parents[1]/"examples/flagstaff/gameplay-records.json"
+        with TemporaryDirectory() as d:
+            out=Path(d)/"Gameplay.esp";export(json.loads(p.read_text()),out)
+            self.assertEqual(len(scan(out)["records"]),8)
