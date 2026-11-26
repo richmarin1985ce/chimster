@@ -52,3 +52,8 @@ See checklist-01-16-progress.md. Implemented narrow native staged record edits a
 
 ## Native compound collision
 Implemented explicit static multi-box Havok list serialization for FO3/FNV, separate component material and list material assignments, 128 game-specific material IDs, shared geometry/collision scale and native reopen validation. Original building recipes include editable material defaults. CI and independent engine behavior remain to be verified. Per-child sound/FX may be overridden by the list material; no promise of mixed-material runtime fidelity. Complex triangle/MOPP collision and other engine families pending. See compound-collision.md.
+
+## Quest and interior development
+PR15 native compound collision passed seven workflows and merged. Current branch: visual quest graph, bounded exact portable state exploration, experimental QUST/DIAL/INFO stage/objective/response/choice/condition serialization; portable room/portal/trigger/node layout and conservative visibility candidate validation. Pending CI. Native runtime stage progression, actor/faction/reputation conditions, additional game aliases/scenes, native room/portal/multibound/occlusion/trigger records and renderer portal clipping are still outstanding. See quest-dialogue-interiors.md.
+
+- Quest follow-up: explicit master-origin reference binding with validated types, NPC speaker assignment, actor/faction conditions, objective target records, GECK result-script source plans, portable trigger enter/exit and camera frustum portal filtering. CI pending; compiled scripts, native trigger/room records, recursive aperture clipping and actual engine tests remain open.
