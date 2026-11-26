@@ -18,7 +18,7 @@ class AssetQuickTests(unittest.TestCase):
             a=Path(d)/"a";b=Path(d)/"b";a.mkdir();b.mkdir()
             (a/"Tree.nif").touch();(b/"tree.nif").touch()
             rows=audit_assets(index_assets([a,b]),[{"owner":"Tree","path":"TREE.NIF"},{"owner":"Other","path":"none.nif"}])
-            self.assertEqual(rows[0]["winner"],str(b/"tree.nif"))
+            self.assertEqual(rows[0]["winner"],str((b/"tree.nif").resolve()))
             self.assertEqual(rows[1]["status"],"missing-loose-file")
     def test_fomod(self):
         with TemporaryDirectory() as d:
