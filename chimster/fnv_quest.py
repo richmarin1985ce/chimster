@@ -1,5 +1,5 @@
-"""Experimental masterless FNV quest and dialogue record fixture writer.
-No runtime quest wiring, NPC assignment, or compiled scripts."""
+"""Experimental FNV quest and dialogue record fixture writer.
+Optional verified dependencies; no compiled scripts or engine certification."""
 from pathlib import Path
 import struct,math
 from .fnv_patch import sub,record
