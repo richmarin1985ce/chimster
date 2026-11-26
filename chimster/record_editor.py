@@ -15,18 +15,22 @@ def inspect(path,origin,local):
         f.seek(r["offset"]);sig,n,flags,*_=HEADER.unpack(f.read(24));body=f.read(n)
     if hashlib.sha256(body).hexdigest()!=r["payload_sha256"]:raise ValueError("record changed")
     if flags&0x40000:return {**r,"fields":None,"status":"compressed payload; editing unsupported"}
-    return {**r,"fields":[{"tag":k.decode("ascii"),"bytes":len(v),"hex_preview":v[:64].hex()} for k,v in subs(body)]}
+    from .record_schema import fields
+    return {**r,"fields":fields(r["signature"],r["editor_id"],subs(body))}
 def edit_text(source,output,origin,local,field,value,expected_hash):
-    from .fnv_content import asset
+    if not isinstance(value,str):raise ValueError("expected text")
+    return edit_typed(source,output,origin,local,field,value,expected_hash,text_only=True)
+def edit_typed(source,output,origin,local,field,value,expected_hash,text_only=False):
+    from .record_schema import encode
     p=Path(source).resolve(strict=True);out=Path(output)
     if p.name!=out.name or out.exists() or out.is_symlink() or p==out.resolve():raise ValueError("use new staging directory and identical plugin filename")
     if p.stat().st_size>128*1024*1024:raise ValueError("staged editor limit is 128 MiB")
     info=inspect(p,origin,local)
     if info["payload_sha256"]!=expected_hash:raise ValueError("stale record hash")
     k=field.encode("ascii")
-    if k not in TEXT_FIELDS.get(info["signature"],set()) or info["flags"]&0x40020:raise ValueError("unsupported field or record flags")
-    if not isinstance(value,str) or "\0" in value:raise ValueError("invalid text")
-    v=asset(value,".nif") if k==b"MODL" else value.encode("cp1252")+b"\0"
+    matches=[f for f in info.get("fields") or [] if f["tag"]==field and f["writable"]]
+    if len(matches)!=1 or info["flags"]&0x40020 or text_only and matches[0]["type"] not in {"text","model"}:raise ValueError("unsupported field or record flags")
+    v=encode(matches[0]["type"],value)
     raw=p.read_bytes();source_hash=hashlib.sha256(raw).hexdigest();target=info["offset"];parents=[]
     def rebuild(start,end,depth=0):
         if depth>64:raise ValueError("group depth")
@@ -71,6 +75,7 @@ def edit_text(source,output,origin,local,field,value,expected_hash):
         key=(info["origin"],info["local_id"],info["signature"])
         if len(a)!=len(original["records"]) or len(b)!=len(after["records"]) or set(a)!=set(b) or any(a[k]!=b[k] for k in a if k!=key) or after["masters"]!=original["masters"]:raise ValueError("unexpected record changes")
         new=inspect(out,origin,local)
+        if not any(f["tag"]==field and f["writable"] for f in new["fields"]):raise ValueError("edited field failed schema check")
         return {"output":str(out),"old_hash":expected_hash,"new_hash":new["payload_sha256"],"untouched_records":len(a)-1,"status":"staged same-name copy; verify in xEdit/game"}
     except Exception:
         out.unlink();raise
