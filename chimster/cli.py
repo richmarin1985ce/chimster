@@ -62,12 +62,23 @@ def main():
  b=w.add_parser('search'); b.add_argument('query')
  b=w.add_parser('read'); b.add_argument('page')
  b=w.add_parser('ask'); b.add_argument('model'); b.add_argument('game',choices=PROFILES); b.add_argument('query')
+ a=s.add_parser('modern-nif'); a.add_argument('game',choices=['fallout3','newvegas','skyrim','skyrimse','skyrimvr','fallout4','fallout4vr']); a.add_argument('obj'); a.add_argument('output'); a.add_argument('helper'); a.add_argument('--materials'); a.add_argument('--scale',type=float,default=1)
+ a=s.add_parser('scene-demo'); a.add_argument('output')
  n=p.parse_args()
  try:
   if n.cmd=='ui':
    from .ui import launch
    launch(); return
-  if n.cmd=='wiki':
+  if n.cmd=='modern-nif':
+   from .modern_nif import export
+   from .scene import load_obj
+   from pathlib import Path
+   mats=json.loads(Path(n.materials).read_text(encoding='utf-8')) if n.materials else None
+   result=export(load_obj(n.obj),n.game,n.output,n.helper,mats,n.scale)
+  elif n.cmd=='scene-demo':
+   from .scene import demo_scene
+   scene=demo_scene();scene.save(n.output);result={'output':n.output,'instances':len(scene.instances)}
+  elif n.cmd=='wiki':
    from .wiki import Wiki
    with Wiki() as wiki:
     if n.wikiop=='list':result=wiki.pages()
