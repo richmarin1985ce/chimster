@@ -74,26 +74,37 @@ class Project:
         atomic_json(self.meta/"revisions"/f"{n}.json",m);atomic_json(self.head,m)
         return m
     def add(self,key,kind,source,expected,replace=False):
-        identifier(key)
-        if kind not in KINDS:raise ValueError("unknown artifact kind")
-        p=Path(source)
-        if p.is_symlink() or not p.is_file():raise ValueError("regular source file required")
+        return self.batch([{"op":"add","id":key,"kind":kind,"source":source,"replace":replace}],expected)
+    def batch(self,changes,expected):
+        """One revision for multiple imported artifacts and removals.
+        Objects left by an interrupted transaction are inert, never referenced."""
+        if not isinstance(changes,list) or not 1<=len(changes)<=1000:raise ValueError("invalid transaction size")
         with self.lock():
             m=self.read()
             if m["revision"]!=expected:raise ValueError("stale project revision")
-            if key in m["artifacts"] and not replace:raise ValueError("artifact exists; explicit replace required")
-            if any(k.casefold()==key.casefold() and k!=key for k in m["artifacts"]):raise ValueError("case-insensitive ID collision")
-            fd,name=tempfile.mkstemp(prefix=".object-",dir=self.meta/"objects");os.close(fd);tmp=Path(name)
-            try:
-                shutil.copyfile(p,tmp);h=digest(tmp);size=tmp.stat().st_size
-                dest=self.meta/"objects"/h
-                if dest.is_symlink():raise ValueError("unsafe object")
-                if dest.exists():
-                    if not dest.is_file() or digest(dest)!=h:raise ValueError("corrupt object")
-                else:os.replace(tmp,dest)
-                m["artifacts"][key]={"kind":kind,"filename":p.name,"size":size,"sha256":h}
-                return self.commit(m,expected)
-            finally:tmp.unlink(missing_ok=True)
+            seen=set()
+            for c in changes:
+                key=identifier(c["id"])
+                if key.casefold() in seen:raise ValueError("duplicate transaction ID")
+                seen.add(key.casefold())
+                if c.get("op")=="remove":
+                    if set(c)!={"op","id"} or key not in m["artifacts"]:raise ValueError("invalid removal")
+                    del m["artifacts"][key];continue
+                if c.get("op")!="add" or set(c)-{"op","id","kind","source","replace"} or c["kind"] not in KINDS or type(c.get("replace",False)) is not bool:raise ValueError("invalid import")
+                if key in m["artifacts"] and not c.get("replace",False):raise ValueError("explicit replace required")
+                if any(k.casefold()==key.casefold() and k!=key for k in m["artifacts"]):raise ValueError("case-insensitive ID collision")
+                p=Path(c["source"])
+                if p.is_symlink() or not p.is_file():raise ValueError("regular source file required")
+                fd,name=tempfile.mkstemp(prefix=".object-",dir=self.meta/"objects");os.close(fd);tmp=Path(name)
+                try:
+                    shutil.copyfile(p,tmp);h=digest(tmp);size=tmp.stat().st_size;dest=self.meta/"objects"/h
+                    if dest.is_symlink():raise ValueError("unsafe object")
+                    if dest.exists():
+                        if not dest.is_file() or digest(dest)!=h:raise ValueError("corrupt object")
+                    else:os.replace(tmp,dest)
+                    m["artifacts"][key]={"kind":c["kind"],"filename":p.name,"size":size,"sha256":h}
+                finally:tmp.unlink(missing_ok=True)
+            return self.commit(m,expected)
     def object(self,key,verify=True):
         a=self.read()["artifacts"][identifier(key)];p=self.meta/"objects"/a["sha256"]
         if p.is_symlink() or not p.is_file() or p.stat().st_size!=a["size"] or verify and digest(p)!=a["sha256"]:raise ValueError("missing/corrupt artifact")
