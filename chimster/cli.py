@@ -73,7 +73,7 @@ def main():
  c=b.add_parser('native'); c.add_argument('project'); c.add_argument('output'); c.add_argument('--model'); c.add_argument('--skill',type=int,default=-1); c.add_argument('--untakeable',action='store_true')
  a=s.add_parser('render-benchmark'); a.add_argument('--count',type=int,default=2500); a.add_argument('--backend',default='egl'); a.add_argument('--frames',type=int,default=5)
  a=s.add_parser('fnv-world'); a.add_argument('heightmap'); a.add_argument('output'); a.add_argument('--spacing-m',type=float,required=True); a.add_argument('--datum-m',type=float); a.add_argument('--origin',type=int,nargs=2,default=[-4,-4]); a.add_argument('--editor-id',default='ChimsterWorld'); a.add_argument('--title',default='Chimster World'); a.add_argument('--vertical-scale',type=float,default=1)
- a.add_argument('--content')
+ a.add_argument('--content'); a.add_argument('--ledger-in'); a.add_argument('--ledger-out')
  a=s.add_parser('collision-box'); a.add_argument('obj'); a.add_argument('output'); a.add_argument('--compound',action='store_true')
  a=s.add_parser('minigame'); a.add_argument('project'); a.add_argument('output')
  a=s.add_parser('compatibility'); c=a.add_subparsers(dest='compatop',required=True)
@@ -93,9 +93,12 @@ def main():
  a=s.add_parser('quest-check'); a.add_argument('project')
  a=s.add_parser('script-check'); a.add_argument('path')
  a=s.add_parser('quest-states'); a.add_argument('project'); a.add_argument('--max-states',type=int,default=100000)
- a=s.add_parser('quest-native'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--master',action='append',default=[])
+ a=s.add_parser('quest-native'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--master',action='append',default=[]); a.add_argument('--ledger-in'); a.add_argument('--ledger-out')
  a=s.add_parser('quest-scripts'); a.add_argument('project'); a.add_argument('output')
  a=s.add_parser('interior-check'); a.add_argument('project'); a.add_argument('--room'); a.add_argument('--closed',action='append',default=[])
+ a=s.add_parser('record-edit'); a.add_argument('plugin'); a.add_argument('output'); a.add_argument('origin'); a.add_argument('id',type=lambda x:int(x,0)); a.add_argument('field'); a.add_argument('value_json'); a.add_argument('hash')
+ a=s.add_parser('record-build'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--master',action='append',default=[]); a.add_argument('--ledger-in'); a.add_argument('--ledger-out')
+ a=s.add_parser('master-reorder'); a.add_argument('source'); a.add_argument('output'); a.add_argument('masters',nargs='+')
  n=p.parse_args()
  try:
   if n.cmd=='ui':
@@ -111,7 +114,10 @@ def main():
   elif n.cmd=='quest-native':
    from .quest_editor import load
    from .fnv_quest import export
-   result=export(load(n.project),n.output,n.master)
+   from .formids import staged_build
+   spec=load(n.project)
+   if n.ledger_in and not n.ledger_out:raise ValueError('previous ledger requires output ledger')
+   result=staged_build(lambda ids:export(spec,n.output,n.master,ids),n.output,n.ledger_out,n.ledger_in) if n.ledger_out else export(spec,n.output,n.master)
   elif n.cmd=='quest-scripts':
    from .quest_editor import load
    from .quest_scripts import export
@@ -139,6 +145,19 @@ def main():
   elif n.cmd=='record-inspect':
    from .record_editor import inspect
    result=inspect(n.plugin,n.origin,n.id)
+  elif n.cmd=='record-edit':
+   from .record_editor import edit_typed
+   result=edit_typed(n.plugin,n.output,n.origin,n.id,n.field,json.loads(n.value_json),n.hash)
+  elif n.cmd=='record-build':
+   from .record_project import export
+   from .quest_editor import load
+   from .formids import staged_build
+   spec=load(n.project)
+   if n.ledger_in and not n.ledger_out:raise ValueError('previous ledger requires output ledger')
+   result=staged_build(lambda ids:export(spec,n.output,n.master,ids),n.output,n.ledger_out,n.ledger_in) if n.ledger_out else export(spec,n.output,n.master)
+  elif n.cmd=='master-reorder':
+   from .master_remap import reorder
+   result=reorder(n.source,n.output,n.masters)
   elif n.cmd=='record-edit-text':
    from .record_editor import edit_text
    result=edit_text(n.plugin,n.output,n.origin,n.id,n.field,n.value,n.hash)
@@ -189,7 +208,10 @@ def main():
    terrain=Terrain.load(n.heightmap,n.spacing_m,n.datum_m)
    from pathlib import Path
    content=json.loads(Path(n.content).read_text(encoding='utf-8')) if n.content else None
-   result=build(terrain,n.output,n.editor_id,n.title,tuple(n.origin),n.vertical_scale,content)
+   from .formids import staged_build
+   if n.ledger_in and not n.ledger_out:raise ValueError('previous ledger requires output ledger')
+   args=(terrain,n.output,n.editor_id,n.title,tuple(n.origin),n.vertical_scale,content)
+   result=staged_build(lambda ids:build(*args,allocator=ids),n.output,n.ledger_out,n.ledger_in) if n.ledger_out else build(*args)
   elif n.cmd=='collision-box':
    from .collision import export_box,export_compound
    from .scene import load_obj
