@@ -29,4 +29,26 @@ def launch():
  def propose():
   try: show(po,plan(game.get(),entry.get()))
   except ValueError as e: messagebox.showerror('Planning failed',str(e))
- ttk.Button(bar,text='Create proposal',command=propose).pack(side='left'); root.mainloop()
+ ttk.Button(bar,text='Create proposal',command=propose).pack(side='left')
+ f=tab('OpenMW bridge'); ttk.Label(f,text='Use installed OpenMW tools. Editor uses its existing profile.').pack(anchor='w')
+ bar=ttk.Frame(f); bar.pack(fill='x'); oo=output(f)
+ from .openmw import discover, Profile, launch_game, launch_editor
+ def choose_profile(run=False):
+  file=filedialog.askopenfilename(filetypes=[('OpenMW profile JSON','*.json')])
+  if not file: return
+  try:
+   profile=Profile.load(file)
+   args=profile.engine_args()
+   if run and messagebox.askyesno('Launch OpenMW','Launch with the selected test workspace and load order?'):
+    show(oo,{'pid':launch_game(profile).pid,'arguments':args})
+   else: show(oo,{'arguments':args})
+  except (OSError,ValueError,KeyError,TypeError) as e: messagebox.showerror('OpenMW profile error',str(e))
+ def editor():
+  if not messagebox.askyesno('OpenMW-CS','Editor uses its existing configuration. Confirm that its data-local directory is your intended workspace. Continue?'): return
+  try: show(oo,{'pid':launch_editor().pid,'profile':'installed editor default'})
+  except (OSError,ValueError) as e: messagebox.showerror('Editor launch failed',str(e))
+ ttk.Button(bar,text='Detect tools',command=lambda:show(oo,discover())).pack(side='left')
+ ttk.Button(bar,text='Preview profile',command=choose_profile).pack(side='left')
+ ttk.Button(bar,text='Launch game',command=lambda:choose_profile(True)).pack(side='left')
+ ttk.Button(bar,text='Launch editor',command=editor).pack(side='left')
+ root.mainloop()
