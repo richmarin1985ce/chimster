@@ -134,10 +134,11 @@ def build_tree(recipe,output,size=128,views=2):
     p=out/"tree_lod3.obj"
     lines=p.read_text(encoding="utf-8").splitlines()
     p.write_text("\n".join(f"vt {line.split()[1]} {1-float(line.split()[2]):.7f}" if line.startswith("vt ") else line for line in lines)+"\n",encoding="utf-8")
-    with p.open("a",encoding="utf-8"):pass
     # Attach an MTL so the intermediate billboard can be previewed in OBJ viewers.
     p.write_text("mtllib tree_atlas.mtl\n"+p.read_text(encoding="utf-8"),encoding="utf-8")
     (out/"tree_atlas.mtl").write_text("newmtl tree_atlas__cutout\nKd 1 1 1\nmap_Kd tree_atlas.png\nmap_d tree_atlas.png\n",encoding="utf-8")
-    report={"recipe":vars(recipe),"lods":stats+[validate_mesh(proxy)],"atlas_size":side,"atlas_layout":layout,"status":"intermediate OBJ/PNG; flat color bake; no game-native LOD files"}
+    from .lod_assets import write_dds
+    write_dds(out/"tree_atlas.dds",side,side,rgba)
+    report={"recipe":vars(recipe),"lods":stats+[validate_mesh(proxy)],"atlas_size":side,"atlas_layout":layout,"status":"intermediate OBJ/PNG/uncompressed DDS; flat color bake; no game-native LOD files"}
     (out/"manifest.json").write_text(json.dumps(report,indent=2)+"\n",encoding="utf-8")
     return report
