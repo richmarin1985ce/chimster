@@ -15,6 +15,9 @@ def launch():
   t=tk.Text(frame,wrap='word',bg='#1c2229',fg='#d6dce0',insertbackground='white'); t.pack(fill='both',expand=True,pady=8); return t
  def show(t,obj):
   t.delete('1.0','end'); t.insert('1.0',json.dumps(obj,indent=2,ensure_ascii=False))
+ f=tab('Project')
+ from .project_ui import mount as mount_project
+ mount_project(f,game)
  f=tab('Tool registry'); bar=ttk.Frame(f); bar.pack(fill='x'); out=output(f)
  def refresh(): show(out,[x for x in catalog() if '*' in x['games'] or game.get() in x['games']])
  ttk.Button(bar,text='Refresh for selected game',command=refresh).pack(side='left'); game.trace_add('write',lambda *_:refresh()); refresh()
