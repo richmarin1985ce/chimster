@@ -9,3 +9,15 @@ Game-specific record adapters; isolated workspaces; semantic version control; fr
 No third-party executables, assets or code are bundled by default. Evaluate OpenMW/OpenMW-CS (GPLv3) for reuse, and JPEXS (GPLv3+, library LGPLv3+) for UI editing. Original Chimster code is MIT licensed. Combined derivative distributions incorporating GPL-covered code must comply with the applicable GPL; separately installed tools retain their licenses. See LICENSE and docs/licensing.md. Proprietary tools remain separately installed.
 
 See docs/roadmap.md for scope and source references. This is early development, not a complete Creation Kit replacement.
+
+## Run the prototype
+
+```sh
+git clone https://github.com/richmarin1985ce/chimster.git
+cd chimster
+python -m unittest discover -s tests -v
+python -m chimster tools --game openmw
+python -m chimster ui
+```
+
+The desktop shell requires Tkinter. The catalog contains 61 tool entries; cataloging is not integration. If Git is unavailable due to DNS or sandbox restrictions, use an authorized GitHub API client to read and commit files, or download a source ZIP on a network-enabled machine. Do not disable TLS or hard-code GitHub IP addresses.
