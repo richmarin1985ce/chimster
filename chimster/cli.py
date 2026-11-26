@@ -64,12 +64,17 @@ def main():
  b=w.add_parser('ask'); b.add_argument('model'); b.add_argument('game',choices=PROFILES); b.add_argument('query')
  a=s.add_parser('modern-nif'); a.add_argument('game',choices=['fallout3','newvegas','skyrim','skyrimse','skyrimvr','fallout4','fallout4vr']); a.add_argument('obj'); a.add_argument('output'); a.add_argument('helper'); a.add_argument('--materials'); a.add_argument('--scale',type=float,default=1)
  a=s.add_parser('scene-demo'); a.add_argument('output')
+ a=s.add_parser('native-flora'); a.add_argument('game',choices=['fallout3','newvegas','skyrim','skyrimse','skyrimvr','fallout4','fallout4vr']); a.add_argument('output'); a.add_argument('helper'); a.add_argument('--seed',type=int,default=42); a.add_argument('--scale',type=float,default=1); a.add_argument('--size',type=int,default=64)
  n=p.parse_args()
  try:
   if n.cmd=='ui':
    from .ui import launch
    launch(); return
-  if n.cmd=='modern-nif':
+  if n.cmd=='native-flora':
+   from .native_flora import build_native_flora
+   from .flora import Recipe
+   result=build_native_flora(Recipe(seed=n.seed),n.game,n.output,n.helper,n.scale,n.size)
+  elif n.cmd=='modern-nif':
    from .modern_nif import export
    from .scene import load_obj
    from pathlib import Path
