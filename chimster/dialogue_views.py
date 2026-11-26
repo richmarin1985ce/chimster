@@ -44,7 +44,7 @@ def inspect(root):
         points=[vec(p.text,2) for p in e.findall("./Points/Point")]
         links.append({"id":id,"origin":a.get("Id"),"destination":b.get("Id"),"points":points})
     return {"version":12,"nodes":list(nodes.values()),"links":links,"record_form_ids":sorted(forms),"scope":"editor layout metadata; not dialogue runtime records"}
-def remap(source,output,mapping,strict=True):
+def remap(source,output,mapping,strict=True,positions=None):
     """Exact eight-digit FormID mapping in record tooltips and the view filename.
     Preserve node IDs, bounds, links, resources and all unrecognized XML fields."""
     p=Path(source);q=Path(output);root=parse(p);before=inspect(root)
@@ -65,8 +65,9 @@ def remap(source,output,mapping,strict=True):
         if t is not None and t.text:
             hit=HEX.match(t.text)
             if hit:t.text=m.get(hit.group(1).upper(),hit.group(1))+t.text[8:]
+    if positions is not None:move_nodes(root,positions)
     after=inspect(root)
-    if [(n["id"],n["bounds"]) for n in before["nodes"]]!=[(n["id"],n["bounds"]) for n in after["nodes"]] or before["links"]!=after["links"]:raise ValueError("layout changed unexpectedly")
+    if positions is None and ([(n["id"],n["bounds"]) for n in before["nodes"]]!=[(n["id"],n["bounds"]) for n in after["nodes"]] or before["links"]!=after["links"]):raise ValueError("layout changed unexpectedly")
     with q.open("xb") as f:ET.ElementTree(root).write(f,encoding="utf-8",xml_declaration=False)
     try:inspect(parse(q))
     except Exception:q.unlink();raise
@@ -77,3 +78,31 @@ def slot_mapping(path,old,new):
     p=Path(path);report=inspect(parse(p));ids=set(report["record_form_ids"])|{p.stem.upper()}
     if any(not re.fullmatch(r"[0-9A-F]{8}",v) or int(v[:2],16)>=254 for v in ids):raise ValueError("unsupported light or temporary ID")
     return {v:f"{new:02X}"+v[2:] if int(v[:2],16)==old else v for v in ids}
+
+def move_nodes(root,positions):
+    """Move existing topic/branch nodes by diagram ID, keeping link endpoints attached.
+    Interior link points receive interpolated endpoint displacement; CK can reroute.
+    Branch containers are not automatically resized."""
+    before=inspect(root);known={n["id"]:n for n in before["nodes"]}
+    if not isinstance(positions,dict) or not set(positions)<=known.keys():raise ValueError("unknown node position")
+    delta={}
+    for e in root.findall("./Nodes/Node"):
+        id=e.get("Id");b=known[id]["bounds"]
+        v=positions.get(id,b[:2])
+        if not isinstance(v,(list,tuple)) or len(v)!=2 or any(type(x) not in (int,float) or not math.isfinite(x) or abs(x)>1e7 for x in v):raise ValueError("invalid node position")
+        delta[id]=(v[0]-b[0],v[1]-b[1]);e.find("Bounds").text=fmt([*v,*b[2:]])
+    for e in root.findall("./Links/Link"):
+        a=delta[e.find("Origin").get("Id")];b=delta[e.find("Destination").get("Id")]
+        points=e.findall("./Points/Point");n=len(points)
+        if n<2:raise ValueError("unsupported link with fewer than two control points")
+        new=[]
+        for i,p in enumerate(points):
+            t=i/(n-1);x,y=vec(p.text,2);v=[x+a[0]*(1-t)+b[0]*t,y+a[1]*(1-t)+b[1]*t]
+            p.text=fmt(v);new.append(v)
+        lo=[min(v[i] for v in new) for i in (0,1)];hi=[max(v[i] for v in new) for i in (0,1)]
+        e.find("Bounds").text=fmt([*lo,hi[0]-lo[0],hi[1]-lo[1]])
+    allbounds=[vec(e.findtext("Bounds"),4) for e in root.findall("./Nodes/Node")]
+    lo=[min(b[i] for b in allbounds)-30 for i in (0,1)];hi=[max(b[i]+b[i+2] for b in allbounds)+30 for i in (0,1)]
+    minimum=root.find("./Properties/MinBounds")
+    if minimum is not None:minimum.text=fmt([*lo,hi[0]-lo[0],hi[1]-lo[1]])
+    inspect(root)
