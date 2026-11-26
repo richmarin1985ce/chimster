@@ -65,12 +65,25 @@ def main():
  a=s.add_parser('modern-nif'); a.add_argument('game',choices=['fallout3','newvegas','skyrim','skyrimse','skyrimvr','fallout4','fallout4vr']); a.add_argument('obj'); a.add_argument('output'); a.add_argument('helper'); a.add_argument('--materials'); a.add_argument('--scale',type=float,default=1)
  a=s.add_parser('scene-demo'); a.add_argument('output')
  a=s.add_parser('native-flora'); a.add_argument('game',choices=['fallout3','newvegas','skyrim','skyrimse','skyrimvr','fallout4','fallout4vr']); a.add_argument('output'); a.add_argument('helper'); a.add_argument('--seed',type=int,default=42); a.add_argument('--scale',type=float,default=1); a.add_argument('--size',type=int,default=64)
+ a=s.add_parser('render-preview'); a.add_argument('output'); a.add_argument('--scene'); a.add_argument('--materials'); a.add_argument('--backend'); a.add_argument('--width',type=int,default=960); a.add_argument('--height',type=int,default=540); a.add_argument('--zoom',type=float,default=12); a.add_argument('--lod',type=float,nargs=3,default=[22,45,90])
  n=p.parse_args()
  try:
   if n.cmd=='ui':
    from .ui import launch
    launch(); return
-  if n.cmd=='native-flora':
+  if n.cmd=='render-preview':
+   from .gpu_viewport import Renderer,Settings,make_demo,load_materials
+   from .scene import Scene,Camera
+   from .atlas import write_png
+   if n.scene:scene,materials=Scene.load(n.scene),{}
+   else:scene,materials=make_demo()
+   if n.materials:materials=load_materials(n.materials)
+   renderer=Renderer(n.backend)
+   try:
+    raw,result=renderer.render(scene,Camera(zoom=n.zoom),n.width,n.height,materials,Settings(lod_distances=tuple(n.lod)))
+    write_png(n.output,n.width,n.height,raw)
+   finally:renderer.close()
+  elif n.cmd=='native-flora':
    from .native_flora import build_native_flora
    from .flora import Recipe
    result=build_native_flora(Recipe(seed=n.seed),n.game,n.output,n.helper,n.scale,n.size)
