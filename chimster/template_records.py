@@ -60,14 +60,14 @@ def clone(sig,id,fields,bindings,link):
             if flags&0x80:raise ValueError("PC-level-mult template requires explicit conversion")
             struct.pack_into("<h",acbs,8,integer(fields["level"],1,32767));replacements[b"ACBS"]=bytes(acbs)
         if "health" in fields or "special" in fields:
-            data=bytearray(one(b"DATA"))
-            if len(data)<11:raise ValueError("unsupported NPC DATA")
-            if "health" in fields:struct.pack_into("<i",data,0,integer(fields["health"],1,2**31-1))
+            stats=bytearray(one(b"DATA"))
+            if len(stats)<11:raise ValueError("unsupported NPC DATA")
+            if "health" in fields:struct.pack_into("<i",stats,0,integer(fields["health"],1,2**31-1))
             if "special" in fields:
                 vals=fields["special"]
                 if not isinstance(vals,list) or len(vals)!=7:raise ValueError("expected seven SPECIAL values")
-                data[4:11]=bytes(integer(v,1,10) for v in vals)
-            replacements[b"DATA"]=bytes(data)
+                stats[4:11]=bytes(integer(v,1,10) for v in vals)
+            replacements[b"DATA"]=bytes(stats)
         for key,tag,kinds in (("race",b"RNAM",{"RACE"}),("voice",b"VTCK",{"VTYP"}),("class",b"CNAM",{"CLAS"})):
             if key in fields:one(tag);replacements[tag]=u32(link(fields[key],kinds))
         if "factions" in fields:
@@ -76,21 +76,21 @@ def clone(sig,id,fields,bindings,link):
                 check(v,{"ref","rank"});fid=link(v["ref"],{"FACT"})
                 if fid in seen:raise ValueError("duplicate faction")
                 seen.add(fid);out.append((b"SNAM",struct.pack("<IB3x",fid,integer(v["rank"],0,127))))
-            collections[b"SNAM"]=(out,b"VTCK")
+            collections[b"SNAM"]=(out,b"INAM" if any(k==b"INAM" for k,v in parts) else b"VTCK")
         if "items" in fields:
-            collections[b"CNTO"]=(list(subs(inventory(fields["items"],link))),b"AIDT")
+            collections[b"CNTO"]=(list(subs(inventory(fields["items"],link))),next((k for k,v in parts if k in (b"AIDT",b"PKID",b"CNAM")),b"CNAM"))
             if any(k==b"COED" for k,v in parts):raise ValueError("template has item ownership/condition data; explicit handling required")
         if "packages" in fields:
             collections[b"PKID"]=([(b"PKID",u32(link(v,{"PACK"}))) for v in rows(fields["packages"])],b"CNAM")
     if sig in {"WEAP","ARMO"}:
-        data=bytearray(one(b"DATA"));expected=15 if sig=="WEAP" else 12
-        if len(data)!=expected:raise ValueError("unsupported equipment DATA")
+        stats=bytearray(one(b"DATA"));expected=15 if sig=="WEAP" else 12
+        if len(stats)!=expected:raise ValueError("unsupported equipment DATA")
         for key,fmt,off,lo,hi in (("value","i",0,0,2**31-1),("health","i",4,1,2**31-1),("weight","f",8,0,1000)):
-            if key in fields:struct.pack_into("<"+fmt,data,off,number(fields[key],lo,hi) if fmt=="f" else integer(fields[key],lo,hi))
+            if key in fields:struct.pack_into("<"+fmt,stats,off,number(fields[key],lo,hi) if fmt=="f" else integer(fields[key],lo,hi))
         if sig=="WEAP":
-            if "damage" in fields:struct.pack_into("<h",data,12,integer(fields["damage"],0,32767))
-            if "clip_size" in fields:struct.pack_into("<B",data,14,integer(fields["clip_size"],0,255))
-        replacements[b"DATA"]=bytes(data)
+            if "damage" in fields:struct.pack_into("<h",stats,12,integer(fields["damage"],0,32767))
+            if "clip_size" in fields:struct.pack_into("<B",stats,14,integer(fields["clip_size"],0,255))
+        replacements[b"DATA"]=bytes(stats)
         if "damage_threshold" in fields:
             d=bytearray(one(b"DNAM"))
             if len(d)!=12:raise ValueError("unsupported armor DNAM")
