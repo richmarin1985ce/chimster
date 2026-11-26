@@ -42,12 +42,17 @@ def main():
  b=l.add_parser('tool'); b.add_argument('profile'); b.add_argument('tool',choices=['xlodgen','texgen','dyndolod']); b.add_argument('executable'); b.add_argument('--execute',action='store_true')
  b=l.add_parser('openmw-settings'); b.add_argument('--distance',type=float,default=32768); b.add_argument('--min-size',type=float,default=.023)
  b=l.add_parser('mge'); b.add_argument('game_copy')
+ a=s.add_parser('localization-audit'); a.add_argument('source'); a.add_argument('target')
  n=p.parse_args()
  try:
   if n.cmd=='ui':
    from .ui import launch
    launch(); return
-  if n.cmd=='lod':
+  if n.cmd=='localization-audit':
+   from pathlib import Path
+   from .localization_audit import audit_tables
+   result=audit_tables(json.loads(Path(n.source).read_text(encoding='utf-8')),json.loads(Path(n.target).read_text(encoding='utf-8')))
+  elif n.cmd=='lod':
    from .lod import build_tree,terrain_grid,benchmark
    from .flora import Recipe,generate,write_obj
    from .lod_tools import tool_plan,run_tool,workflow,openmw_settings,mge_plan
