@@ -9,7 +9,7 @@ class QuickCoreTests(unittest.TestCase):
     def test_tool_override(self):
         with TemporaryDirectory() as d:
             p=Path(d)/"git";p.touch()
-            self.assertEqual(next(x for x in discover_tools({"Git":str(p)}) if x["name"]=="Git")["path"],str(p))
+            self.assertEqual(next(x for x in discover_tools({"Git":str(p)}) if x["name"]=="Git")["path"],str(p.resolve()))
     def test_sdk(self):
         with TemporaryDirectory() as d:
             p=Path(d)/"manifest.json"
