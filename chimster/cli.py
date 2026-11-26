@@ -33,12 +33,63 @@ def main():
  a=s.add_parser('ffdec'); a.add_argument('mode',choices=['export','import']); a.add_argument('executable'); a.add_argument('source'); a.add_argument('output'); a.add_argument('--scripts'); a.add_argument('--execute',action='store_true')
  a=s.add_parser('git-history'); a.add_argument('root'); a.add_argument('path')
  a=s.add_parser('git-branches'); a.add_argument('root'); a.add_argument('--create')
+ a=s.add_parser('lod'); l=a.add_subparsers(dest='lop',required=True)
+ b=l.add_parser('tree'); b.add_argument('output'); b.add_argument('--seed',type=int,default=42); b.add_argument('--size',type=int,default=128); b.add_argument('--views',type=int,choices=[1,2,4],default=2)
+ b=l.add_parser('nif'); b.add_argument('output'); b.add_argument('--seed',type=int,default=42); b.add_argument('--level',type=int,choices=[0,1,2],default=2); b.add_argument('--scale',type=float,default=1)
+ b=l.add_parser('legacy-billboard'); b.add_argument('output'); b.add_argument('--seed',type=int,default=42); b.add_argument('--size',type=int,default=128); b.add_argument('--views',type=int,choices=[1,2,4],default=2); b.add_argument('--scale',type=float,default=1)
+ b=l.add_parser('terrain'); b.add_argument('heightmap'); b.add_argument('output'); b.add_argument('--step',type=int,default=2)
+ b=l.add_parser('benchmark'); b.add_argument('--count',type=int,default=10); b.add_argument('--size',type=int,default=64)
+ b=l.add_parser('compare-traces'); b.add_argument('baseline'); b.add_argument('changed')
+ b=l.add_parser('workflow'); b.add_argument('game')
+ b=l.add_parser('tool'); b.add_argument('profile'); b.add_argument('tool',choices=['xlodgen','texgen','dyndolod']); b.add_argument('executable'); b.add_argument('--execute',action='store_true')
+ b=l.add_parser('openmw-settings'); b.add_argument('--distance',type=float,default=32768); b.add_argument('--min-size',type=float,default=.023)
+ b=l.add_parser('mge'); b.add_argument('game_copy')
+ a=s.add_parser('localization-audit'); a.add_argument('source'); a.add_argument('target')
+ a=s.add_parser('flagstaff'); f=a.add_subparsers(dest='fop',required=True)
+ b=f.add_parser('fetch'); b.add_argument('recipe'); b.add_argument('dem')
+ b=f.add_parser('build'); b.add_argument('recipe'); b.add_argument('dem'); b.add_argument('output')
  n=p.parse_args()
  try:
   if n.cmd=='ui':
    from .ui import launch
    launch(); return
-  if n.cmd=='discover-tools':
+  if n.cmd=='flagstaff':
+   from .flagstaff import load_recipe,fetch_dem,read_dem,build
+   recipe=load_recipe(n.recipe)
+   if n.fop=='fetch':result=fetch_dem(recipe,n.dem)
+   else:
+    grid,metadata=read_dem(recipe,n.dem);result=build(recipe,grid,metadata,n.output)
+  elif n.cmd=='localization-audit':
+   from pathlib import Path
+   from .localization_audit import audit_tables
+   result=audit_tables(json.loads(Path(n.source).read_text(encoding='utf-8')),json.loads(Path(n.target).read_text(encoding='utf-8')))
+  elif n.cmd=='lod':
+   from .lod import build_tree,terrain_grid,benchmark
+   from .flora import Recipe,generate,write_obj
+   from .lod_tools import tool_plan,run_tool,workflow,openmw_settings,mge_plan
+   from pathlib import Path
+   if n.lop=='tree':result=build_tree(Recipe(seed=n.seed),n.output,n.size,n.views)
+   elif n.lop=='nif':
+    from .nif_export import export_legacy
+    result=export_legacy(generate(Recipe(seed=n.seed),n.level),n.output,scale=n.scale)
+   elif n.lop=='legacy-billboard':
+    from .nif_export import export_billboard
+    result=export_billboard(Recipe(seed=n.seed),n.output,n.size,n.views,n.scale)
+   elif n.lop=='terrain':
+    mesh=terrain_grid(json.loads(Path(n.heightmap).read_text(encoding='utf-8')),n.step)
+    write_obj(mesh,n.output);result=mesh.stats()
+   elif n.lop=='benchmark':result=benchmark(n.count,n.size)
+   elif n.lop=='compare-traces':
+    from .lod_benchmark import compare
+    result=compare(n.baseline,n.changed)
+   elif n.lop=='workflow':result=workflow(n.game)
+   elif n.lop=='openmw-settings':result={'settings':openmw_settings(n.distance,n.min_size)}
+   elif n.lop=='mge':result=mge_plan(n.game_copy)
+   else:
+    from .xedit import Workspace
+    ws=Workspace.load(n.profile);result=tool_plan(ws,n.tool,n.executable)
+    if n.execute:result['pid']=run_tool(ws,n.tool,n.executable).pid
+  elif n.cmd=='discover-tools':
    from .tooling import discover_tools
    result=discover_tools()
   elif n.cmd=='extension-info':
@@ -125,5 +176,5 @@ def main():
   elif n.cmd=='inspect': result=inspect_plugin(n.path,n.game)
   else: result=plan(n.game,n.request)
   print(json.dumps(result,indent=2))
- except (OSError,ValueError,KeyError,TypeError) as e: p.exit(2,f'Error: {e}\n')
+ except (OSError,ValueError,KeyError,TypeError,ImportError) as e: p.exit(2,f'Error: {e}\n')
 if __name__=='__main__': main()

@@ -1,0 +1,33 @@
+{
+  "title": "Fallout 66: Courier's Road — Flagstaff",
+  "target_game": "newvegas",
+  "worldspace_id": "ChimsterFlagstaffDemo",
+  "scope_status": "provisional demonstration; original bounds and game scale unknown",
+  "center_wgs84": {
+    "longitude": -111.6513,
+    "latitude": 35.1983
+  },
+  "extent_m": 8000,
+  "samples": 257,
+  "epsg": 32612,
+  "seed": 66,
+  "vertical_exaggeration": 1,
+  "terrain_lod_steps": [
+    1,
+    2,
+    4,
+    8
+  ],
+  "placement_stride": 4,
+  "flora_variants": 3,
+  "billboard_size": 64,
+  "design_brief": "Preserve real-world USGS terrain. Generate regional landscaping and vegetation, terrain and object LOD, and a reproducible test scene for Fallout: New Vegas. No existing mod files or proprietary game assets.",
+  "region_rules": {
+    "forest_min_elevation_m": 2100,
+    "highland_min_elevation_m": 2350,
+    "rock_min_slope_degrees": 24,
+    "forest_probability": 0.65,
+    "scrub_probability": 0.22,
+    "rock_probability": 0.08
+  }
+}
