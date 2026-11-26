@@ -1,3 +1,45 @@
+# Master checklist — production reassessment (2026-11-26)
+Current baseline: PR16 merged at 52acfe686c5d3df3198484ede92fc78f2fbfdc77; all seven workflows green. Foundation: 171 discovered, 159 passed, 12 optional skips; dedicated native NIF, public fixtures, rendering and packaging workflows passed. See https://github.com/richmarin1985ce/chimster/actions/runs/45910463223 . No retail engine test yet. Native format roundtrips are not engine certification. Names remain neutral.
+| Area | Working foundation / limited implementation | Next production milestones |
+|---|---|---|
+| 1 Core | MIT core, CLI, desktop shell, CI, portable builds, extension manifests | Project dashboard, dependency manager, signed installers and updates |
+| 2 Compatibility | Profiles, public fixtures, NIF roundtrips, Remastered package classification, FO76 read-only metadata, release snapshots | Independent format/engine validation, Arena/DF, Remastered dual asset adapters, Starfield, versioned capabilities |
+| 3 Records | Index, conflict chains, narrow TES3/FNV writers, staged text edits, revision comparison | Persistent FormIDs, typed schemas, unknown-field preservation, master remapping, visual comparison |
+| 4 Mod management | Profiles, ZIP/FOMOD subset, dependency order, loose-file overlay, patch proposals | LOOT validation, archive precedence, VFS, safe merge and save checks |
+| 5 World editor | Terrain import, sculpt/paint, native FNV world fixture, snapped placements, portable chunk storage | Continuous streaming, direct 3D brushes, roads, settlements, native interiors, persistent IDs, navigation, weather/water |
+| 6 Landscape | BTXT/ATXT/VTXT, game-specific quadrant budget reports, base paint editor | Blended brush, coverage/consolidation, boundary consistency, merge-winner audit, texture-aware LOD; classic Oblivion 9, FO3/FNV 7, writer 4 alpha + base until verified |
+| 7 Validation | Hierarchy, cell/group/record/reference checks and export gate | Source-to-merge preservation, LOD chunks, navmesh, game-specific schemas, review-only repair |
+| 8 Rendering | CPU/GL, textures, picking, instancing/BVH, LOD, portable room/portal filtering | Live chunk streaming, direct GPU surface, recursive portal clipping, occlusion, shadows/reflections, hardware benchmark |
+| 9 Mesh/assets | Flora, NIF bridge, modular rectangular buildings, portable collision recipes | Native architectural packages, modular roads/interiors, editable topology, animations/skin/materials |
+| 10 Collision/spatial | Native FO3/FNV static boxes/compound list, material IDs, room/portal/trigger/node models and trigger preview | Native room/portal/multibound/occlusion/trigger records, collision visualization, MOPP/mesh, convex decomposition, material behavior in game |
+| 11 Textures | PNG/DDS, normals/specular, atlas, cubemap, mipmaps | BC compression, alpha coverage, HDR, parallax, advanced materials |
+| 12 LOD | Flora tiers, billboards, atlas, terrain seams, culling, dirty tile planning, external tool plans | Native LOD files, texture baking, tool validation, stream integration |
+| 13 Version control | Git, hashes, record-level comparison | Semantic 3-way merge, rollback UI, LFS |
+| 14 Quest/dialogue | Portable graph, state analysis, native QUST/DIAL/INFO, actor/faction/stage conditions, objective refs, GECK script source | Compile/attach scripts, runtime stage progression, reputation, NPC integration, scenes/aliases on applicable games |
+| 15 Scripting | Fragment inventory, Papyrus lexical checks, GECK result sources, external compiler plans | Verified compile/decompile, script IDE, VMAD, GECK/OpenMW, debugging |
+| 16 Books/notes | Portable authoring/localization, native FNV BOOK/NOTE, skill flags and placement | Native markup, illustrated books, fonts, inventory/quest links, cross-game formats |
+| 17 Characters | Quest speaker references only, not NPC authoring | Native NPC records, FaceGen, appearances, stats, factions, AI packages, companions and creatures |
+| 18 Gameplay | Narrow GMST patches, skill books | Items, inventory, weapons, armor, perks, leveled lists, combat, vendors/economy |
+| 19 Audio/voice | Basic FUZ | Audio codecs, lip sync, voice profiles, local casting, batch generation, consent/license metadata |
+| 20 Localization | String codecs, translation memory, audits, book/quest IDs | Native dialogue integration, translation/terminology, encodings |
+| 21 Interface/minigames | Portable grid authoring/playtest, FFDec plan | Native holotape adapters, visual tile tools, HUD/menu/icons, GFx verification |
+| 22 Testing | Synthetic/public tests, NIF/GL roundtrips, DEM and benchmark | Retail test profile, independent xEdit/GECK, game smoke and saves, performance on low-end hardware, crash logs |
+| 23 AI | Structured advisory actions, retrieval, Ollama adapter | Actual inference, validated edit transactions, rollback, multi-step project tools |
+| 24 Wiki | Bundled searchable docs and package tests | Rich links, game-specific verified format catalog |
+| 25 Distribution | Portable builds, deterministic ZIP and manifests, FOMOD subset | Archive validation, signed installers, conditional packages, dependency manifests, publishing |
+| 26 Flagstaff | Campaign design, original cast/quests, provisional DEM, native terrain fixture, original minigame | Playable slaver-pit slice, city/road/ranch production, Legion politics, Enclave reconnaissance, endgame, full New Vegas-scale campaign |
+## Critical path
+1. Stable project FormID allocation, typed native record schema and dependency-safe edits.
+2. Integrated native interior cells, architectural assets, room/portal/trigger volumes, placed references and collision.
+3. NPC records, inventories and AI packages; quest actor bindings.
+4. Verified GECK compilation and result-script attachment, runtime quest stages, objective markers and dialogue.
+5. Native navmesh/door links; in-game vertical slice and independent xEdit/GECK inspection, saves and traversal.
+6. Blended terrain authoring, live chunk streaming, native LOD and portal visibility; hardware measurements before broad content generation.
+7. Expand remaining content editors, audio and native cross-game adapters; prioritize local original voices later.
+These priorities are proposed engineering decisions, not a promise of full compatibility. Fallout 76 remains offline, no backend emulation or online modification. No retail assets in repository. Flagstaff remains contemporary to 2281 and original characters only.
+## Historical development notes
+The entries below are retained for provenance; references to pending CI on merged PRs are historical, superseded by the baseline above.
+
 # Master development checklist — 2026-11-26
 Status key: **V** verified by a completed CI run or public-fixture build; **I** implementation exists but scope/engine testing is limited; **B** external bridge/plan, not an independently verified integration; **P** pending. A CI pass does not establish retail-game compatibility. Instancing, books and their tests passed CI; native worldspace experiments remain I until verification.
 | Area | V / I / B | Pending production milestones |
