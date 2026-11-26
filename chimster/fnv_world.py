@@ -54,7 +54,7 @@ def cstr(value):
 def cell_record(id,x,y,persistent=False):
     body=sub(b"DATA",b"\0")+sub(b"XCLC",struct.pack("<iiI",x,y,0))
     return HEADER.pack(b"CELL",len(body),0x400 if persistent else 0,id,0,15,0)+body
-def build(terrain,output,editor_id="ChimsterWorld",title="Chimster World",origin=(-4,-4),vertical_scale=1.,content=None):
+def build(terrain,output,editor_id="ChimsterWorld",title="Chimster World",origin=(-4,-4),vertical_scale=1.,content=None,allocator=None):
     terrain.validate();p=Path(output)
     if p.suffix.lower()!=".esp" or p.exists() or p.is_symlink():raise ValueError("expected new ESP")
     if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,63}",editor_id):raise ValueError("invalid editor ID")
@@ -64,7 +64,12 @@ def build(terrain,output,editor_id="ChimsterWorld",title="Chimster World",origin
     units_m=128/terrain.spacing_m
     q=tuple(tuple(round((v-terrain.datum_m)*units_m*vertical_scale/8) for v in row) for row in terrain.heights)
     error=max(abs((v-terrain.datum_m)*units_m*vertical_scale-q[y][x]*8) for y,row in enumerate(terrain.heights) for x,v in enumerate(row))
-    world,persistent=0x800,0x801;next_id=0x802;blocks={};expected={}
+    next_id=0x800
+    def alloc(key):
+        nonlocal next_id
+        if allocator is not None:return allocator.get(key)
+        v=next_id;next_id+=1;return v
+    world=alloc("WRLD/"+editor_id.casefold());persistent=alloc("CELL/"+editor_id.casefold()+"/persistent");blocks={};expected={}
     from .fnv_content import static,reference,textures,book_record
     from .books import Book
     from .world_tools import snap_placements
@@ -78,16 +83,17 @@ def build(terrain,output,editor_id="ChimsterWorld",title="Chimster World",origin
         if name.casefold() in ids:raise ValueError("duplicate editor ID")
         ids.add(name.casefold())
     for spec in content.get("statics",[]):
-        register(spec["id"]);base_ids[spec["id"]]=next_id
-        top.setdefault(b"STAT",[]).append(static(next_id,spec));next_id+=1
+        register(spec["id"]);fid=alloc("STAT/"+spec["id"].casefold());base_ids[spec["id"]]=fid
+        top.setdefault(b"STAT",[]).append(static(fid,spec))
     for spec in content.get("textures",[]):
         register(spec["id"]);register(spec["id"]+"TX")
-        tx,lt=textures(next_id,next_id+1,spec);texture_ids[spec["id"]]=next_id+1
-        top.setdefault(b"TXST",[]).append(tx);top.setdefault(b"LTEX",[]).append(lt);next_id+=2
+        tid=alloc("TXST/"+spec["id"].casefold());lid=alloc("LTEX/"+spec["id"].casefold())
+        tx,lt=textures(tid,lid,spec);texture_ids[spec["id"]]=lid
+        top.setdefault(b"TXST",[]).append(tx);top.setdefault(b"LTEX",[]).append(lt)
     for spec in content.get("books",[]):
-        b=Book(**spec["book"]).validate();register(b.editor_id);base_ids[b.editor_id]=next_id
-        sig,raw=book_record(next_id,b,spec.get("model"),spec.get("value",1),spec.get("weight",.2),skill=spec.get("skill",-1),untakeable=spec.get("untakeable",False))
-        top.setdefault(sig,[]).append(raw);next_id+=1
+        b=Book(**spec["book"]).validate();register(b.editor_id);fid=alloc(("BOOK/" if b.kind=="book" else "NOTE/")+b.editor_id.casefold());base_ids[b.editor_id]=fid
+        sig,raw=book_record(fid,b,spec.get("model"),spec.get("value",1),spec.get("weight",.2),skill=spec.get("skill",-1),untakeable=spec.get("untakeable",False))
+        top.setdefault(sig,[]).append(raw)
     paint=None
     if "paint" in content:
         paint=Paint(tuple(tuple(r) for r in content["paint"])).validate(n)
@@ -95,19 +101,21 @@ def build(terrain,output,editor_id="ChimsterWorld",title="Chimster World",origin
     if content.get("alpha_layers") and not paint:raise ValueError("alpha layers require base paint")
     alpha_layers=encode_layers(content.get("alpha_layers",[]),texture_ids,n)
     if len(content.get("placements",[]))>50000:raise ValueError("too many references")
-    for spec in snap_placements(terrain,content.get("placements",[])):
+    for i,spec in enumerate(snap_placements(terrain,content.get("placements",[]))):
         x,y,z=(spec[k] for k in ("x_m","y_m","z_m"))
         if not all(math.isfinite(v) for v in (x,y,z)):raise ValueError("invalid placement")
         gx,gy=ox*4096+x*units_m,oy*4096+y*units_m
         cx,cy=math.floor(gx/4096),math.floor(gy/4096)
         if not ox<=cx<ox+n or not oy<=cy<oy+n:raise ValueError("placement outside world")
         base=base_ids[spec["base"]];gz=(z-terrain.datum_m)*units_m*vertical_scale
-        ref=reference(next_id,base,gx,gy,gz,spec.get("yaw",0),spec.get("scale",1))
-        placed.setdefault((cx,cy),[]).append(ref);ref_expected[next_id]=base;next_id+=1
+        if allocator is not None and not isinstance(spec.get("id"),str):raise ValueError("stable placements require explicit id")
+        fid=alloc("REFR/"+str(spec.get("id",i)).casefold())
+        ref=reference(fid,base,gx,gy,gz,spec.get("yaw",0),spec.get("scale",1))
+        placed.setdefault((cx,cy),[]).append(ref);ref_expected[fid]=base
     record_count=2+sum(map(len,top.values()))+len(ref_expected);group_count=2+len(top)
     for y in range(n):
         for x in range(n):
-            cx,cy=x+ox,y+oy;cid,lid=next_id,next_id+1;next_id+=2
+            cx,cy=x+ox,y+oy;key=f"{editor_id.casefold()}/{cx}/{cy}";cid=alloc("CELL/"+key);lid=alloc("LAND/"+key)
             grid=tuple(tuple(row[x*32:x*32+33]) for row in q[y*32:y*32+33])
             body=sub(b"DATA",struct.pack("<I",3))+sub(b"VNML",normals(q,x*32,y*32))+sub(b"VHGT",encode_height(grid))+sub(b"VCLR",bytes([255])*3267)
             if paint:
@@ -128,7 +136,7 @@ def build(terrain,output,editor_id="ChimsterWorld",title="Chimster World",origin
     wrld=sub(b"EDID",cstr(editor_id))+sub(b"FULL",cstr(title))+sub(b"PNAM",b"\0\0")+sub(b"DNAM",struct.pack("<ff",0,-10000))+sub(b"ONAM",struct.pack("<fff",1,0,0))+sub(b"DATA",b"\x12")+sub(b"NAM0",struct.pack("<ff",ox,oy))+sub(b"NAM9",struct.pack("<ff",ox+n-1,oy+n-1))+sub(b"NNAM",b"\0")+sub(b"XNAM",b"\0")
     data=group(0,b"WRLD",record(b"WRLD",wrld,world)+group(1,world,children))
     data=b"".join(group(0,sig,b"".join(top[sig])) for sig in (b"TXST",b"LTEX",b"BOOK",b"STAT",b"NOTE") if sig in top)+data
-    header=record(b"TES4",sub(b"HEDR",struct.pack("<fII",1.34,record_count+group_count,next_id))+sub(b"CNAM",b"Chimster\0")+sub(b"SNAM",b"Experimental terrain fixture; not engine validated\0"))
+    header=record(b"TES4",sub(b"HEDR",struct.pack("<fII",1.34,record_count+group_count,allocator.next if allocator else next_id))+sub(b"CNAM",b"Chimster\0")+sub(b"SNAM",b"Experimental terrain fixture; not engine validated\0"))
     with p.open("xb") as f:f.write(header+data)
     try:
         check=scan(p)
