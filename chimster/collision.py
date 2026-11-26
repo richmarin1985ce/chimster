@@ -32,3 +32,39 @@ def export_box(mesh,output):
     info={"kind":"aabb","min":lo,"max":hi,"status":"portable collision proxy only; not native Havok"}
     (p/"collision.json").write_text(json.dumps(info,indent=2),encoding="utf-8")
     return info
+
+def compound_boxes(mesh):
+    """One conservative AABB per vertex-connected component, preserving empty gaps.
+    Disconnected UV seams can split components; this is not a convex decomposition."""
+    validate_mesh(mesh)
+    parent=list(range(len(mesh.vertices)))
+    def find(i):
+        while parent[i]!=i:
+            parent[i]=parent[parent[i]];i=parent[i]
+        return i
+    used=set()
+    for tri,_ in mesh.faces:
+        a,b,c=tri;used.update(tri)
+        parent[find(b)]=find(a);parent[find(c)]=find(a)
+    groups={}
+    for i in sorted(used):groups.setdefault(find(i),[]).append(mesh.vertices[i])
+    result=[]
+    for verts in groups.values():
+        lo=tuple(min(p[k] for p in verts) for k in range(3));hi=tuple(max(p[k] for p in verts) for k in range(3))
+        if any(a>=b for a,b in zip(lo,hi)):raise ValueError("flat component; supply a solid proxy mesh")
+        result.append((lo,hi))
+    return result
+
+def export_compound(mesh,output):
+    boxes=compound_boxes(mesh)
+    p=Path(output);p.mkdir(parents=True,exist_ok=False)
+    from .flora import write_obj
+    merged=Mesh()
+    for n,(lo,hi) in enumerate(boxes):
+        m=proxy(Mesh([lo,hi, (lo[0],hi[1],lo[2])],[(0,0)]*3,[((0,1,2),"proxy")]))
+        base=len(merged.vertices);merged.vertices.extend(m.vertices);merged.uv.extend(m.uv)
+        merged.faces.extend((tuple(base+j for j in t),f"collision_{n}") for t,_ in m.faces)
+    write_obj(merged,p/"collision.obj")
+    info={"kind":"compound_aabb","boxes":[{"min":lo,"max":hi} for lo,hi in boxes],"status":"portable proxy only; native compound collision not implemented"}
+    (p/"collision.json").write_text(json.dumps(info,indent=2),encoding="utf-8")
+    return info
