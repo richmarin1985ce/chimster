@@ -1,5 +1,5 @@
 # OpenGL viewport
-Original MIT viewport code, using optional ModernGL (MIT) and glcontext (MIT) packages. No OpenMW or game code reused. Install from source with python -m pip install ".[viewport]". The desktop 3D viewport has an opt-in OpenGL preview checkbox. CPU preview remains available if context initialization or rendering fails; error and renderer name are shown. The normal preview build does not bundle ModernGL yet. Requires an OpenGL 3.3 driver; Windows/macOS hardware context creation is not independently tested.
+Original MIT viewport code, using optional ModernGL (MIT) and glcontext (MIT) packages. No OpenMW or game code reused. Install from source with python -m pip install ".[viewport]". The desktop 3D viewport has an opt-in OpenGL preview checkbox. CPU preview remains available if context initialization or rendering fails; error and renderer name are shown. Preview build configuration includes ModernGL and glcontext; Linux executable smoke testing is included. Actual Windows/macOS context creation remains unverified. Requires an OpenGL 3.3 driver; Windows/macOS hardware context creation is not independently tested.
 
 ## Architecture
 - Perspective orbit camera, near/far clipping, true depth renderbuffer, per-object bounding sphere frustum rejection before mesh upload.
