@@ -102,6 +102,9 @@ def launch():
  f=tab('3D viewport')
  from .viewport import mount
  mount(f)
+ f=tab('Books & notes')
+ from .book_ui import mount as mount_books
+ mount_books(f)
  f=tab('Local wiki')
  ttk.Label(f,text='Bundled documentation — no hosting or internet required.').pack(anchor='w')
  from .wiki import Wiki
