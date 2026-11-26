@@ -8,3 +8,11 @@ Paint array is 2N x 2N for N cells per axis, south-to-north. Terrain editor tab 
 Box proxy is portable; experimental native FO3/FNV static Havok box chain uses Nifly and seven game units per Havok unit. Not suitable for hollow buildings or complex mesh collisions; independently test in game.
     python -m chimster book native book.json readable.esp --model chimster/book.nif
 Text BOOK or NOTE record, plain CP1252 text, author and pages joined by blank lines. Books need an explicit model. Journal maps to NOTE. Native layout and UI testing remain required. References: https://tes5edit.github.io/fopdoc/FalloutNV/Records/BOOK.html and adjacent NOTE, STAT, REFR, LAND, TXST and LTEX pages.
+
+## Integrated world creation
+Placements may supply snap_to_ground:true and optional height_offset_m instead of z_m. Height is sampled bilinearly from the edited terrain. Use explicit local x_m/y_m. Native world exports now run the read-only hierarchy validator and remove invalid newly generated output.
+The terrain editor includes smooth and flatten click brushes and reopening saved terrain projects. Smooth/flatten strength uses Height m clamped to 0..1; Target m controls flatten height. No interactive 3D ray brush.
+Optional alpha_layers is a list of {"cell":[0,0],"quadrant":0,"layer":0,"texture":"Stone","vertices":[[0,0.5],[288,1.0]]}. Local cell coordinates, zero-based contiguous layer indices, conservative four layers per quadrant, unique vertex positions in a 17x17 quadrant. Requires explicit base paint. ATXT/VTXT serialization is experimental; no blended paint GUI or engine test yet.
+Optional books list contains {"book":{"editor_id":"FieldNote","title":"Field Note","pages":["Text"],"kind":"note","game":"newvegas"}}. BOOK requires a supplied model path; optional value and weight. Use a matching base ID in placements. Text uses CP1252. Records are regenerated sequentially; not safe for updating existing saves or published plugins without persistent IDs.
+    python -m chimster collision-box model.obj proxy-output --compound
+Produces portable per-connected-component bounds, leaving gaps between disconnected meshes. UV seams and flat components may need author-supplied solid proxies. Native compound Havok output remains pending.
