@@ -28,3 +28,20 @@ class ModernNifTests(unittest.TestCase):
             result=export(m,"newvegas",p,os.environ["CHIMSTER_NIFBRIDGE"],scale=10,box_collision=True)
             self.assertTrue(result["box_collision"])
             self.assertTrue(p.is_file())
+
+    @unittest.skipUnless(os.environ.get("CHIMSTER_NIFBRIDGE"),"optional compiled native backend")
+    def test_native_compound_collision(self):
+        from chimster.architecture import Building,generate
+        m,boxes=generate(Building())
+        spec={"kind":"compound_aabb","list_material":"broken_concrete","boxes":boxes}
+        with TemporaryDirectory() as d:
+            for game in ("newvegas","fallout3"):
+                with self.subTest(game=game):
+                    p=Path(d)/(game+".nif")
+                    result=export(m,game,p,os.environ["CHIMSTER_NIFBRIDGE"],scale=10,compound_collision=spec)
+                    self.assertTrue(result["compound_collision"])
+                    self.assertEqual(result["collision_boxes"],8)
+                    self.assertEqual(result["collision_materials"],[9,17,0,0,0,0,0,0])
+                    self.assertEqual(result["list_material"],19)
+                    self.assertIn("warning",result)
+                    self.assertTrue(p.is_file())

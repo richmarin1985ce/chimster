@@ -41,7 +41,9 @@ def mesh_exchange(mesh,materials=None,scale=1):
         lines.extend(" ".join(map(str,t)) for t in tris)
     return "\n".join(lines)+"\n"
 
-def export(mesh,game,output,helper,materials=None,scale=1,box_collision=False):
+def export(mesh,game,output,helper,materials=None,scale=1,box_collision=False,compound_collision=None):
+    if box_collision and compound_collision is not None:raise ValueError('choose one collision mode')
+    if compound_collision is not None and game not in {'newvegas','fallout3'}:raise ValueError('compound collision is FO3/FNV only')
     if box_collision and game not in {'newvegas','fallout3'}:raise ValueError('box collision is experimental FO3/FNV only')
     if game not in GAMES:raise ValueError("unsupported modern NIF game")
     p=Path(output)
@@ -52,10 +54,18 @@ def export(mesh,game,output,helper,materials=None,scale=1,box_collision=False):
     with tempfile.TemporaryDirectory() as d:
         source=Path(d)/"mesh.cmesh";dest=Path(d)/"output.nif"
         source.write_text(data,encoding="ascii")
-        cp=subprocess.run([str(helper),game,str(source),str(dest)]+(["box"] if box_collision else []),shell=False,capture_output=True,text=True,timeout=180)
+        args=[str(helper),game,str(source),str(dest)]+(["box"] if box_collision else [])
+        if compound_collision is not None:
+            from .collision_materials import exchange
+            recipe,root_material,materials_expected=exchange(compound_collision,game,scale)
+            collision=Path(d)/"collision.txt";collision.write_text(recipe,encoding="ascii")
+            args+=["compound",str(collision)]
+        cp=subprocess.run(args,shell=False,capture_output=True,text=True,timeout=180)
         if cp.returncode:raise RuntimeError(cp.stderr[-4000:])
         report=json.loads(cp.stdout)
         if (box_collision and not report.get("box_collision")) or report["triangles"]!=len(mesh.faces) or not dest.is_file() or not dest.read_bytes().startswith(b"Gamebryo File Format"):raise ValueError("native helper output mismatch")
+        if compound_collision is not None and (not report.get("compound_collision") or report.get("collision_boxes")!=len(materials_expected) or report.get("collision_materials")!=materials_expected or report.get("list_material")!=root_material):raise ValueError("compound collision report mismatch")
         with p.open("xb") as f:
             with dest.open("rb") as src:shutil.copyfileobj(src,f)
+    if compound_collision is not None and len(set([root_material,*materials_expected]))>1:report["warning"]="Mixed material IDs preserved; list shape impact sound/FX may use parent material in game."
     return {**report,"output":str(p),"status":"native Nifly roundtrip; game runtime not verified"}

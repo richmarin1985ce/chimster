@@ -63,7 +63,7 @@ def main():
  b=w.add_parser('read'); b.add_argument('page')
  b=w.add_parser('ask'); b.add_argument('model'); b.add_argument('game',choices=PROFILES); b.add_argument('query')
  a=s.add_parser('modern-nif'); a.add_argument('game',choices=['fallout3','newvegas','skyrim','skyrimse','skyrimvr','fallout4','fallout4vr']); a.add_argument('obj'); a.add_argument('output'); a.add_argument('helper'); a.add_argument('--materials'); a.add_argument('--scale',type=float,default=1)
- a.add_argument('--box-collision',action='store_true')
+ collision=a.add_mutually_exclusive_group(); collision.add_argument('--box-collision',action='store_true'); collision.add_argument('--compound-collision',help='Explicit compound box recipe JSON')
  a=s.add_parser('scene-demo'); a.add_argument('output')
  a=s.add_parser('native-flora'); a.add_argument('game',choices=['fallout3','newvegas','skyrim','skyrimse','skyrimvr','fallout4','fallout4vr']); a.add_argument('output'); a.add_argument('helper'); a.add_argument('--seed',type=int,default=42); a.add_argument('--scale',type=float,default=1); a.add_argument('--size',type=int,default=64)
  a=s.add_parser('render-preview'); a.add_argument('output'); a.add_argument('--scene'); a.add_argument('--materials'); a.add_argument('--backend'); a.add_argument('--width',type=int,default=960); a.add_argument('--height',type=int,default=540); a.add_argument('--zoom',type=float,default=12); a.add_argument('--lod',type=float,nargs=3,default=[22,45,90])
@@ -199,7 +199,9 @@ def main():
    from .scene import load_obj
    from pathlib import Path
    mats=json.loads(Path(n.materials).read_text(encoding='utf-8')) if n.materials else None
-   result=export(load_obj(n.obj),n.game,n.output,n.helper,mats,n.scale,n.box_collision)
+   from .collision_materials import load as load_collision
+   compound=load_collision(n.compound_collision) if n.compound_collision else None
+   result=export(load_obj(n.obj),n.game,n.output,n.helper,mats,n.scale,n.box_collision,compound)
   elif n.cmd=='scene-demo':
    from .scene import demo_scene
    scene=demo_scene();scene.save(n.output);result={'output':n.output,'instances':len(scene.instances)}
