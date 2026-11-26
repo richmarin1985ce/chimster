@@ -19,6 +19,19 @@ def plan(spec):
             elif op in ("start","stop") and set(a)=={"op"}:lines.append(("StartQuest" if op=="start" else "StopQuest")+" "+q)
             else:raise ValueError("unsupported action or missing target")
         return "\n".join(lines)+("\n" if lines else "")
+    # Detect indirect recursive SetStage chains in stage result scripts.
+    from collections import deque
+    edges={s["index"]:{a["index"] for a in s.get("actions",[]) if a.get("op")=="stage" and "index" in a and a["index"] in stages} for s in spec["stages"]}
+    incoming={i:0 for i in edges}
+    for targets in edges.values():
+        for i in targets:incoming[i]+=1
+    queue=deque(i for i,n in incoming.items() if n==0);seen=0
+    while queue:
+        i=queue.popleft();seen+=1
+        for j in edges[i]:
+            incoming[j]-=1
+            if not incoming[j]:queue.append(j)
+    if seen!=len(edges):raise ValueError("recursive stage action chain")
     result=[]
     for s in spec["stages"]:
         if s.get("actions"):
