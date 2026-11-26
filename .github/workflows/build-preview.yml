@@ -22,7 +22,16 @@ jobs:
           CHIMSTER_TEST_PILLOW: '1'
       - run: python -m pip install build pyinstaller
       - run: python -m build
-      - run: python -m PyInstaller --onedir --name chimster --paths . --collect-data chimster --hidden-import chimster.ui --collect-submodules PIL --distpath preview build_entry.py
+      - run: python tools/check_manual_package.py
+      - run: python -m PyInstaller --onedir --name chimster --paths . --collect-data chimster --add-data "docs:chimster/manual" --hidden-import chimster.ui --collect-submodules PIL --distpath preview build_entry.py
+      - name: Verify offline manual in executable
+        shell: python
+        run: |
+          import subprocess, json, pathlib, sys
+          exe = pathlib.Path("preview/chimster") / ("chimster.exe" if sys.platform == "win32" else "chimster")
+          pages = json.loads(subprocess.check_output([str(exe.resolve()), "wiki", "list"], text=True, encoding="utf-8"))
+          assert any(p["id"] == "lod-forge.md" for p in pages)
+          print("Verified executable manual:", len(pages), "pages")
       - uses: actions/upload-artifact@v4
         with:
           name: chimster-preview-${{ matrix.os }}
