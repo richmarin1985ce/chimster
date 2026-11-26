@@ -17,11 +17,11 @@ class XEditTests(unittest.TestCase):
     def test_preview(self):
         args=preview(self.ws,self.exe)["args"]
         self.assertIn("-FNV",args)
-        self.assertIn("-D:"+str(self.root/"Data"),args)
+        self.assertIn("-D:"+str((self.root/"Data").resolve()),args)
         self.assertFalse((self.root/"Cache").exists())
     def test_lod_output(self):
         args=preview(self.ws,self.exe,"lod")["args"]
-        self.assertIn("-O:"+str(self.root/"LODOutput"),args)
+        self.assertIn("-O:"+str((self.root/"LODOutput").resolve()),args)
     def test_unsupported(self):
         with self.assertRaises(ValueError):
             preview(Workspace(self.root,"morrowind"),self.exe)
