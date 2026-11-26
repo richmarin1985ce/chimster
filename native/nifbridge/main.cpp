@@ -2,6 +2,7 @@
 // Independently authored helper linked with GPL-3.0 nifly.
 #include "NifFile.hpp"
 #include <fstream>
+#include <sstream>
 #include <iomanip>
 #include <iostream>
 #include <cmath>
