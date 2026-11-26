@@ -23,6 +23,7 @@ jobs:
           mkdir renders
           python -m chimster render-preview renders/near.png --backend egl --lod 500 1000 1500
           python -m chimster render-preview renders/far.png --backend egl --lod 1 2 3
+      - run: python -m chimster render-benchmark --count 2500 --frames 5 --backend egl | tee renders/forest-benchmark.json
       - uses: actions/upload-artifact@v4
         with:
           name: chimster-viewport-render-tests
