@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - 'chimster/flagstaff.py'
+      - 'chimster/worldspace.py'
+      - 'chimster/fnv_world.py'
+      - 'tests/test_worldspace.py'
       - 'chimster/cli.py'
       - 'chimster/lod*.py'
       - 'chimster/flora.py'
@@ -28,6 +31,10 @@ jobs:
         run: python -m chimster flagstaff fetch examples/flagstaff/recipe.json flagstaff-dem.tif | tee source.json
       - name: Generate Flagstaff demonstration from recipe
         run: python -m chimster flagstaff build examples/flagstaff/recipe.json flagstaff-dem.tif flagstaff-demo
+      - name: Generate experimental native Flagstaff terrain ESP
+        run: |
+          set -o pipefail
+          python -m chimster fnv-world flagstaff-demo/elevation-meters.json flagstaff-demo/ChimsterFlagstaff.esp --spacing-m 31.25 --editor-id ChimsterFlagstaffDemo --title "Flagstaff terrain fixture" | tee flagstaff-demo/native-world-report.json
       - name: Preserve source provenance
         run: |
           cp flagstaff-dem.tif flagstaff-demo/

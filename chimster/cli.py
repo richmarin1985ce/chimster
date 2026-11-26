@@ -70,12 +70,18 @@ def main():
  c=b.add_parser('inspect'); c.add_argument('project')
  c=b.add_parser('export'); c.add_argument('project'); c.add_argument('output')
  a=s.add_parser('render-benchmark'); a.add_argument('--count',type=int,default=2500); a.add_argument('--backend',default='egl'); a.add_argument('--frames',type=int,default=5)
+ a=s.add_parser('fnv-world'); a.add_argument('heightmap'); a.add_argument('output'); a.add_argument('--spacing-m',type=float,required=True); a.add_argument('--datum-m',type=float); a.add_argument('--origin',type=int,nargs=2,default=[-4,-4]); a.add_argument('--editor-id',default='ChimsterWorld'); a.add_argument('--title',default='Chimster World'); a.add_argument('--vertical-scale',type=float,default=1)
  n=p.parse_args()
  try:
   if n.cmd=='ui':
    from .ui import launch
    launch(); return
-  if n.cmd=='book':
+  if n.cmd=='fnv-world':
+   from .worldspace import Terrain
+   from .fnv_world import build
+   terrain=Terrain.load(n.heightmap,n.spacing_m,n.datum_m)
+   result=build(terrain,n.output,n.editor_id,n.title,tuple(n.origin),n.vertical_scale)
+  elif n.cmd=='book':
    from .books import load,export
    book=load(n.project)
    if n.bookop=='export':result=export(book,n.output)
