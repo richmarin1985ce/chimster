@@ -3,6 +3,8 @@ import struct,math
 from .fnv_patch import sub
 
 def encode_layers(layers,texture_ids,cells):
+    from .texture_budget import enforce_plan
+    enforce_plan('newvegas',layers)
     by_cell={};seen=set();counts={}
     for spec in layers:
         x,y=spec["cell"];q=spec["quadrant"];layer=spec["layer"];tex=spec["texture"]

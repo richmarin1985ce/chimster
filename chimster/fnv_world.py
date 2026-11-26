@@ -86,7 +86,7 @@ def build(terrain,output,editor_id="ChimsterWorld",title="Chimster World",origin
         top.setdefault(b"TXST",[]).append(tx);top.setdefault(b"LTEX",[]).append(lt);next_id+=2
     for spec in content.get("books",[]):
         b=Book(**spec["book"]).validate();register(b.editor_id);base_ids[b.editor_id]=next_id
-        sig,raw=book_record(next_id,b,spec.get("model"),spec.get("value",1),spec.get("weight",.2))
+        sig,raw=book_record(next_id,b,spec.get("model"),spec.get("value",1),spec.get("weight",.2),skill=spec.get("skill",-1),untakeable=spec.get("untakeable",False))
         top.setdefault(sig,[]).append(raw);next_id+=1
     paint=None
     if "paint" in content:

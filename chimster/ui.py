@@ -25,6 +25,46 @@ def launch():
    try: show(io,inspect_plugin(file,game.get()))
    except (OSError,ValueError) as e: messagebox.showerror('Inspection failed',str(e))
  ttk.Button(bar,text='Open plugin (read only)',command=inspect).pack(side='left')
+ f=tab('Landscape budget'); bar=ttk.Frame(f);bar.pack(fill='x'); budget_out=output(f)
+ def inspect_budget():
+  from .texture_budget import scan_land
+  path=filedialog.askopenfilename(filetypes=[('Plugins','*.esp *.esm')])
+  if path:
+   try:
+    r=scan_land(path,game.get())
+    show(budget_out,r)
+   except (OSError,ValueError) as e:messagebox.showerror('Landscape budget',str(e))
+ ttk.Button(bar,text='Inspect quadrant allocations (read only)',command=inspect_budget).pack(side='left')
+ f=tab('Record editor'); rb=ttk.Frame(f);rb.pack(fill='x')
+ rp=tk.StringVar();ro=tk.StringVar();ri=tk.StringVar(value='0x800');rf=tk.StringVar(value='FULL');rv=tk.StringVar()
+ def record_source():
+  p=filedialog.askopenfilename(filetypes=[('Plugins','*.esp *.esm')])
+  if p:
+   from pathlib import Path
+   rp.set(p);ro.set(Path(p).name)
+ ttk.Button(rb,text='Source plugin',command=record_source).pack(side='left')
+ ttk.Entry(rb,textvariable=rp).pack(side='left',fill='x',expand=True)
+ fields=ttk.Frame(f);fields.pack(fill='x')
+ for label,var in [('Origin',ro),('Local ID',ri),('Field',rf),('New text',rv)]:
+  ttk.Label(fields,text=label).pack(side='left');ttk.Entry(fields,textvariable=var,width=16).pack(side='left')
+ actions=ttk.Frame(f);actions.pack(fill='x');record_out=output(f);record_state={}
+ def read_record():
+  from .record_editor import inspect
+  try:
+   r=inspect(rp.get(),ro.get(),int(ri.get(),0));record_state.clear()
+   record_state.update(path=rp.get(),origin=ro.get(),id=int(ri.get(),0),hash=r['payload_sha256'])
+   show(record_out,r)
+  except (OSError,ValueError,KeyError) as e:messagebox.showerror('Record editor',str(e))
+ def edit_record():
+  from .record_editor import edit_text
+  from pathlib import Path
+  try:
+   if not record_state or (rp.get(),ro.get(),int(ri.get(),0))!=(record_state['path'],record_state['origin'],record_state['id']):raise ValueError('Inspect the current record first')
+   d=filedialog.askdirectory(title='Choose staging directory (same plugin name, no overwrite)')
+   if d:show(record_out,edit_text(rp.get(),Path(d)/Path(rp.get()).name,ro.get(),int(ri.get(),0),rf.get(),rv.get(),record_state['hash']))
+  except (OSError,ValueError,KeyError) as e:messagebox.showerror('Record editor',str(e))
+ ttk.Button(actions,text='Inspect record',command=read_record).pack(side='left')
+ ttk.Button(actions,text='Save staged text edit',command=edit_record).pack(side='left')
  f=tab('Action planner'); ttk.Label(f,text='Describe a mod task. Template-based proposal; no AI backend connected.').pack(anchor='w'); entry=ttk.Entry(f); entry.pack(fill='x',pady=5); bar=ttk.Frame(f); bar.pack(fill='x'); po=output(f)
  def propose():
   try: show(po,plan(game.get(),entry.get()))
@@ -129,6 +169,9 @@ def launch():
  f=tab('Books & notes')
  from .book_ui import mount as mount_books
  mount_books(f)
+ f=tab('Quest editor')
+ from .quest_ui import mount as mount_quests
+ mount_quests(f)
  f=tab('Minigame editor')
  from .minigame_ui import mount as mount_minigames
  mount_minigames(f)

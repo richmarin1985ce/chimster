@@ -39,3 +39,11 @@ class WorldContentTests(unittest.TestCase):
         self.assertEqual(len(proxy(m).faces),12)
         self.assertEqual(ray_box((-1,1,1),(1,0,0),lo,hi),1)
         self.assertIsNone(ray_box((-1,5,1),(1,0,0),lo,hi))
+
+    def test_skill_book(self):
+        from chimster.fnv_content import book_record
+        b=Book("SkillBook","Manual",("Text",),"","book","newvegas")
+        sig,raw=book_record(0x800,b,"test.nif",skill=8,untakeable=True)
+        self.assertEqual(sig,b"BOOK")
+        self.assertEqual(struct.unpack("<Bbif",dict(subs(raw[24:]))[b"DATA"])[:3],(2,8,1))
+        with self.assertRaises(ValueError):book_record(0x800,b,"test.nif",skill=1)
