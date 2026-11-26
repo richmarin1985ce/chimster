@@ -15,7 +15,7 @@ class OpenMWTests(unittest.TestCase):
         self.profile=Profile(self.root/"workspace",(self.data,),("Morrowind.esm",),("Morrowind.bsa",))
     def test_explicit_args(self):
         args=self.profile.engine_args()
-        self.assertEqual(args[args.index("--data")+1],str(self.data))
+        self.assertEqual(args[args.index("--data")+1],str(self.data.resolve()))
         self.assertIn("Morrowind.esm",args)
         self.assertIn("--replace",args)
     def test_no_write_preview(self):
@@ -43,4 +43,4 @@ class OpenMWTests(unittest.TestCase):
         executable.touch()
         launch_game(self.profile,executable)
         self.assertFalse(popen.call_args.kwargs["shell"])
-        self.assertEqual(popen.call_args.args[0][0],str(executable))
+        self.assertEqual(popen.call_args.args[0][0],str(executable.resolve()))
