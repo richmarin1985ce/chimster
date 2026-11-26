@@ -1,0 +1,63 @@
+{
+  "schema": 1,
+  "working_title": "Fallout Route 66: Flagstaff",
+  "subtitle": "Courier's Road",
+  "setting_year": 2281,
+  "target_game": "newvegas",
+  "entry": {
+    "kind": "kidnapping",
+    "perpetrators": "independent merchant slavers",
+    "origin": "Mojave",
+    "destination": "Flagstaff slave pit",
+    "not_legion": true
+  },
+  "continuity": {
+    "existing_new_vegas_character_appearances": false,
+    "post_2281_references": false,
+    "vanilla_ending_locked": false,
+    "original_voice_profiles": true
+  },
+  "road": {
+    "name": "Route 66",
+    "nickname": "Mother Road",
+    "future_connections": [
+      "Chicago"
+    ],
+    "enclave_reconnaissance": "original speculative cell; canonical operational status uncertain"
+  },
+  "scale": {
+    "status": "provisional planning targets",
+    "regions": [
+      6,
+      8
+    ],
+    "locations": [
+      80,
+      120
+    ],
+    "hours": [
+      30,
+      40
+    ],
+    "named_npcs": [
+      150,
+      250
+    ],
+    "voice_profiles": [
+      20,
+      30
+    ]
+  },
+  "build": {
+    "terrain_fixture": "recipe.json",
+    "final_world_extent": "undecided",
+    "native_game_validation_required": true
+  },
+  "voice_forge": {
+    "status": "later wishlist",
+    "local_inference": true,
+    "consenting_recordings": true,
+    "actor_imitation": false,
+    "batch_dialogue": true
+  }
+}
