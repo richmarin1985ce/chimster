@@ -92,12 +92,34 @@ def main():
  a=s.add_parser('chunk-load'); a.add_argument('folder'); a.add_argument('x',type=float); a.add_argument('y',type=float); a.add_argument('--radius',type=int,default=1)
  a=s.add_parser('quest-check'); a.add_argument('project')
  a=s.add_parser('script-check'); a.add_argument('path')
+ a=s.add_parser('quest-states'); a.add_argument('project'); a.add_argument('--max-states',type=int,default=100000)
+ a=s.add_parser('quest-native'); a.add_argument('project'); a.add_argument('output')
+ a=s.add_parser('interior-check'); a.add_argument('project'); a.add_argument('--room'); a.add_argument('--closed',action='append',default=[])
  n=p.parse_args()
  try:
   if n.cmd=='ui':
    from .ui import launch
    launch(); return
-  if n.cmd=='script-check':
+  if n.cmd=='quest-states':
+   from .quest_editor import load
+   from .quest_states import analyze
+   result=analyze(load(n.project),n.max_states)
+   print(json.dumps(result,indent=2))
+   if not result['valid']:raise SystemExit(1)
+   return
+  elif n.cmd=='quest-native':
+   from .quest_editor import load
+   from .fnv_quest import export
+   result=export(load(n.project),n.output)
+  elif n.cmd=='interior-check':
+   from .quest_editor import load
+   from .interior_layout import validate,candidates
+   layout=load(n.project);result=validate(layout)
+   if n.room and result['valid']:result['visibility']=candidates(layout,n.room,n.closed)
+   print(json.dumps(result,indent=2))
+   if not result['valid']:raise SystemExit(1)
+   return
+  elif n.cmd=='script-check':
    from .script_lint import check_file
    result=check_file(n.path)
    print(json.dumps(result,indent=2))
