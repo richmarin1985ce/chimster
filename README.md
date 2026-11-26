@@ -21,3 +21,6 @@ python -m chimster ui
 ```
 
 The desktop shell requires Tkinter. The catalog contains 61 tool entries; cataloging is not integration. If Git is unavailable due to DNS or sandbox restrictions, use an authorized GitHub API client to read and commit files, or download a source ZIP on a network-enabled machine. Do not disable TLS or hard-code GitHub IP addresses.
+
+## OpenMW bridge
+See [OpenMW integration](docs/openmw.md). Use the desktop OpenMW bridge tab or `python -m chimster openmw discover`. The editor is separately installed; game launch uses an explicit profile. Tests use mocks and synthetic inputs until a real installation is available.
