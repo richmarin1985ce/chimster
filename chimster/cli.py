@@ -93,7 +93,8 @@ def main():
  a=s.add_parser('quest-check'); a.add_argument('project')
  a=s.add_parser('script-check'); a.add_argument('path')
  a=s.add_parser('quest-states'); a.add_argument('project'); a.add_argument('--max-states',type=int,default=100000)
- a=s.add_parser('quest-native'); a.add_argument('project'); a.add_argument('output')
+ a=s.add_parser('quest-native'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--master',action='append',default=[])
+ a=s.add_parser('quest-scripts'); a.add_argument('project'); a.add_argument('output')
  a=s.add_parser('interior-check'); a.add_argument('project'); a.add_argument('--room'); a.add_argument('--closed',action='append',default=[])
  n=p.parse_args()
  try:
@@ -110,6 +111,10 @@ def main():
   elif n.cmd=='quest-native':
    from .quest_editor import load
    from .fnv_quest import export
+   result=export(load(n.project),n.output,n.master)
+  elif n.cmd=='quest-scripts':
+   from .quest_editor import load
+   from .quest_scripts import export
    result=export(load(n.project),n.output)
   elif n.cmd=='interior-check':
    from .quest_editor import load
