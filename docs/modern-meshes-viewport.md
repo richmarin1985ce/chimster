@@ -14,3 +14,7 @@ This is a CPU painter-sorted shaded triangle preview, not OpenMW rendering or a 
 - Add spatial chunks, indexed GPU meshes, true depth, texture sampling and picking.
 - Map portable instances to stable plugin records and per-game worldspace coordinates.
 - Use OpenMW's public template to test real game rendering; evaluate separate GPL renderer integration.
+
+## Native vegetation package
+    python -m chimster native-flora newvegas flora-output /path/to/chimster-nifbridge --seed 42
+Builds four native NIF candidates, original bark/leaf DDS textures, normal maps, a two-view billboard atlas and manifest in standard meshes/textures folders. Leaf faces are duplicated with opposite normals for two-sided geometry. This does not generate SPT or native worldspace LOD records/tiles. The atlas uses flat-color baking, not sampled leaf textures; foliage texture mipmaps/coverage and engine validation are pending. No retail assets included.
