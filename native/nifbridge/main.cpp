@@ -14,19 +14,22 @@
 #include <stdexcept>
 #include <filesystem>
 using namespace nifly;
+struct CollisionBox { float lo[3],hi[3]; unsigned material; };
 struct Expected { size_t vertices, triangles; std::string diffuse,normal; bool cutout; };
 static void require(bool ok,const char* message){if(!ok)throw std::runtime_error(message);}
 int main(int argc,char** argv){
  try {
-    require(argc==4||argc==5,"usage: chimster-nifbridge GAME INPUT.cmesh OUTPUT.nif [box]");
-    bool box=argc==5;require(!box||std::string(argv[4])=="box","invalid collision mode");
+    require(argc>=4&&argc<=6,"usage: chimster-nifbridge GAME INPUT.cmesh OUTPUT.nif [box|compound FILE]");
+    bool box=argc==5&&std::string(argv[4])=="box";
+    bool compound=argc==6&&std::string(argv[4])=="compound";
+    require(argc==4||box||compound,"invalid collision mode");
     std::string game=argv[1]; unsigned user=12,stream=0;
     if(game=="newvegas"||game=="fallout3"){user=11;stream=34;}
     else if(game=="skyrim")stream=83;
     else if(game=="skyrimse"||game=="skyrimvr")stream=100;
     else if(game=="fallout4"||game=="fallout4vr")stream=130;
     else throw std::runtime_error("unsupported game");
-    require(!box||stream==34,"experimental box collision is FO3/FNV only");
+    require(!(box||compound)||stream==34,"experimental box collision is FO3/FNV only");
     require(!std::filesystem::exists(argv[3]),"output already exists");
     std::ifstream in(argv[2]);require(bool(in),"cannot open mesh");
     std::string magic;unsigned n;in>>magic>>n;require(bool(in)&&magic=="CHIMSTER_MESH_1"&&n>0&&n<=256,"invalid mesh header");
@@ -63,15 +66,50 @@ int main(int argc,char** argv){
       expected.emplace(name,Expected{nv,nt,diffuse,normal,cut!=0});
     }
     std::string extra;require(!(in>>extra),"trailing input");
-    if(box){
-      for(int k=0;k<3;k++)require(hi[k]>lo[k],"degenerate collision bounds");
+    std::vector<CollisionBox> boxes;
+    unsigned listMaterial=0;
+    if(compound){
+      std::ifstream cin(argv[5]);std::string cmagic;unsigned num;
+      cin>>cmagic>>num>>listMaterial;
+      require(bool(cin)&&cmagic=="CHIMSTER_COLLISION_1"&&num>0&&num<=256&&listMaterial<=127,"invalid collision recipe");
+      for(unsigned i=0;i<num;i++){
+        CollisionBox b;
+        cin>>b.lo[0]>>b.lo[1]>>b.lo[2]>>b.hi[0]>>b.hi[1]>>b.hi[2]>>b.material;
+        require(bool(cin)&&b.material<=127,"invalid material");
+        for(int k=0;k<3;k++)require(std::isfinite(b.lo[k])&&std::isfinite(b.hi[k])&&std::abs(b.lo[k])<=1e7&&std::abs(b.hi[k])<=1e7&&b.hi[k]-b.lo[k]>=.001f,"invalid collision box");
+        boxes.push_back(b);
+      }
+      require(!(cin>>extra),"trailing collision input");
+    }
+    if(box||compound){
       auto& h=nif.GetHeader();auto root=nif.GetRootNode();
-      // FNV/FO3 use seven game units per Havok unit.
-      auto shape=std::make_unique<bhkBoxShape>();
-      shape->dimensions=Vector3((hi[0]-lo[0])/14.f,(hi[1]-lo[1])/14.f,(hi[2]-lo[2])/14.f);
-      shape->radius=std::min({.05f,shape->dimensions.x*.1f,shape->dimensions.y*.1f,shape->dimensions.z*.1f});shape->radius2=shape->radius;
+      auto makeBox=[&](const CollisionBox& b){
+        auto shape=std::make_unique<bhkBoxShape>();
+        shape->dimensions=Vector3((b.hi[0]-b.lo[0])/14.f,(b.hi[1]-b.lo[1])/14.f,(b.hi[2]-b.lo[2])/14.f);
+        shape->radius=std::min({.05f,shape->dimensions.x*.1f,shape->dimensions.y*.1f,shape->dimensions.z*.1f});
+        shape->radius2=shape->radius;shape->SetMaterial(b.material);return shape;
+      };
       auto body=std::make_unique<bhkRigidBodyT>();
-      body->shapeRef.index=h.AddBlock(std::move(shape));body->translation=Vector4((hi[0]+lo[0])/14.f,(hi[1]+lo[1])/14.f,(hi[2]+lo[2])/14.f,0);
+      if(box){
+        CollisionBox b={{lo[0],lo[1],lo[2]},{hi[0],hi[1],hi[2]},0};
+        for(int k=0;k<3;k++)require(hi[k]>lo[k],"degenerate collision bounds");
+        body->shapeRef.index=h.AddBlock(makeBox(b));
+        body->translation=Vector4((hi[0]+lo[0])/14.f,(hi[1]+lo[1])/14.f,(hi[2]+lo[2])/14.f,0);
+      }else{
+        auto list=std::make_unique<bhkListShape>();list->SetMaterial(listMaterial);
+        for(const auto& b:boxes){
+          auto child=makeBox(b);
+          auto transform=std::make_unique<bhkConvexTransformShape>();
+          transform->material=b.material;transform->radius=child->radius;
+          transform->shapeRef.index=h.AddBlock(std::move(child));
+          // Havok's serialized 4x4 is column-major, translation in final column.
+          for(int k=0;k<3;k++)transform->xform[12+k]=(b.hi[k]+b.lo[k])/14.f;
+          list->subShapeRefs.AddBlockRef(h.AddBlock(std::move(transform)));
+          list->filters.push_back(HavokFilter{});
+        }
+        body->shapeRef.index=h.AddBlock(std::move(list));
+        body->translation=Vector4(0,0,0,0);
+      }
       body->collisionFilter.layer=1;body->collisionFilterCopy.layer=1;body->motionSystem=7;body->qualityType=1;body->mass=0;body->broadPhaseType=1;
       auto coll=std::make_unique<bhkCollisionObject>();coll->targetRef.index=nif.GetBlockID(root);coll->bodyRef.index=h.AddBlock(std::move(body));
       root->collisionRef.index=h.AddBlock(std::move(coll));
@@ -94,14 +132,31 @@ int main(int argc,char** argv){
       if(!e.normal.empty()){check.GetTextureSlot(shape,tex,1);require(tex==e.normal,"normal mismatch");}
       require(!e.cutout||check.GetAlphaProperty(shape)!=nullptr,"missing alpha property");count+=t.size();
     }
-    if(box){
+    if(box||compound){
       auto& h=check.GetHeader();auto root=check.GetRootNode();
-      auto coll=dynamic_cast<bhkCollisionObject*>(h.GetBlock(root->collisionRef));require(coll!=nullptr,"collision object missing");
+      auto coll=dynamic_cast<bhkCollisionObject*>(h.GetBlock(root->collisionRef));require(coll&&coll->targetRef.index==check.GetBlockID(root),"collision object missing");
       auto body=dynamic_cast<bhkRigidBodyT*>(h.GetBlock(coll->bodyRef));require(body&&body->motionSystem==7&&body->collisionFilter.layer==1,"rigid body missing");
-      auto shape=dynamic_cast<bhkBoxShape*>(h.GetBlock(body->shapeRef));require(shape&&std::abs(shape->dimensions.x-(hi[0]-lo[0])/14.f)<.0001f,"box missing or incorrect");
+      if(box){
+        auto shape=dynamic_cast<bhkBoxShape*>(h.GetBlock(body->shapeRef));require(shape&&std::abs(shape->dimensions.x-(hi[0]-lo[0])/14.f)<.0001f,"box missing or incorrect");
+      }else{
+        auto list=dynamic_cast<bhkListShape*>(h.GetBlock(body->shapeRef));
+        require(list&&list->subShapeRefs.GetSize()==boxes.size()&&list->filters.size()==boxes.size()&&list->GetMaterial()==listMaterial,"compound list mismatch");
+        for(unsigned k=0;k<boxes.size();k++){
+          const auto& b=boxes[k];
+          auto tf=h.GetBlock<bhkConvexTransformShape>(list->subShapeRefs.GetBlockRef(k));
+          require(tf&&tf->material==b.material,"transform material mismatch");
+          auto shape=dynamic_cast<bhkBoxShape*>(h.GetBlock(tf->shapeRef));
+          require(shape&&shape->GetMaterial()==b.material,"box material mismatch");
+          float expected[3]={(b.hi[0]-b.lo[0])/14.f,(b.hi[1]-b.lo[1])/14.f,(b.hi[2]-b.lo[2])/14.f};
+          require(std::abs(shape->dimensions.x-expected[0])<.0001f&&std::abs(shape->dimensions.y-expected[1])<.0001f&&std::abs(shape->dimensions.z-expected[2])<.0001f,"box dimensions mismatch");
+          for(int axis=0;axis<3;axis++)require(std::abs(tf->xform[12+axis]-(b.hi[axis]+b.lo[axis])/14.f)<.0001f,"box position mismatch");
+        }
+      }
     }
     std::ofstream result(argv[3],std::ios::binary);require(bool(result),"cannot create output");result.write(bytes.data(),bytes.size());require(bool(result),"write failed");
-    std::cout<<"{\"shapes\":"<<shapes.size()<<",\"triangles\":"<<count<<",\"user_version\":"<<user<<",\"stream_version\":"<<stream<<",\"box_collision\":"<<(box?"true":"false")<<"}\n";
+    std::cout<<"{\"shapes\":"<<shapes.size()<<",\"triangles\":"<<count<<",\"user_version\":"<<user<<",\"stream_version\":"<<stream<<",\"box_collision\":"<<(box?"true":"false")<<",\"compound_collision\":"<<(compound?"true":"false")<<",\"collision_boxes\":"<<(compound?boxes.size():(box?1:0))<<",\"list_material\":"<<listMaterial<<",\"collision_materials\":[";
+    for(unsigned k=0;k<boxes.size();k++){if(k)std::cout<<",";std::cout<<boxes[k].material;}
+    std::cout<<"]}\n";
     return 0;
  }catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}
 }
