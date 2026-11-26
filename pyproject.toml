@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+[project]
+name = "chimster-workshop"
+version = "0.2.0.dev0"
+description = "Local-first Bethesda modding workbench prototype"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+[project.scripts]
+chimster = "chimster.cli:main"
+[tool.setuptools.packages.find]
+include = ["chimster*"]
+[tool.setuptools.package-data]
+chimster = ["tools.json"]
