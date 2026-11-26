@@ -25,3 +25,14 @@ class ProjectTests(unittest.TestCase):
             p.add("a","other",a,0)
             with self.assertRaises(ValueError):p.add("A","other",a,1)
             p.remove("a",1);self.assertEqual(p.read()["artifacts"],{})
+
+    def test_batch_atomic_manifest(self):
+        with TemporaryDirectory() as d:
+            p=Project.create(Path(d)/"p","Test","newvegas");a=Path(d)/"a";a.write_text("a")
+            first={"op":"add","id":"mesh","kind":"mesh","source":str(a)}
+            with self.assertRaises(ValueError):p.batch([first,{"op":"remove","id":"missing"}],0)
+            self.assertEqual(p.read()["revision"],0)
+            self.assertEqual(p.read()["artifacts"],{})
+            p.batch([first,{"op":"add","id":"texture","kind":"texture","source":str(a)}],0)
+            self.assertEqual(p.read()["revision"],1)
+            self.assertEqual(len(list((p.meta/"objects").iterdir())),1)
