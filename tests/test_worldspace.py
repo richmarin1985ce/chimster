@@ -25,3 +25,41 @@ class WorldTests(unittest.TestCase):
             self.assertEqual(r["records"],{"WRLD":1,"CELL":5,"LAND":4})
             self.assertLessEqual(r["max_quantization_error_game_units"],4.0001)
             with self.assertRaises(ValueError):build(self.terrain(),p)
+
+    def test_group_layout(self):
+        import struct
+        from chimster.fnv_records import HEADER,subs
+        with TemporaryDirectory() as d:
+            p=Path(d)/"World.esp";build(self.terrain(),p,origin=(-1,-1))
+            raw=p.read_bytes();locations={};persistent=[]
+            def walk(start,end,parents=()):
+                while start<end:
+                    kind,size,*_=HEADER.unpack_from(raw,start)
+                    if kind==b"GRUP":
+                        _,_,label,typ,_,_=struct.unpack_from("<4sI4sIII",raw,start)
+                        self.assertGreaterEqual(size,24)
+                        self.assertLessEqual(start+size,end)
+                        walk(start+24,start+size,parents+((typ,label),))
+                        start+=size
+                    else:
+                        _,_,flags,form,*_=HEADER.unpack_from(raw,start)
+                        fields=dict(subs(raw[start+24:start+24+size]))
+                        if kind==b"CELL":
+                            x,y,_=struct.unpack("<iiI",fields[b"XCLC"])
+                            if flags&0x400:
+                                self.assertEqual([g[0] for g in parents],[0,1]);persistent.append(form)
+                            else:
+                                self.assertEqual([g[0] for g in parents],[0,1,4,5])
+                                self.assertEqual(struct.unpack("<hh",parents[-2][1]),(y//32,x//32))
+                                self.assertEqual(struct.unpack("<hh",parents[-1][1]),(y//8,x//8))
+                                locations[form]=(x,y)
+                        if kind==b"LAND":
+                            self.assertEqual([g[0] for g in parents],[0,1,4,5,6,9])
+                            cid=struct.unpack("<I",parents[-1][1])[0]
+                            self.assertIn(cid,locations)
+                            self.assertEqual(parents[-1][1],parents[-2][1])
+                        start+=size+24
+                self.assertEqual(start,end)
+            walk(0,len(raw))
+            self.assertEqual(len(persistent),1)
+            self.assertEqual(set(locations.values()),{(-1,-1),(-1,0),(0,-1),(0,0)})
