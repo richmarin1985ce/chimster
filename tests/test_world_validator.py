@@ -10,7 +10,7 @@ def header(master=None):
     data=sub(b"HEDR",struct.pack("<fII",1.34,10,0x900))
     if master:data+=sub(b"MAST",master.encode()+b"\0")+sub(b"DATA",bytes(8))
     return record(b"TES4",data)
-def patch(path,master,cell,coord=(-1,-1),new=False,base=0x800):
+def patch(path,master,cell,coord=(-1,-1),new=False,base=0x802):
     x,y=coord
     # World override, matching master slot; optionally new cell with own slot.
     fid=0x01000880 if new else cell
@@ -22,7 +22,7 @@ def patch(path,master,cell,coord=(-1,-1),new=False,base=0x800):
 class ValidatorTests(unittest.TestCase):
     def fixture(self,p):
         t=Terrain(tuple(tuple(0. for _ in range(65)) for _ in range(65)),4,0)
-        build(t,p,origin=(-1,-1),editor_id="TestWorld")
+        build(t,p,origin=(-1,-1),editor_id="TestWorld",content={"statics":[{"id":"TestMarker","model":"test.nif","bounds":[0,0,0,1,1,1]}]})
     def test_clean(self):
         with TemporaryDirectory() as d:
             p=Path(d)/"Base.esm";self.fixture(p)
@@ -41,7 +41,7 @@ class ValidatorTests(unittest.TestCase):
     def test_merge_conflict(self):
         with TemporaryDirectory() as d:
             p=Path(d)/"Base.esm";self.fixture(p);q=Path(d)/"Patch.esp"
-            patch(q,p.name,0x802,new=True,base=0x123456)
+            patch(q,p.name,0x803,new=True,base=0x123456)
             r=validate([p,q]);codes={x["code"] for x in r["issues"]}
             self.assertIn("duplicate-cell-coordinate",codes)
             self.assertIn("unresolved-base-object",codes)
@@ -49,7 +49,7 @@ class ValidatorTests(unittest.TestCase):
     def test_valid_override(self):
         with TemporaryDirectory() as d:
             p=Path(d)/"Base.esm";self.fixture(p);q=Path(d)/"Patch.esp"
-            patch(q,p.name,0x802)
+            patch(q,p.name,0x803)
             r=validate([p,q]);self.assertTrue(r["valid"],r["issues"])
             self.assertEqual(r["exterior_cells"],4)
     def test_truncated(self):
