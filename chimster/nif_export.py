@@ -12,8 +12,8 @@ def backend():
     from pyffi.formats.nif import NifFormat
     return NifFormat
 
-def export_legacy(mesh,path,game="morrowind",scale=1.0):
-    """Geometry-only NiNode/NiTriShape; no shader, texture, collision or wind.
+def export_legacy(mesh,path,game="morrowind",scale=1.0,textures=None):
+    """NiNode/NiTriShape with optional legacy base texture and alpha test; no collision or wind.
     Reopens with same library before publishing. Not a game-runtime certification."""
     validate_mesh(mesh)
     if game not in {"morrowind","openmw"}:raise ValueError("only legacy 4.0.0.2 enabled")
@@ -21,6 +21,11 @@ def export_legacy(mesh,path,game="morrowind",scale=1.0):
     path=Path(path)
     if path.suffix.lower()!=".nif":raise ValueError("expected NIF")
     if path.exists():raise FileExistsError(path)
+    textures=textures or {}
+    if set(textures)-{m for _,m in mesh.faces}:raise ValueError("unknown material")
+    for mat,texture in textures.items():
+        parts=texture.replace("\\","/").split("/")
+        if not texture.lower().endswith(".dds") or parts[0].casefold()!="textures" or any(p in ("",".","..") for p in parts) or ":" in texture:raise ValueError("texture must be a relative textures/*.dds path")
     N=backend();data=N.Data(version=0x04000002)
     root=N.NiNode();root.name=b"Chimster Root";root.flags=14;root.scale=1
     root.rotation.set_identity()
@@ -47,9 +52,44 @@ def export_legacy(mesh,path,game="morrowind",scale=1.0):
             q.x,q.y,q.z=(tuple(v/length for v in normals[i]) if length else (0,0,1))
             uv=geom.uv_sets[0][i];uv.u,uv.v=mesh.uv[j][0],1-mesh.uv[j][1]
         geom.set_triangles(tris);geom.update_center_radius();count+=len(tris)
+        if mat in textures:
+            tex=N.NiSourceTexture();tex.use_external=True;tex.file_name=textures[mat].replace("/","\\").encode("ascii")
+            prop=N.NiTexturingProperty();prop.texture_count=7;prop.has_base_texture=True;prop.base_texture.source=tex
+            shape.add_property(prop)
+            material=N.NiMaterialProperty()
+            material.ambient_color.r=material.ambient_color.g=material.ambient_color.b=1.0
+            material.diffuse_color.r=material.diffuse_color.g=material.diffuse_color.b=1.0
+            material.alpha=1.0;shape.add_property(material)
+            if mat.endswith("__cutout"):
+                alpha=N.NiAlphaProperty();alpha.flags=0x1200;alpha.threshold=128;shape.add_property(alpha)
     stream=io.BytesIO();data.write(stream);raw=stream.getvalue()
     check=N.Data();check.read(io.BytesIO(raw))
     actual=sum(len(c.data.get_triangles()) for r in check.roots for c in r.children if isinstance(c,N.NiTriShape))
     if actual!=count or check.version!=0x04000002:raise ValueError("NIF round trip failed")
+    for r in check.roots:
+        for c in r.children:
+            if c.name.decode("ascii") in textures:
+                expected=textures[c.name.decode("ascii")].replace("/","\\").encode("ascii")
+                if not any(isinstance(p,N.NiTexturingProperty) and p.has_base_texture and p.base_texture.source.file_name==expected for p in c.properties):
+                    raise ValueError("texture roundtrip failed")
     with path.open("xb") as f:f.write(raw)
-    return {"path":str(path),"triangles":count,"version":"4.0.0.2","status":"geometry only; PyFFI round trip; no game smoke test"}
+    return {"path":str(path),"triangles":count,"version":"4.0.0.2","status":"PyFFI geometry/optional texture round trip; no game smoke test"}
+
+def export_billboard(recipe,root,size=128,views=2,scale=1.0):
+    from .flora import generate
+    from .lod import atlas_billboard
+    from .lod_assets import write_dds
+    root=Path(root);root.mkdir(parents=True,exist_ok=False)
+    mesh,rgba,side,layout=atlas_billboard(generate(recipe),views,size)
+    # Bake UV uses top-left; legacy exporter takes OBJ-like bottom-left.
+    mesh.uv=[(u,1-v) for u,v in mesh.uv]
+    # Legacy billboard needs both sides. Duplicate reversed triangles with
+    # separate vertices so normals on opposite sides do not cancel.
+    n=len(mesh.vertices);mesh.vertices.extend(mesh.vertices[:]);mesh.uv.extend(mesh.uv[:])
+    mesh.faces.extend([((c+n,b+n,a+n),mat) for (a,b,c),mat in mesh.faces[:]])
+    tex=root/"textures"/"chimster"/"tree_atlas.dds"
+    nif=root/"meshes"/"chimster"/"tree_billboard.nif"
+    tex.parent.mkdir(parents=True);nif.parent.mkdir(parents=True)
+    write_dds(tex,side,side,rgba)
+    result=export_legacy(mesh,nif,scale=scale,textures={"tree_atlas__cutout":"textures/chimster/tree_atlas.dds"})
+    return {**result,"texture":str(tex),"atlas_size":side,"views":views}
