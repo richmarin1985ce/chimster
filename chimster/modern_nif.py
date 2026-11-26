@@ -41,7 +41,8 @@ def mesh_exchange(mesh,materials=None,scale=1):
         lines.extend(" ".join(map(str,t)) for t in tris)
     return "\n".join(lines)+"\n"
 
-def export(mesh,game,output,helper,materials=None,scale=1):
+def export(mesh,game,output,helper,materials=None,scale=1,box_collision=False):
+    if box_collision and game not in {'newvegas','fallout3'}:raise ValueError('box collision is experimental FO3/FNV only')
     if game not in GAMES:raise ValueError("unsupported modern NIF game")
     p=Path(output)
     if p.suffix.lower()!=".nif" or p.exists() or p.is_symlink():raise ValueError("expected new NIF")
@@ -51,10 +52,10 @@ def export(mesh,game,output,helper,materials=None,scale=1):
     with tempfile.TemporaryDirectory() as d:
         source=Path(d)/"mesh.cmesh";dest=Path(d)/"output.nif"
         source.write_text(data,encoding="ascii")
-        cp=subprocess.run([str(helper),game,str(source),str(dest)],shell=False,capture_output=True,text=True,timeout=180)
+        cp=subprocess.run([str(helper),game,str(source),str(dest)]+(["box"] if box_collision else []),shell=False,capture_output=True,text=True,timeout=180)
         if cp.returncode:raise RuntimeError(cp.stderr[-4000:])
         report=json.loads(cp.stdout)
-        if report["triangles"]!=len(mesh.faces) or not dest.is_file() or not dest.read_bytes().startswith(b"Gamebryo File Format"):raise ValueError("native helper output mismatch")
+        if (box_collision and not report.get("box_collision")) or report["triangles"]!=len(mesh.faces) or not dest.is_file() or not dest.read_bytes().startswith(b"Gamebryo File Format"):raise ValueError("native helper output mismatch")
         with p.open("xb") as f:
             with dest.open("rb") as src:shutil.copyfileobj(src,f)
     return {**report,"output":str(p),"status":"native Nifly roundtrip; game runtime not verified"}
