@@ -40,12 +40,14 @@ def caprica(exe,source,out,game,imports,flags):
 def champollion(exe,source,out):
     return command("champollion",exe,[file(source,{".pex"}),"-p",fresh(out)],Path(out).resolve(),"directory","Decompile only scripts you have rights to modify.")
 
-def spriggit(exe,source,out,game=None,serialize=True):
+def spriggit(exe,source,out,game=None,serialize=True,package_version="0.40.0"):
     out=fresh(out)
+    import re
+    if not re.fullmatch(r"\d+\.\d+\.\d+",package_version):raise ValueError("pin a numeric Spriggit package version")
     if serialize:
         source=file(source,{".esp",".esm",".esl"})
-        if game not in {"SkyrimLE","SkyrimSE","SkyrimVR","Fallout4","Fallout4VR","Oblivion","Starfield"}:raise ValueError("unsupported serialization game")
-        args=["serialize","--InputPath",source,"--OutputPath",out,"--GameRelease",game,"--PackageName","Spriggit.Yaml"]
+        if game not in {"SkyrimLE","SkyrimSE","SkyrimVR","Fallout4","Fallout4VR","Starfield"}:raise ValueError("unsupported serialization game")
+        args=["serialize","--InputPath",source,"--OutputPath",out,"--GameRelease",game,"--PackageName","Spriggit.Yaml","--PackageVersion",package_version]
     else:
         source=directory(source)
         if out.suffix.lower() not in {".esp",".esm",".esl"}:raise ValueError("expected plugin output")
@@ -54,7 +56,7 @@ def spriggit(exe,source,out,game=None,serialize=True):
 
 def bsarch(exe,source,out,game):
     source=directory(source);out=fresh(out)
-    flags={"morrowind":"-tes3","oblivion":"-tes4","fallout3":"-fo3","newvegas":"-fo3","skyrim":"-tes5","skyrimse":"-sse","fallout4":"-fo4"}
+    flags={"morrowind":"-tes3","oblivion":"-tes4","fallout3":"-fo3","newvegas":"-fnv","skyrim":"-tes5","skyrimse":"-sse","fallout4":"-fo4"}
     if game not in flags:raise ValueError("unsupported archive game")
     ext=".ba2" if game=="fallout4" else ".bsa"
     if out.suffix.lower()!=ext or out.is_relative_to(source):raise ValueError("archive must be outside input directory with correct extension")
