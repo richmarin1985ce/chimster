@@ -6,7 +6,8 @@ from .fnv_content import bounds,asset
 from .record_schema import integer,number
 ITEMS={"ARMO","AMMO","MISC","WEAP","BOOK","LVLI","KEYM","ALCH","NOTE","IMOD","CMNY","CCRD","CHIP"}
 INVENTORY=ITEMS|{"LIGH","MSTT","STAT"}
-KINDS={"REPU","CONT","LVLI","AMMO","ECZN","SPEL","PERK","FACT"}
+KINDS={"REPU","CONT","LVLI","LVLN","AMMO","ECZN","SPEL","PERK","FACT","VTYP","CLAS","KEYM","ALCH"}
+SERVICES={"weapons":1,"armor":2,"alcohol":4,"books":8,"food":16,"chems":32,"stimpacks":64,"miscellaneous":1024,"training":16384,"recharge":65536,"repair":131072}
 def check(f,required,optional=()):
     if not isinstance(f,dict) or not set(required)<=set(f) or set(f)-set(required)-set(optional):raise ValueError("invalid gameplay fields")
 def boolean(v):
@@ -25,7 +26,42 @@ def inventory(entries,link):
     return b"".join(data)
 def common(f):
     return bounds(f["bounds"])+sub(b"FULL",cstr(f["title"]))+sub(b"MODL",asset(f["model"],".nif"))
+def services(values):
+    if not isinstance(values,list) or len(values)!=len(set(values)) or any(v not in SERVICES for v in values):raise ValueError("unknown or duplicate service")
+    return sum(SERVICES[v] for v in values)
+def effect_records(effects,link):
+    effects=rows(effects,128)
+    if not effects:raise ValueError("effect list required")
+    out=[]
+    for e in effects:
+        check(e,{"ref","magnitude","area","duration","range","actor_value"})
+        out.append(sub(b"EFID",u32(link(e["ref"],{"MGEF"})))+sub(b"EFIT",struct.pack("<IIIIi",integer(e["magnitude"],0,2**31-1),integer(e["area"],0,2**31-1),integer(e["duration"],0,2**31-1),integer(e["range"],0,2),integer(e["actor_value"],-1,72))))
+    return b"".join(out)
 def encode(sig,f,link):
+    if sig=="VTYP":
+        check(f,set(),{"default_dialogue","female"})
+        return sub(b"DNAM",bytes((boolean(f.get("default_dialogue",False))+2*boolean(f.get("female",False)),)))
+    if sig=="CLAS":
+        check(f,{"title","description","tag_skills","special"},{"playable","guard","services","teaches","training_level"})
+        skills=f["tag_skills"];special=f["special"]
+        if not isinstance(skills,list) or len(skills)!=4 or not isinstance(special,list) or len(special)!=7:raise ValueError("class needs 4 skill slots and 7 attributes")
+        if any(type(i) is not int or i not in {-1,*range(32,44),45} for i in skills):raise ValueError("invalid class tag skill")
+        skill=integer(f.get("teaches",-1),-1,13)
+        if skill==1:raise ValueError("invalid training skill")
+        flags=boolean(f.get("playable",False))+2*boolean(f.get("guard",False))
+        return sub(b"FULL",cstr(f["title"]))+sub(b"DESC",cstr(f["description"]))+sub(b"DATA",struct.pack("<4iIIbB2x",*skills,flags,services(f.get("services",[])),skill,integer(f.get("training_level",0),0,100)))+sub(b"ATTR",bytes(integer(i,1,10) for i in special))
+    if sig=="KEYM":
+        check(f,{"title","model","bounds","value","weight","icon"})
+        from .record_schema import encode as field_encode
+        return common(f)+sub(b"ICON",asset(f["icon"],".dds"))+sub(b"MICO",asset(f["icon"],".dds"))+sub(b"DATA",field_encode("item",{"value":f["value"],"weight":f["weight"]}))
+    if sig=="ALCH":
+        check(f,{"title","model","bounds","value","weight","equipment_type","effects"},{"food","medicine","consume_sound","withdrawal","addiction_chance"})
+        chance=number(f.get("addiction_chance",0),0,1)
+        if chance and "withdrawal" not in f:raise ValueError("addiction requires withdrawal effect")
+        eq=integer(f["equipment_type"],10,13)
+        flags=2*boolean(f.get("food",False))+4*boolean(f.get("medicine",False))
+        return common(f)+sub(b"ETYP",struct.pack("<i",eq))+sub(b"DATA",struct.pack("<f",number(f["weight"],0,1000)))+sub(b"ENIT",struct.pack("<iB3xIfI",integer(f["value"],0,2**31-1),flags,link(f["withdrawal"],{"SPEL"}) if "withdrawal" in f else 0,chance,link(f["consume_sound"],{"SOUN"}) if "consume_sound" in f else 0))+effect_records(f["effects"],link)
+
     if sig=="REPU":
         check(f,{"title","value"})
         return sub(b"FULL",cstr(f["title"]))+sub(b"DATA",struct.pack("<f",number(f["value"],0,1e6)))
@@ -48,14 +84,14 @@ def encode(sig,f,link):
     if sig=="CONT":
         check(f,{"title","model","bounds","items"},{"respawns","weight"})
         return common(f)+inventory(f["items"],link)+sub(b"DATA",struct.pack("<Bf",2*boolean(f.get("respawns",False)),number(f.get("weight",0),0,1000)))
-    if sig=="LVLI":
-        check(f,{"entries"},{"chance_none","flags","global","bounds"})
-        entries=rows(f["entries"]);body=bounds(f.get("bounds",[0]*6))+sub(b"LVLD",bytes([integer(f.get("chance_none",0),0,100)]))+sub(b"LVLF",bytes([integer(f.get("flags",0),0,7)]))
+    if sig in {"LVLI","LVLN"}:
+        check(f,{"entries"},{"chance_none","flags","bounds"}|({"global"} if sig=="LVLI" else set()))
+        entries=rows(f["entries"]);body=bounds(f.get("bounds",[0]*6))+sub(b"LVLD",bytes([integer(f.get("chance_none",0),0,100)]))+sub(b"LVLF",bytes([integer(f.get("flags",0),0,7 if sig=="LVLI" else 3)]))
         if "global" in f:body+=sub(b"LVLG",u32(link(f["global"],{"GLOB"})))
-        else:body+=sub(b"LVLG",bytes(4))
+        elif sig=="LVLI":body+=sub(b"LVLG",bytes(4))
         for e in sorted(entries,key=lambda r:r["level"]):
             check(e,{"ref","level","count"})
-            body+=sub(b"LVLO",struct.pack("<h2xIh2x",integer(e["level"],1,32767),link(e["ref"],ITEMS),integer(e["count"],1,32767)))
+            body+=sub(b"LVLO",struct.pack("<h2xIh2x",integer(e["level"],1,32767),link(e["ref"],ITEMS if sig=="LVLI" else {"NPC_","LVLN"}),integer(e["count"],1,32767)))
         return body
     if sig=="AMMO":
         check(f,{"title","model","bounds","value","weight","speed","clip_rounds","projectile"},{"flags","projectiles_per_shot","short_name","abbreviation"})
@@ -70,13 +106,8 @@ def encode(sig,f,link):
         return sub(b"DATA",struct.pack("<IbbBx",link(f["owner"],{"NPC_","FACT"}) if "owner" in f else 0,integer(f.get("rank",-1),-1,127),integer(f["minimum_level"],0,127),flags))
     if sig=="SPEL":
         check(f,{"title","type","effects"},{"flags"})
-        effects=rows(f["effects"],128)
-        if not effects:raise ValueError("actor effect requires base effect")
         body=sub(b"FULL",cstr(f["title"]))+sub(b"SPIT",struct.pack("<IIIB3x",integer(f["type"],0,10),0,0,integer(f.get("flags",0),0,255)))
-        for e in effects:
-            check(e,{"ref","magnitude","area","duration","range","actor_value"})
-            body+=sub(b"EFID",u32(link(e["ref"],{"MGEF"})))+sub(b"EFIT",struct.pack("<IIIIi",integer(e["magnitude"],0,2**31-1),integer(e["area"],0,2**31-1),integer(e["duration"],0,2**31-1),integer(e["range"],0,2),integer(e["actor_value"],-1,72)))
-        return body
+        return body+effect_records(f["effects"],link)
     if sig=="PERK":
         check(f,{"title","description","ranks","minimum_level","effects"},{"trait","playable","hidden"})
         rank=integer(f["ranks"],1,255);effects=rows(f["effects"],128)
