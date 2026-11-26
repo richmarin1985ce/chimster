@@ -105,7 +105,7 @@ int main(int argc,char** argv){
           // Havok's serialized 4x4 is column-major, translation in final column.
           for(int k=0;k<3;k++)transform->xform[12+k]=(b.hi[k]+b.lo[k])/14.f;
           list->subShapeRefs.AddBlockRef(h.AddBlock(std::move(transform)));
-          list->filters.push_back(HavokFilter{});
+          HavokFilter filter{};list->filters.push_back(filter);
         }
         body->shapeRef.index=h.AddBlock(std::move(list));
         body->translation=Vector4(0,0,0,0);
