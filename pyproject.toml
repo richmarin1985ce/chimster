@@ -13,4 +13,4 @@ chimster = "chimster.cli:main"
 [tool.setuptools.packages.find]
 include = ["chimster*"]
 [tool.setuptools.package-data]
-chimster = ["tools.json"]
+chimster = ["tools.json", "xedit_scripts/*.pas"]
