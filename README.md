@@ -24,3 +24,6 @@ The desktop shell requires Tkinter. The catalog contains 61 tool entries; catalo
 
 ## OpenMW bridge
 See [OpenMW integration](docs/openmw.md). Use the desktop OpenMW bridge tab or `python -m chimster openmw discover`. The editor is separately installed; game launch uses an explicit profile. Tests use mocks and synthetic inputs until a real installation is available.
+
+## Load order and AutoPatch
+See [architecture and limitations](docs/loadorder.md). `python -m chimster loadorder profile.json --cache cache.sqlite` reads a JSON profile containing game, data_dirs (low to high priority), plugins (active order) and optional after pairs. `python -m chimster autopatch snapshot.json` produces a review-only consolidation plan from externally normalized plugin and record evidence. It does not write or deactivate plugins. Full libloot integration and native patch writing are future work.
