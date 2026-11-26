@@ -91,12 +91,19 @@ def main():
  a=s.add_parser('chunk-build'); a.add_argument('placements'); a.add_argument('output'); a.add_argument('--size',type=float,default=128)
  a=s.add_parser('chunk-load'); a.add_argument('folder'); a.add_argument('x',type=float); a.add_argument('y',type=float); a.add_argument('--radius',type=int,default=1)
  a=s.add_parser('quest-check'); a.add_argument('project')
+ a=s.add_parser('script-check'); a.add_argument('path')
  n=p.parse_args()
  try:
   if n.cmd=='ui':
    from .ui import launch
    launch(); return
-  if n.cmd=='landscape-budget':
+  if n.cmd=='script-check':
+   from .script_lint import check_file
+   result=check_file(n.path)
+   print(json.dumps(result,indent=2))
+   if not result['valid']:raise SystemExit(1)
+   return
+  elif n.cmd=='landscape-budget':
    from .texture_budget import scan_land
    result=scan_land(n.plugin,n.game)
    print(json.dumps(result,indent=2))
