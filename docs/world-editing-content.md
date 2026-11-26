@@ -1,0 +1,10 @@
+# World editing and native content
+Experimental New Vegas writers extend the masterless terrain ESP with author-supplied STAT bases, temporary REFR instances, TXST/LTEX texture records, and four base BTXT landscape quadrants per LAND. Supplied NIF/DDS paths must resolve under the game's meshes/textures folders; no assets are copied. Coordinates are local meters from the southwest corner, z_m is absolute source elevation. Yaw degrees are converted to radians. No alpha-blended layers, persistent references, existing-plugin editing or engine certification.
+    python -m chimster fnv-world heights.json world.esp --spacing-m 4 --content content.json
+Content example: {"statics":[{"id":"RoadMarker","model":"chimster/marker.nif","bounds":[-8,-8,0,8,8,32]}],"placements":[{"base":"RoadMarker","x_m":10,"y_m":20,"z_m":2100,"yaw":90}],"textures":[{"id":"Ground","diffuse":"chimster/ground.dds","normal":"chimster/ground_n.dds"}],"paint":[["Ground","Ground"],["Ground","Ground"]]}
+Paint array is 2N x 2N for N cells per axis, south-to-north. Terrain editor tab uses click brushes with a synchronized CPU 3D preview, undo/redo, export of heights, paint array and metadata. Combine paint with explicit texture definitions before export. No 3D ray sculpting or texture blending.
+    python -m chimster collision-box model.obj proxy-output
+    python -m chimster modern-nif newvegas model.obj model.nif /path/to/chimster-nifbridge --box-collision
+Box proxy is portable; experimental native FO3/FNV static Havok box chain uses Nifly and seven game units per Havok unit. Not suitable for hollow buildings or complex mesh collisions; independently test in game.
+    python -m chimster book native book.json readable.esp --model chimster/book.nif
+Text BOOK or NOTE record, plain CP1252 text, author and pages joined by blank lines. Books need an explicit model. Journal maps to NOTE. Native layout and UI testing remain required. References: https://tes5edit.github.io/fopdoc/FalloutNV/Records/BOOK.html and adjacent NOTE, STAT, REFR, LAND, TXST and LTEX pages.
