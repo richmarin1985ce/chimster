@@ -172,6 +172,9 @@ def launch():
  f=tab('Books & notes')
  from .book_ui import mount as mount_books
  mount_books(f)
+ f=tab('Dialogue views')
+ from .dialogue_view_ui import mount as mount_dialogue_views
+ mount_dialogue_views(f)
  f=tab('Quest editor')
  from .quest_ui import mount as mount_quests
  mount_quests(f)
