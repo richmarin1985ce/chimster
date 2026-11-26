@@ -13,7 +13,7 @@ class QuickIntegrationTests(unittest.TestCase):
             self.assertIn("skyrim",caprica(e,p/"a.psc",p/"pex","skyrim",[p/"data"],p/"flags.flg")["args"])
             self.assertIn("-p",champollion(e,p/"a.pex",p/"psc")["args"])
             self.assertIn("serialize",spriggit(e,p/"a.esp",p/"yaml","SkyrimSE")["args"])
-            self.assertIn("-fo3",bsarch(e,p/"data",p/"new.bsa","newvegas")["args"])
+            self.assertIn("-fnv",bsarch(e,p/"data",p/"new.bsa","newvegas")["args"])
             with self.assertRaises(ValueError):bsarch(e,p/"data",p/"data/new.bsa","newvegas")
     def test_overlay(self):
         with TemporaryDirectory() as d:
