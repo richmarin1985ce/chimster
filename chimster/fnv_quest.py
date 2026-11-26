@@ -28,7 +28,7 @@ def conditions(rows,qid,stages,bindings=None):
         # GetStageDone(current quest, stage) == 1/0, subject, no reference.
         out.append(sub(b"CTDA",struct.pack("<B3xfIIIII",0,float(c["done"]),59,qid,c["stage"],0,0)))
     return b"".join(out)
-def export(spec,output,masters=()):
+def export(spec,output,masters=(),allocator=None):
     from .fnv_bindings import Bindings
     bindings=Bindings(masters,output)
     if spec.get("schema")!=1 or not check_id(spec.get("id")):raise ValueError("invalid native quest specification")
@@ -39,7 +39,12 @@ def export(spec,output,masters=()):
     if not 1<=len(stages)<=256 or len(topics)>512 or len(objectives)>256:raise ValueError("quest size limit")
     priority=spec.get("priority",50)
     if type(priority) is not int or not 0<=priority<=100:raise ValueError("invalid priority")
-    qid=bindings.slot|0x800;next_id=qid+1;expected={qid:"QUST"};stage_ids=set();objective_ids=set()
+    next_local=0x800
+    def alloc(key):
+        nonlocal next_local
+        if allocator is not None:return bindings.slot|allocator.get(key)
+        v=next_local;next_local+=1;return bindings.slot|v
+    qid=alloc("QUST/"+spec["id"].casefold());expected={qid:"QUST"};stage_ids=set();objective_ids=set()
     q=sub(b"EDID",ident(spec["id"]))+sub(b"FULL",string(spec["title"],128))+sub(b"DATA",struct.pack("<BB2xf",0,priority,0.))
     for s in sorted(stages,key=lambda s:s["index"]):
         if set(s)-{"index","log","complete","fail"}:raise ValueError("unsupported stage fields")
@@ -63,7 +68,7 @@ def export(spec,output,masters=()):
         if set(t)-{"id","prompt","responses","top_level","priority"}:raise ValueError("unsupported topic fields")
         id=t["id"]
         if not check_id(id) or id.casefold() in used:raise ValueError("duplicate topic ID")
-        used.add(id.casefold());ids[id]=next_id;expected[next_id]="DIAL";next_id+=1
+        used.add(id.casefold());ids[id]=alloc("DIAL/"+id.casefold());expected[ids[id]]="DIAL"
     dialogue=[]
     for t in topics:
         tid=ids[t["id"]];level=t.get("top_level",False);pr=t.get("priority",50.)
@@ -72,11 +77,12 @@ def export(spec,output,masters=()):
         if not 1<=len(responses)<=255:raise ValueError("response count")
         dial=sub(b"EDID",ident(t["id"]))+sub(b"QSTI",u32(qid))+sub(b"FULL",string(t["prompt"],128))+sub(b"PNAM",struct.pack("<f",pr))+sub(b"DATA",bytes([0,2 if level else 0]))
         infos=[];previous=0
-        for r in responses:
-            if set(r)-{"text","emotion","emotion_value","goodbye","choices","notes","conditions","speaker"}:raise ValueError("unsupported response fields")
+        for i,r in enumerate(responses):
+            if set(r)-{"text","emotion","emotion_value","goodbye","choices","notes","conditions","speaker","id"}:raise ValueError("unsupported response fields")
             emotion=r.get("emotion",0);value=r.get("emotion_value",0);goodbye=r.get("goodbye",False);choices=r.get("choices",[])
             if type(emotion) is not int or not 0<=emotion<=7 or type(value) is not int or not 0<=value<=100 or type(goodbye) is not bool or len(choices)>64 or len(set(choices))!=len(choices) or any(c not in ids for c in choices) or goodbye and choices:raise ValueError("invalid response")
-            fid=next_id;next_id+=1;expected[fid]="INFO"
+            if allocator is not None and not check_id(r.get("id")):raise ValueError("stable dialogue responses require explicit id")
+            fid=alloc("INFO/"+t["id"].casefold()+"/"+str(r.get("id",i)).casefold());expected[fid]="INFO"
             info=sub(b"DATA",struct.pack("<BBH",0,0,int(goodbye)))+sub(b"QSTI",u32(qid))+sub(b"TPIC",u32(tid))+sub(b"PNAM",u32(previous))
             info+=sub(b"TRDT",struct.pack("<Ii4xB3xIB3x",emotion,value,1,0,0))+sub(b"NAM1",string(r["text"],1024))+sub(b"NAM2",string(r.get("notes",""),1024))
             info+=conditions(r.get("conditions",[]),qid,stage_ids,bindings)
@@ -87,7 +93,7 @@ def export(spec,output,masters=()):
     data=group(0,b"QUST",record(b"QUST",q,qid))
     if dialogue:data=group(0,b"DIAL",b"".join(dialogue))+data
     count=len(expected)+1+(1+len(dialogue) if dialogue else 0)
-    header=record(b"TES4",sub(b"HEDR",struct.pack("<fII",1.34,count,next_id&0xffffff))+sub(b"CNAM",b"Chimster\0")+bindings.header())
+    header=record(b"TES4",sub(b"HEDR",struct.pack("<fII",1.34,count,allocator.next if allocator else next_local))+sub(b"CNAM",b"Chimster\0")+bindings.header())
     bindings.check()
     with p.open("xb") as f:f.write(header+data)
     try:
