@@ -30,3 +30,6 @@ See [architecture and limitations](docs/loadorder.md). `python -m chimster loado
 
 ## Experimental quick-win pass
 See [quick wins](docs/quick-wins.md). Run `python -m chimster --help` for new commands: tool discovery, isolated mod ZIP installs, profiles, TES3 inventory and narrow static overrides, loose-asset audit, FOMOD metadata, Git history/branches, FFDec command previews. These are experimental; do not use with original game files or production saves. Cross-platform portable builds are proposed through CI, not yet released.
+
+## Showcase: Fallout 66: Courier’s Road — Flagstaff
+[Rebuild the Flagstaff demo](examples/flagstaff/README.md) entirely from Chimster, a text recipe and public USGS elevations. The provisional sample is a terrain/asset preview, not a playable New Vegas plugin. No proprietary assets bundled.
