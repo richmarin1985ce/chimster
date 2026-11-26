@@ -99,4 +99,39 @@ def launch():
  f=tab('Installed tools'); bar=ttk.Frame(f);bar.pack(fill='x');det=output(f)
  from .tooling import discover_tools
  ttk.Button(bar,text='Detect executables',command=lambda:show(det,discover_tools())).pack(side='left')
+ f=tab('Local wiki')
+ ttk.Label(f,text='Bundled documentation — no hosting or internet required.').pack(anchor='w')
+ from .wiki import Wiki
+ try:
+  wiki=Wiki()
+  query=tk.StringVar();bar=ttk.Frame(f);bar.pack(fill='x')
+  search_entry=ttk.Entry(bar,textvariable=query);search_entry.pack(side='left',fill='x',expand=True)
+  pane=ttk.Panedwindow(f,orient='horizontal');pane.pack(fill='both',expand=True,pady=6)
+  left=ttk.Frame(pane);right=ttk.Frame(pane);pane.add(left,weight=1);pane.add(right,weight=3)
+  pages=tk.Listbox(left,exportselection=False,width=34);pages.pack(side='left',fill='both',expand=True)
+  sb=ttk.Scrollbar(left,command=pages.yview);sb.pack(side='right',fill='y');pages.configure(yscrollcommand=sb.set)
+  body=tk.Text(right,wrap='word',bg='#1c2229',fg='#d6dce0',state='disabled');body.pack(side='left',fill='both',expand=True)
+  sb2=ttk.Scrollbar(right,command=body.yview);sb2.pack(side='right',fill='y');body.configure(yscrollcommand=sb2.set)
+  visible=[]
+  def display_page(event=None):
+   if not pages.curselection():return
+   page=wiki.read(visible[pages.curselection()[0]])
+   body.configure(state='normal');body.delete('1.0','end');body.insert('1.0',page['body']);body.configure(state='disabled')
+  def refresh_wiki():
+   titles={p['id']:p['title'] for p in wiki.pages()}
+   ids=[r['id'] for r in wiki.search(query.get(),30)] if query.get().strip() else list(titles)
+   visible[:]=ids;pages.delete(0,'end')
+   for key in ids:pages.insert('end',titles.get(key,key))
+   if ids:pages.selection_set(0);display_page()
+   else:
+    body.configure(state='normal');body.delete('1.0','end');body.insert('1.0','No matching pages.');body.configure(state='disabled')
+  ttk.Button(bar,text='Search',command=refresh_wiki).pack(side='left')
+  ttk.Button(bar,text='All pages',command=lambda:(query.set(''),refresh_wiki())).pack(side='left')
+  search_entry.bind('<Return>',lambda e:refresh_wiki())
+  pages.bind('<<ListboxSelect>>',display_page);refresh_wiki()
+  def close_app():
+   wiki.close();root.destroy()
+  root.protocol('WM_DELETE_WINDOW',close_app)
+ except (OSError,ValueError,ImportError) as e:
+  ttk.Label(f,text='Documentation unavailable: '+str(e)).pack(anchor='w')
  root.mainloop()
