@@ -1,0 +1,5 @@
+# In-game books, notes and journals
+Open the Books & notes tab, enter editor ID, title, optional author, target game and type. Separate pages with a line containing ---PAGE---. Export creates a new folder with the portable book.json project, plain body.txt, localization.json and an offline parchment-style preview.html. Open the preview in a browser. The book schema is versioned. Editor IDs are restricted to safe identifiers; preview escapes all user text. Localization uses stable per-page keys and the portable library can import a complete translation dictionary.
+CLI: python -m chimster book inspect book.json ; python -m chimster book export book.json output
+Example: {"schema":1,"editor_id":"ChimsterFieldNotes","title":"Field Notes","author":"","kind":"journal","game":"newvegas","pages":["First page","Second page"]}
+This is an authoring format, not a native BOOK/NOTE record. Game-specific markup, fonts, icons, covers, skill books, spell tomes, quest attachment, inventory/world placement and engine pagination are not yet implemented. Native records and translation table generation require separate adapters. No proprietary book text or textures included.
