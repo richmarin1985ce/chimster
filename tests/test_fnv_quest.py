@@ -12,3 +12,12 @@ class NativeQuestTests(unittest.TestCase):
             self.assertEqual([x["signature"] for x in scan(p)["records"]],["DIAL","INFO","DIAL","INFO","QUST"])
             s["topics"][0]["responses"][0]["choices"]=["Missing"]
             with self.assertRaises(ValueError):export(s,Path(d)/"Bad.esp")
+
+    def test_condition(self):
+        import struct
+        from chimster.fnv_quest import conditions
+        from chimster.fnv_records import subs
+        parts=list(subs(conditions([{"stage":10,"done":True}],0x800,{10})))
+        self.assertEqual(parts[0][0],b"CTDA")
+        self.assertEqual(struct.unpack("<B3xfIIIII",parts[0][1]),(0,1.,59,0x800,10,0,0))
+        with self.assertRaises(ValueError):conditions([{"stage":20,"done":True}],0x800,{10})
