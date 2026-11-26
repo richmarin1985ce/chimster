@@ -5,6 +5,7 @@ from .fnv_records import HEADER,scan,subs,text
 from .fnv_patch import sub
 from .fnv_bindings import Bindings
 from .loadorder import plugin_name
+from .remap_schema import PATTERNS,rewrite
 SCHEMAS={
  b"GMST":(b"EDID",b"DATA"),
  b"GLOB":(b"EDID",b"FNAM",b"FLTV"),
@@ -20,10 +21,19 @@ def reorder(source,output,masters):
     b=Bindings(masters,out)
     if set(old)!=set(b.names) or len(old)!=len(b.names):raise ValueError("only a permutation of existing masters is supported")
     slots=old+[plugin_name(p.name)];dest=b.names+[plugin_name(p.name)]
+    local_ids={(x["origin"],x["local_id"]) for x in report["records"] if not x["flags"]&0x20}
     def remap(v):
         if v==0:return 0
         if v>>24>=len(slots) or not v&0xffffff:raise ValueError("invalid FormID")
         return (dest.index(slots[v>>24])<<24)|(v&0xffffff)
+    def remap_link(v):
+        if not v:return 0
+        dest_id=remap(v);key=(slots[v>>24],v&0xffffff)
+        if v>>24<len(old):
+            rec=b.records.get(key)
+            if rec is None or rec["flags"]&0x20:raise ValueError("unresolved external reference")
+        elif key not in local_ids:raise ValueError("unresolved local reference")
+        return dest_id
     sig,n,flags,form,*_=HEADER.unpack_from(raw)
     header=list(subs(raw[24:24+n]));tags=[k for k,_ in header]
     if tags[:2]!=[b"HEDR",b"CNAM"] or tags[2:]!=[k for _ in old for k in (b"MAST",b"DATA")]:raise ValueError("unsupported TES4 header schema")
@@ -33,7 +43,7 @@ def reorder(source,output,masters):
     links=0
     while i<len(raw):
         g,size,label,typ,_,_=struct.unpack_from("<4sI4sIII",raw,i)
-        if g!=b"GRUP" or typ!=0 or size<24 or i+size>len(raw) or label not in set(SCHEMAS)|{b"FLST"}:raise ValueError("unknown or nested group; remapping refused")
+        if g!=b"GRUP" or typ!=0 or size<24 or i+size>len(raw) or label not in set(SCHEMAS)|set(PATTERNS)|{b"FLST"}:raise ValueError("unknown or nested group; remapping refused")
         j=i+24;end=i+size;records=[]
         while j<end:
             if end-j<24:raise ValueError("truncated record")
@@ -55,6 +65,8 @@ def reorder(source,output,masters):
                         v=struct.pack("<I",after);links+=int(after!=before)
                     new.append(sub(tag,v))
                 payload=b"".join(new)
+            elif k in PATTERNS:
+                payload,nchanged=rewrite(k,parts,remap_link);links+=nchanged
             elif tags!=SCHEMAS[k]:raise ValueError("unknown fields; remapping refused")
             else:
                 # Fixed known non-reference subrecords only. Validate lengths where defined.
@@ -82,4 +94,4 @@ def reorder(source,output,masters):
         b.check()
     except Exception:
         out.unlink();raise
-    return {"output":str(out),"records":len(report["records"]),"changed_list_references":links,"masters":after["masters"],"scope":"known top-level subset only; no master addition/removal, opaque fields, nested groups or arbitrary local renumbering"}
+    return {"output":str(out),"records":len(report["records"]),"changed_list_references":links,"changed_embedded_references":links,"masters":after["masters"],"scope":"known generated top-level subset only; no master addition/removal, opaque fields, nested groups or arbitrary local renumbering"}

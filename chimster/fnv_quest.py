@@ -18,6 +18,12 @@ def conditions(rows,qid,stages,bindings=None):
     if not isinstance(rows,list) or len(rows)>64:raise ValueError("invalid conditions")
     out=[]
     for c in rows:
+        if set(c)=={"reputation","axis","operator","value"}:
+            if bindings is None or c["axis"] not in {"fame","infamy"} or c["operator"] not in {"eq","ne","gt","ge","lt","le"} or type(c["value"]) not in (int,float) or not math.isfinite(c["value"]) or not 0<=c["value"]<=1:raise ValueError("invalid reputation percentage condition")
+            fid=bindings.resolve(c["reputation"],{"REPU"})
+            op={"eq":0,"ne":0x20,"gt":0x40,"ge":0x60,"lt":0x80,"le":0xa0}[c["operator"]]
+            out.append(sub(b"CTDA",struct.pack("<B3xfIIIII",op,c["value"],574,fid,int(c["axis"]=="fame"),0,0)))
+            continue
         if set(c)=={"actor","is"} or set(c)=={"faction","member"}:
             actor="actor" in c;key="actor" if actor else "faction";flag=c["is" if actor else "member"]
             if bindings is None or type(flag) is not bool:raise ValueError("invalid dependency condition")
