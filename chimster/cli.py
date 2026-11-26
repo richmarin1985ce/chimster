@@ -55,12 +55,25 @@ def main():
  b=t.add_parser('cube'); b.add_argument('panorama'); b.add_argument('output'); b.add_argument('--size',type=int,default=128)
  a=s.add_parser('stage-overlay'); a.add_argument('output'); a.add_argument('sources',nargs='+')
  a=s.add_parser('external-tool'); a.add_argument('tool',choices=['texconv','caprica','champollion','spriggit','bsarch']); a.add_argument('config'); a.add_argument('--execute',action='store_true')
+ a=s.add_parser('knowledge'); a.add_argument('index'); a.add_argument('--rebuild'); a.add_argument('--query')
+ a=s.add_parser('local-ai'); a.add_argument('model'); a.add_argument('game',choices=PROFILES); a.add_argument('request')
  n=p.parse_args()
  try:
   if n.cmd=='ui':
    from .ui import launch
    launch(); return
-  if n.cmd=='textures':
+  if n.cmd=='knowledge':
+   from .knowledge import KnowledgeIndex
+   idx=KnowledgeIndex(n.index)
+   try:
+    result={}
+    if n.rebuild:result.update(idx.rebuild(n.rebuild))
+    if n.query:result['matches']=idx.search(n.query)
+   finally:idx.close()
+  elif n.cmd=='local-ai':
+   from .local_ai import propose
+   result=propose(n.model,n.game,n.request)
+  elif n.cmd=='textures':
    from .textures import build_material,build_cube
    if n.texop=='material': result=build_material(n.height,n.mask,n.output,n.strength,n.convention,n.wrap,n.pack_alpha,n.low,n.high)
    else:result=build_cube(n.panorama,n.output,n.size)
