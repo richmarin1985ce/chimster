@@ -35,3 +35,14 @@ Flagstaff remains a regression testbed; creative design is separate. Keep origin
 - Worldspace Validator: New Vegas group hierarchy, ownership and coordinates, master-relative FormID resolution and merged-load-order conflict checks. CLI/desktop, Flagstaff CI gate; pending verification. Source-versus-merge preservation, other game schemas, navmesh connectivity and external LOD chunk checking remain outstanding.
 
 - Five-task follow-up: terrain-snapped static/readable placements, sparse alpha layer encoding, smooth/flatten and terrain project reopening, compound portable collision proxies, same-plugin book/note placements. Validator gate on native world output. All new changes await CI; actual game compatibility is still unverified.
+
+## Latest verified baseline — PR 12
+All seven workflows passed, merged at 4bc8005ddb4a69204fdc285e809b2baab6b55f05. Foundation: 143 discovered, 132 passed, 11 optional skips. Separate workflows exercise native NIF, OpenGL, public fixtures and preview packaging. Native FNV static/placement records, base and sparse alpha landscape layers, terrain snapping, smooth/flatten, portable compound collision, experimental static Havok box, native books/notes and their placement, hierarchy validator, compatibility inventory and portable minigames are implemented and CI-tested within their scope. Desktop interaction and retail engine behavior still need independent tests. Neutral tool names; no Fallout 76 online/backend emulation.
+## Landscape quadrant texture budgets — next
+The user clarified that quads means per-cell landscape texture quadrants, not mesh topology. Classic Oblivion supports nine textures per quad; FO3/FNV GECK supports seven. Reference: https://geckwiki.com/index.php/Category:Landscape and https://www.gamesas.com/how-prevent-lines-between-exterior-cells-t46244.html . Four quadrants per exterior cell, with separate base and alpha layer allocations. Existing FNV writer deliberately limits alpha layers to four plus base; that is a conservative implementation constraint, not the engine maximum. Do not raise it until native layer indexing and rendering have been checked.
+- Add explicit game-specific limits; unverified titles (including Oblivion Remastered) remain unknown, not inherited blindly.
+- Count all allocated texture layers, even zero-opacity layers; report distinct texture IDs and repeated IDs separately.
+- Prevent over-budget brush/procedural edits; expose per-quad slot inspector, usage estimates, explicit replace/remove operations and review-only consolidation suggestions.
+- Check final merged LAND records and shared quad/cell boundaries; never silently discard or normalize authored layers.
+- Test limit and limit+1, zero-alpha allocations, duplicate layers, four independent quadrants, merge overrides and deterministic terrain LOD compositing.
+- Native classic Oblivion landscape writing remains pending.
