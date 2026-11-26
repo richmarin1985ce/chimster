@@ -1,0 +1,7 @@
+# Voice Forge — later roadmap
+User-requested local AI casting and voice-production workflow for original mod NPCs, initially Flagstaff. Deferred until content editor, quest/dialogue record writers and audio packaging foundations mature.
+- 20–30 distinct original voice profiles, tunable age impression, register, accent, pace, emotional direction and pronunciation. No imitation of existing actors or recognizable game voices. Use synthetic voices from models with suitable redistribution licenses or explicitly consenting performers' recordings; provenance and consent tracked.
+- Stable NPC/voice/line IDs, dialogue CSV/JSON import, batch queues, deterministic seeds where supported, emotion tags, alternate takes, pronunciation dictionary, selective rerender and review gates. Preserve recorded human dialogue; do not replace without permission.
+- Local/offline model adapter, hardware capability checks, resumable jobs, CPU or GPU profiles; no claim that all models run well on low-memory systems. Evaluate model quality and licensing before selection.
+- Loudness/clipping/silence checks, consistent gain, WAV intermediate, target-specific OGG/XWM/FUZ and lip-sync pipeline, game naming, localization association, file manifests. Validate in the engine.
+- Benchmark intelligibility, consistency, emotional range, listening fatigue, pronunciation and file throughput using original text. Avoid unconsented voice likeness. No implementation or model choice yet.
