@@ -10,3 +10,5 @@ Original Chimster source and documentation are MIT licensed, unless a file expli
 - Generated mods are not automatically MIT licensed; asset and game-specific terms remain applicable.
 
 References: https://openmw.org/faq/ ; https://github.com/jindrapetrik/jpexs-decompiler ; https://www.gnu.org/licenses/gpl-faq.html
+
+- xEdit: current upstream repository MPL-2.0; verify pinned files and dependencies. Keep modified MPL-covered source files under MPL and supply required notices/source availability. Original Chimster adapter and audit script are MIT. No xEdit source or binaries bundled.
