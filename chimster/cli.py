@@ -93,7 +93,11 @@ def main():
  a=s.add_parser('quest-check'); a.add_argument('project')
  a=s.add_parser('script-check'); a.add_argument('path')
  a=s.add_parser('quest-states'); a.add_argument('project'); a.add_argument('--max-states',type=int,default=100000)
- a=s.add_parser('quest-native'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--master',action='append',default=[]); a.add_argument('--ledger-in'); a.add_argument('--ledger-out')
+ a=s.add_parser('quest-native'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--master',action='append',default=[]); a.add_argument('--ledger-in'); a.add_argument('--ledger-out'); a.add_argument('--script-draft',action='store_true')
+ a=s.add_parser('quest-attach-scripts'); a.add_argument('draft'); a.add_argument('compiled'); a.add_argument('output')
+ a=s.add_parser('quest-scenes'); a.add_argument('project'); a.add_argument('--scene')
+ a=s.add_parser('dialogue-view-inspect'); a.add_argument('xml')
+ a=s.add_parser('dialogue-view-remap'); a.add_argument('source'); a.add_argument('output'); a.add_argument('mapping'); a.add_argument('--positions')
  a=s.add_parser('quest-scripts'); a.add_argument('project'); a.add_argument('output')
  a=s.add_parser('interior-check'); a.add_argument('project'); a.add_argument('--room'); a.add_argument('--closed',action='append',default=[])
  a=s.add_parser('record-edit'); a.add_argument('plugin'); a.add_argument('output'); a.add_argument('origin'); a.add_argument('id',type=lambda x:int(x,0)); a.add_argument('field'); a.add_argument('value_json'); a.add_argument('hash')
@@ -117,7 +121,21 @@ def main():
    from .formids import staged_build
    spec=load(n.project)
    if n.ledger_in and not n.ledger_out:raise ValueError('previous ledger requires output ledger')
-   result=staged_build(lambda ids:export(spec,n.output,n.master,ids),n.output,n.ledger_out,n.ledger_in) if n.ledger_out else export(spec,n.output,n.master)
+   result=staged_build(lambda ids:export(spec,n.output,n.master,ids,script_draft=n.script_draft),n.output,n.ledger_out,n.ledger_in) if n.ledger_out else export(spec,n.output,n.master,script_draft=n.script_draft)
+  elif n.cmd=='quest-attach-scripts':
+   from .quest_compile import attach
+   result=attach(n.draft,n.compiled,n.output)
+  elif n.cmd=='quest-scenes':
+   from .quest_editor import load
+   from .quest_scenes import validate,timeline
+   spec=load(n.project);result=timeline(spec,n.scene) if n.scene else validate(spec)
+  elif n.cmd=='dialogue-view-inspect':
+   from .dialogue_views import parse,inspect
+   result=inspect(parse(n.xml))
+  elif n.cmd=='dialogue-view-remap':
+   from .quest_editor import load
+   from .dialogue_views import remap
+   result=remap(n.source,n.output,load(n.mapping),positions=load(n.positions) if n.positions else None)
   elif n.cmd=='quest-scripts':
    from .quest_editor import load
    from .quest_scripts import export
