@@ -87,7 +87,7 @@ def main():
    from .ui import launch
    launch(); return
   if n.cmd=='minigame':
-   from .pipgames import load,export
+   from .minigames import load,export
    result=export(load(n.project),n.output)
   elif n.cmd=='compatibility':
    from . import compatibility as c
