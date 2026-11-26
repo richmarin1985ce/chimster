@@ -78,6 +78,34 @@ def cube_dds(size,faces):
     struct.pack_into("<II",header,108,0x1008,0xfe00)
     return bytes(header)+b"".join(dds_rgba(size,size,faces[f])[128:] for f in FACES)
 
+def mip_chain(w,h,raw,normal=False):
+    """Linear scalar/color box mips; normal vectors are renormalized.
+    No alpha-test coverage adjustment, gamma conversion or cubemap filtering."""
+    shape(w,h,raw,4)
+    levels=[(w,h,raw)]
+    while w>1 or h>1:
+        nw,nh=max(1,w//2),max(1,h//2);out=bytearray(nw*nh*4)
+        for y in range(nh):
+            for x in range(nw):
+                # Include every source texel, even when dimensions are odd.
+                points=[4*(j*w+i) for j in range(y*h//nh,(y+1)*h//nh) for i in range(x*w//nw,(x+1)*w//nw)]
+                values=[sum(raw[p+c] for p in points)/len(points) for c in range(4)]
+                if normal:
+                    v=[a/127.5-1 for a in values[:3]];length=math.sqrt(sum(a*a for a in v))
+                    values[:3]=[127.5*(a/length+1) for a in v] if length>1e-6 else [128,128,255]
+                i=4*(y*nw+x);out[i:i+4]=bytes(max(0,min(255,round(a))) for a in values)
+        w,h,raw=nw,nh,bytes(out);levels.append((w,h,raw))
+    return levels
+
+def mip_dds(w,h,raw,normal=False):
+    levels=mip_chain(w,h,raw,normal)
+    header=bytearray(dds_rgba(w,h,raw)[:128])
+    if len(levels)>1:
+        struct.pack_into("<I",header,8,0x2100f)
+        struct.pack_into("<I",header,28,len(levels))
+        struct.pack_into("<I",header,108,0x401008)
+    return bytes(header)+b"".join(dds_rgba(a,b,p)[128:] for a,b,p in levels)
+
 def load_pixels(path,mode):
     from PIL import Image
     with Image.open(path) as im:
@@ -92,8 +120,9 @@ def build_material(height_path,mask_path,output,strength=4.0,convention="directx
     normal=normal_map(w,h,height,strength,convention,wrap,spec[::4] if pack_alpha else None)
     p=Path(output);p.mkdir(parents=True,exist_ok=False)
     for name,raw in [("material_n",normal),("material_s",spec)]:
-        write_png(p/(name+".png"),w,h,raw);write_dds(p/(name+".dds"),w,h,raw)
-    return {"output":str(p),"dimensions":[w,h],"normal_convention":convention,"specular_in_normal_alpha":pack_alpha,"warning":"Uncompressed single-level DDS; select target-specific material flags and texture packing before use."}
+        write_png(p/(name+".png"),w,h,raw)
+        with (p/(name+".dds")).open("xb") as f:f.write(mip_dds(w,h,raw,normal=name.endswith("_n")))
+    return {"output":str(p),"dimensions":[w,h],"normal_convention":convention,"specular_in_normal_alpha":pack_alpha,"warning":"Uncompressed DDS with mipmaps; select target-specific material flags and texture packing before use."}
 
 def build_cube(source,output,size=128):
     w,h,raw=load_pixels(source,"RGBA");faces=cube_from_panorama(w,h,raw,size)
