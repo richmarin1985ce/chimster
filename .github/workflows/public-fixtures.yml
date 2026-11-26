@@ -1,0 +1,24 @@
+name: Public game-format fixtures
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  fixtures:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: Ortham/testing-plugins
+          ref: d9b28a2062a12f3a40bc9b13be9d6f5731c81249
+          path: external-test-fixtures
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test real-format plugins
+        env:
+          CHIMSTER_PUBLIC_FIXTURES: ${{ github.workspace }}/external-test-fixtures
+        run: python -m unittest discover -s tests -p test_public_fixtures.py -v
