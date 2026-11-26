@@ -70,7 +70,7 @@ def main():
  a=s.add_parser('book'); b=a.add_subparsers(dest='bookop',required=True)
  c=b.add_parser('inspect'); c.add_argument('project')
  c=b.add_parser('export'); c.add_argument('project'); c.add_argument('output')
- c=b.add_parser('native'); c.add_argument('project'); c.add_argument('output'); c.add_argument('--model')
+ c=b.add_parser('native'); c.add_argument('project'); c.add_argument('output'); c.add_argument('--model'); c.add_argument('--skill',type=int,default=-1); c.add_argument('--untakeable',action='store_true')
  a=s.add_parser('render-benchmark'); a.add_argument('--count',type=int,default=2500); a.add_argument('--backend',default='egl'); a.add_argument('--frames',type=int,default=5)
  a=s.add_parser('fnv-world'); a.add_argument('heightmap'); a.add_argument('output'); a.add_argument('--spacing-m',type=float,required=True); a.add_argument('--datum-m',type=float); a.add_argument('--origin',type=int,nargs=2,default=[-4,-4]); a.add_argument('--editor-id',default='ChimsterWorld'); a.add_argument('--title',default='Chimster World'); a.add_argument('--vertical-scale',type=float,default=1)
  a.add_argument('--content')
@@ -166,7 +166,7 @@ def main():
    if n.bookop=='export':result=export(book,n.output)
    elif n.bookop=='native':
     from .fnv_content import export_book
-    result=export_book(book,n.output,n.model)
+    result=export_book(book,n.output,n.model,n.skill,n.untakeable)
    else:result={'editor_id':book.editor_id,'title':book.title,'pages':len(book.pages),'game':book.game,'kind':book.kind,'strings':book.localization()}
   elif n.cmd=='render-benchmark':
    from .render_benchmark import benchmark
