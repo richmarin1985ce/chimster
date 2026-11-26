@@ -45,7 +45,7 @@ def launch():
  ttk.Button(rb,text='Source plugin',command=record_source).pack(side='left')
  ttk.Entry(rb,textvariable=rp).pack(side='left',fill='x',expand=True)
  fields=ttk.Frame(f);fields.pack(fill='x')
- for label,var in [('Origin',ro),('Local ID',ri),('Field',rf),('New text',rv)]:
+ for label,var in [('Origin',ro),('Local ID',ri),('Field',rf),('New value (JSON)',rv)]:
   ttk.Label(fields,text=label).pack(side='left');ttk.Entry(fields,textvariable=var,width=16).pack(side='left')
  actions=ttk.Frame(f);actions.pack(fill='x');record_out=output(f);record_state={}
  def read_record():
@@ -56,15 +56,18 @@ def launch():
    show(record_out,r)
   except (OSError,ValueError,KeyError) as e:messagebox.showerror('Record editor',str(e))
  def edit_record():
-  from .record_editor import edit_text
+  from .record_editor import edit_typed
   from pathlib import Path
   try:
    if not record_state or (rp.get(),ro.get(),int(ri.get(),0))!=(record_state['path'],record_state['origin'],record_state['id']):raise ValueError('Inspect the current record first')
    d=filedialog.askdirectory(title='Choose staging directory (same plugin name, no overwrite)')
-   if d:show(record_out,edit_text(rp.get(),Path(d)/Path(rp.get()).name,ro.get(),int(ri.get(),0),rf.get(),rv.get(),record_state['hash']))
+   if d:show(record_out,edit_typed(rp.get(),Path(d)/Path(rp.get()).name,ro.get(),int(ri.get(),0),rf.get(),json.loads(rv.get()),record_state['hash']))
   except (OSError,ValueError,KeyError) as e:messagebox.showerror('Record editor',str(e))
  ttk.Button(actions,text='Inspect record',command=read_record).pack(side='left')
- ttk.Button(actions,text='Save staged text edit',command=edit_record).pack(side='left')
+ ttk.Button(actions,text='Save staged typed edit',command=edit_record).pack(side='left')
+ f=tab('Record projects')
+ from .record_project_ui import mount as record_project_mount
+ record_project_mount(f)
  f=tab('Action planner'); ttk.Label(f,text='Describe a mod task. Template-based proposal; no AI backend connected.').pack(anchor='w'); entry=ttk.Entry(f); entry.pack(fill='x',pady=5); bar=ttk.Frame(f); bar.pack(fill='x'); po=output(f)
  def propose():
   try: show(po,plan(game.get(),entry.get()))
