@@ -39,6 +39,7 @@ def main():
  b=l.add_parser('legacy-billboard'); b.add_argument('output'); b.add_argument('--seed',type=int,default=42); b.add_argument('--size',type=int,default=128); b.add_argument('--views',type=int,choices=[1,2,4],default=2); b.add_argument('--scale',type=float,default=1)
  b=l.add_parser('terrain'); b.add_argument('heightmap'); b.add_argument('output'); b.add_argument('--step',type=int,default=2)
  b=l.add_parser('benchmark'); b.add_argument('--count',type=int,default=10); b.add_argument('--size',type=int,default=64)
+ b=l.add_parser('compare-traces'); b.add_argument('baseline'); b.add_argument('changed')
  b=l.add_parser('workflow'); b.add_argument('game')
  b=l.add_parser('tool'); b.add_argument('profile'); b.add_argument('tool',choices=['xlodgen','texgen','dyndolod']); b.add_argument('executable'); b.add_argument('--execute',action='store_true')
  b=l.add_parser('openmw-settings'); b.add_argument('--distance',type=float,default=32768); b.add_argument('--min-size',type=float,default=.023)
@@ -69,6 +70,9 @@ def main():
     mesh=terrain_grid(json.loads(Path(n.heightmap).read_text(encoding='utf-8')),n.step)
     write_obj(mesh,n.output);result=mesh.stats()
    elif n.lop=='benchmark':result=benchmark(n.count,n.size)
+   elif n.lop=='compare-traces':
+    from .lod_benchmark import compare
+    result=compare(n.baseline,n.changed)
    elif n.lop=='workflow':result=workflow(n.game)
    elif n.lop=='openmw-settings':result={'settings':openmw_settings(n.distance,n.min_size)}
    elif n.lop=='mge':result=mge_plan(n.game_copy)
