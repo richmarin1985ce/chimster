@@ -1,11 +1,20 @@
 """Bounded FNV record inspection and same-name staged text edit.
 Preserves other records and raw subrecords; never mutates source or remaps FormIDs."""
 from pathlib import Path
-import struct,hashlib,math
+import struct,hashlib,math,zlib
 from .fnv_records import HEADER,MAX_RECORD,scan,subs,text
 from .fnv_patch import sub
 
-TEXT_FIELDS={"WRLD":{b"FULL"},"CELL":{b"FULL"},"BOOK":{b"FULL",b"DESC"},"NOTE":{b"FULL"},"STAT":{b"MODL"}}
+def unpack_payload(body,flags):
+    if not flags&0x40000:return body
+    if len(body)<4:raise ValueError("short compressed record")
+    size=struct.unpack_from("<I",body)[0]
+    if size>MAX_RECORD:raise ValueError("decompressed record exceeds limit")
+    try:
+        d=zlib.decompressobj();raw=d.decompress(body[4:],size+1)
+    except zlib.error as e:raise ValueError("invalid compressed record") from e
+    if len(raw)!=size or not d.eof or d.unused_data or d.unconsumed_tail:raise ValueError("invalid compressed record size or stream")
+    return raw
 def inspect(path,origin,local):
     from .loadorder import plugin_name
     p=Path(path);matches=[r for r in scan(p)["records"] if r["origin"]==plugin_name(origin) and r["local_id"]==local]
@@ -14,9 +23,11 @@ def inspect(path,origin,local):
     with p.open("rb") as f:
         f.seek(r["offset"]);sig,n,flags,*_=HEADER.unpack(f.read(24));body=f.read(n)
     if hashlib.sha256(body).hexdigest()!=r["payload_sha256"]:raise ValueError("record changed")
-    if flags&0x40000:return {**r,"fields":None,"status":"compressed payload; editing unsupported"}
+    parts=list(subs(unpack_payload(body,flags)))
+    edids=[text(v) for k,v in parts if k==b"EDID"]
+    if len(edids)>1:raise ValueError("duplicate EDID")
     from .record_schema import fields
-    return {**r,"fields":fields(r["signature"],r["editor_id"],subs(body))}
+    return {**r,"editor_id":edids[0] if edids else None,"compressed":bool(flags&0x40000),"fields":fields(r["signature"],edids[0] if edids else None,parts)}
 def edit_text(source,output,origin,local,field,value,expected_hash):
     if not isinstance(value,str):raise ValueError("expected text")
     return edit_typed(source,output,origin,local,field,value,expected_hash,text_only=True)
@@ -29,7 +40,7 @@ def edit_typed(source,output,origin,local,field,value,expected_hash,text_only=Fa
     if info["payload_sha256"]!=expected_hash:raise ValueError("stale record hash")
     k=field.encode("ascii")
     matches=[f for f in info.get("fields") or [] if f["tag"]==field and f["writable"]]
-    if len(matches)!=1 or info["flags"]&0x40020 or text_only and matches[0]["type"] not in {"text","model"}:raise ValueError("unsupported field or record flags")
+    if len(matches)!=1 or info["flags"]&0x20 or text_only and matches[0]["type"] not in {"text","model"}:raise ValueError("unsupported field or record flags")
     v=encode(matches[0]["type"],value)
     if matches[0]["type"]=="transform":
         before=matches[0]["value"]
@@ -47,6 +58,7 @@ def edit_typed(source,output,origin,local,field,value,expected_hash,text_only=Fa
             if i==target:
                 body=raw[i+24:stop]
                 if hashlib.sha256(body).hexdigest()!=expected_hash:raise ValueError("source changed")
+                body=unpack_payload(body,info["flags"])
                 # Preserve exact original encodings of untouched fields, including XXXX.
                 pos=0;pieces=[];count=0
                 while pos<len(body):
@@ -60,7 +72,10 @@ def edit_typed(source,output,origin,local,field,value,expected_hash,text_only=Fa
                     if tag==k:pieces.append(sub(k,v));count+=1
                     else:pieces.append(body[a:pos])
                 if count!=1:raise ValueError("field must occur exactly once")
-                b=b"".join(pieces);result.append(h[:4]+struct.pack("<I",len(b))+h[8:]+b)
+                b=b"".join(pieces)
+                if len(b)>MAX_RECORD:raise ValueError("edited payload exceeds limit")
+                if info["flags"]&0x40000:b=struct.pack("<I",len(b))+zlib.compress(b)
+                result.append(h[:4]+struct.pack("<I",len(b))+h[8:]+b)
                 parents.append(i)
             elif sig==b"GRUP" and i<target<stop:
                 b=rebuild(i+24,stop,depth+1);result.append(h[:4]+struct.pack("<I",24+len(b))+h[8:]+b)
