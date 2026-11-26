@@ -65,10 +65,13 @@ def build(terrain,output,editor_id="ChimsterWorld",title="Chimster World",origin
     q=tuple(tuple(round((v-terrain.datum_m)*units_m*vertical_scale/8) for v in row) for row in terrain.heights)
     error=max(abs((v-terrain.datum_m)*units_m*vertical_scale-q[y][x]*8) for y,row in enumerate(terrain.heights) for x,v in enumerate(row))
     world,persistent=0x800,0x801;next_id=0x802;blocks={};expected={}
-    from .fnv_content import static,reference,textures
+    from .fnv_content import static,reference,textures,book_record
+    from .books import Book
+    from .world_tools import snap_placements
+    from .land_layers import encode_layers
     from .land_paint import Paint
     content=content or {}
-    if not isinstance(content,dict) or set(content)-{"statics","placements","textures","paint"}:raise ValueError("unknown world content fields")
+    if not isinstance(content,dict) or set(content)-{"statics","placements","textures","paint","alpha_layers","books"}:raise ValueError("unknown world content fields")
     top={};base_ids={};texture_ids={};placed={};ref_expected={};layer_expected={}
     ids={editor_id.casefold()}
     def register(name):
@@ -81,12 +84,18 @@ def build(terrain,output,editor_id="ChimsterWorld",title="Chimster World",origin
         register(spec["id"]);register(spec["id"]+"TX")
         tx,lt=textures(next_id,next_id+1,spec);texture_ids[spec["id"]]=next_id+1
         top.setdefault(b"TXST",[]).append(tx);top.setdefault(b"LTEX",[]).append(lt);next_id+=2
+    for spec in content.get("books",[]):
+        b=Book(**spec["book"]).validate();register(b.editor_id);base_ids[b.editor_id]=next_id
+        sig,raw=book_record(next_id,b,spec.get("model"),spec.get("value",1),spec.get("weight",.2))
+        top.setdefault(sig,[]).append(raw);next_id+=1
     paint=None
     if "paint" in content:
         paint=Paint(tuple(tuple(r) for r in content["paint"])).validate(n)
         if any(v not in texture_ids for row in paint.rows for v in row):raise ValueError("unknown painted texture")
+    if content.get("alpha_layers") and not paint:raise ValueError("alpha layers require base paint")
+    alpha_layers=encode_layers(content.get("alpha_layers",[]),texture_ids,n)
     if len(content.get("placements",[]))>50000:raise ValueError("too many references")
-    for spec in content.get("placements",[]):
+    for spec in snap_placements(terrain,content.get("placements",[])):
         x,y,z=(spec[k] for k in ("x_m","y_m","z_m"))
         if not all(math.isfinite(v) for v in (x,y,z)):raise ValueError("invalid placement")
         gx,gy=ox*4096+x*units_m,oy*4096+y*units_m
@@ -105,6 +114,7 @@ def build(terrain,output,editor_id="ChimsterWorld",title="Chimster World",origin
                 layers=tuple(texture_ids[k] for k in paint.quadrants(x,y))
                 body+=b"".join(sub(b"BTXT",struct.pack("<IBBh",v,i,0,-1)) for i,v in enumerate(layers))
                 layer_expected[lid]=layers
+                body+=alpha_layers.get((x,y),b"")
             land=record(b"LAND",body,lid)
             cell=cell_record(cid,cx,cy)+group(6,cid,group(9,cid,land+b"".join(placed.get((cx,cy),[]))))
             blocks.setdefault((cy//32,cx//32),{}).setdefault((cy//8,cx//8),[]).append(cell)
@@ -117,7 +127,7 @@ def build(terrain,output,editor_id="ChimsterWorld",title="Chimster World",origin
         children+=group(4,struct.pack("<hh",*block),body);group_count+=1
     wrld=sub(b"EDID",cstr(editor_id))+sub(b"FULL",cstr(title))+sub(b"PNAM",b"\0\0")+sub(b"DNAM",struct.pack("<ff",0,-10000))+sub(b"ONAM",struct.pack("<fff",1,0,0))+sub(b"DATA",b"\x12")+sub(b"NAM0",struct.pack("<ff",ox,oy))+sub(b"NAM9",struct.pack("<ff",ox+n-1,oy+n-1))+sub(b"NNAM",b"\0")+sub(b"XNAM",b"\0")
     data=group(0,b"WRLD",record(b"WRLD",wrld,world)+group(1,world,children))
-    data=b"".join(group(0,sig,b"".join(top[sig])) for sig in (b"TXST",b"LTEX",b"STAT") if sig in top)+data
+    data=b"".join(group(0,sig,b"".join(top[sig])) for sig in (b"TXST",b"LTEX",b"BOOK",b"STAT",b"NOTE") if sig in top)+data
     header=record(b"TES4",sub(b"HEDR",struct.pack("<fII",1.34,record_count+group_count,next_id))+sub(b"CNAM",b"Chimster\0")+sub(b"SNAM",b"Experimental terrain fixture; not engine validated\0"))
     with p.open("xb") as f:f.write(header+data)
     try:
@@ -139,6 +149,12 @@ def build(terrain,output,editor_id="ChimsterWorld",title="Chimster World",origin
                 if r["local_id"] in layer_expected:
                     found=tuple(struct.unpack("<IBBh",v)[0] for k,v in parts if k==b"BTXT")
                     if found!=layer_expected[r["local_id"]]:raise ValueError("land texture mismatch")
+    except Exception:
+        p.unlink();raise
+    from .world_validator import validate
+    try:
+        validation=validate([p])
+        if not validation["valid"]:raise ValueError("worldspace validation failed: "+str(validation["issues"][:5]))
     except Exception:
         p.unlink();raise
     return {"output":str(p),"records":counts,"origin":list(origin),"cells_per_axis":n,"source_spacing_m":terrain.spacing_m,"horizontal_units_per_m":units_m,"vertical_scale":vertical_scale,"datum_m":terrain.datum_m,"max_quantization_error_game_units":error,"status":"experimental masterless ESP; self-reader verified, not validated in xEdit or game"}
