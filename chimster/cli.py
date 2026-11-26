@@ -20,12 +20,28 @@ def main():
   b=x.add_parser(name); b.add_argument('profile'); b.add_argument('executable'); b.add_argument('--operation',choices=['inspect','conflicts','lod'],default='inspect')
  b=x.add_parser('report'); b.add_argument('logfile')
  a=s.add_parser('asset-plan'); a.add_argument('game'); a.add_argument('data'); a.add_argument('manifest')
+ a=s.add_parser('loadorder'); a.add_argument('profile'); a.add_argument('--cache',required=True)
+ a=s.add_parser('autopatch'); a.add_argument('snapshot')
  n=p.parse_args()
  try:
   if n.cmd=='ui':
    from .ui import launch
    launch(); return
-  if n.cmd=='asset-plan':
+  if n.cmd=='loadorder':
+   from pathlib import Path
+   from .loadorder import HeaderCache, scan_profile
+   profile=Path(n.profile).resolve(strict=True)
+   config=json.loads(profile.read_text(encoding='utf-8'))
+   cache=HeaderCache(n.cache)
+   try:
+    result=scan_profile(config['game'],[profile.parent/d for d in config['data_dirs']],config['plugins'],cache,config.get('after',[]))
+   finally: cache.close()
+  elif n.cmd=='autopatch':
+   from pathlib import Path
+   from .autopatch import plan
+   config=json.loads(Path(n.snapshot).read_text(encoding='utf-8'))
+   result=plan(config['plugins'],config['records'],backend_version=config['backend_version'],complete_snapshot=config.get('complete_snapshot') is True)
+  elif n.cmd=='asset-plan':
    from .asset_plan import static_proposal
    from pathlib import Path
    result=static_proposal(n.game,n.data,json.loads(Path(n.manifest).read_text(encoding='utf-8')))
