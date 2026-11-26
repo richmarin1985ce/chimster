@@ -1,0 +1,28 @@
+import unittest,struct
+from chimster.textures import normal_map,specular_map,cube_from_panorama,cube_dds,direction,FACES
+class TextureTests(unittest.TestCase):
+    def test_flat(self):
+        self.assertEqual(normal_map(2,2,bytes([127])*4),bytes([128,128,255,255])*4)
+    def test_green_flip(self):
+        h=bytes([0,0,128,128,255,255]);dx=normal_map(2,3,h);gl=normal_map(2,3,h,convention="opengl")
+        self.assertLess(dx[9],128);self.assertGreater(gl[9],128)
+        self.assertEqual(dx[9]+gl[9],255)
+    def test_mask(self):
+        s=specular_map(2,1,bytes([0,255]),0,1)
+        self.assertEqual(s,bytes([0,0,0,255,255,255,255,255]))
+        n=normal_map(2,1,bytes(2),alpha=s[::4])
+        self.assertEqual(n[3::4],bytes([0,255]))
+    def test_cube(self):
+        f=cube_from_panorama(4,2,bytes([10,20,30,255])*8,2)
+        self.assertEqual(tuple(f),FACES)
+        self.assertTrue(all(v==bytes([10,20,30,255])*4 for v in f.values()))
+        d=cube_dds(2,f);self.assertEqual(len(d),128+6*16)
+        self.assertEqual(struct.unpack_from("<II",d,108),(0x1008,0xfe00))
+        self.assertEqual(d[128:132],bytes([30,20,10,255]))
+    def test_face_orientation(self):
+        self.assertEqual(direction("+Y",0,0),(0,1,0))
+        self.assertEqual(direction("-Z",0,0),(0,0,-1))
+        self.assertEqual(direction("+X",-1,0),direction("+Z",1,0))
+    def test_invalid(self):
+        with self.assertRaises(ValueError):cube_from_panorama(3,2,bytes(24))
+        with self.assertRaises(ValueError):normal_map(1,1,b"\x00",convention="unknown")
