@@ -7,6 +7,22 @@ from .formids import staged_build
 from .record_editor import inspect
 from .plugin_compare import compare
 DEFAULTS={"GMST":{"value":0},"GLOB":{"kind":"f","value":0.},"FACT":{"title":"Faction"},"MISC":{"title":"Item","model":"item.nif","bounds":[0,0,0,1,1,1],"value":0,"weight":0.},"STAT":{"model":"object.nif","bounds":[0,0,0,1,1,1]},"FLST":{"entries":[]}}
+DEFAULTS.update({
+ "REPU":{"title":"Reputation","value":100},
+ "CONT":{"title":"Container","model":"container.nif","bounds":[0,0,0,1,1,1],"items":[]},
+ "LVLI":{"entries":[{"ref":"ItemID","level":1,"count":1}]},
+ "LVLN":{"entries":[{"ref":"ActorID","level":1,"count":1}]},
+ "AMMO":{"title":"Ammunition","model":"ammo.nif","bounds":[0,0,0,1,1,1],"value":1,"weight":0.1,"speed":1,"clip_rounds":1,"projectile":{"plugin":"Source.esm","id":2048}},
+ "ECZN":{"minimum_level":1},
+ "VTYP":{"default_dialogue":False,"female":False},
+ "CLAS":{"title":"Class","description":"","tag_skills":[32,37,43,-1],"special":[5]*7},
+ "KEYM":{"title":"Key","model":"key.nif","bounds":[0,0,0,1,1,1],"value":0,"weight":0,"icon":"key.dds"},
+ "SPEL":{"title":"Ability","type":4,"effects":[{"ref":"EffectID","magnitude":1,"area":0,"duration":0,"range":0,"actor_value":16}]},
+ "PERK":{"title":"Perk","description":"","ranks":1,"minimum_level":1,"effects":[{"kind":"ability","ref":"AbilityID","rank":0,"priority":0}]},
+ "ALCH":{"title":"Consumable","model":"food.nif","bounds":[0,0,0,1,1,1],"value":1,"weight":0.1,"equipment_type":12,"food":True,"effects":[{"ref":"EffectID","magnitude":1,"area":0,"duration":1,"range":0,"actor_value":16}]},
+})
+for k in ("NPC_","WEAP","ARMO","RACE","PACK","MGEF"):
+    DEFAULTS[k]={"template":{"plugin":"Source.esm","id":2048}}
 def mount(parent):
     bar=ttk.Frame(parent);bar.pack(fill="x")
     editor=tk.Text(parent,wrap="none");editor.pack(fill="both",expand=True)
@@ -49,8 +65,12 @@ def mount(parent):
             if not p:return
             previous=filedialog.askopenfilename(title="Previous FormID ledger (Cancel for new project)",filetypes=[("JSON","*.json")])
             ledger=p+".formids.json"
-            spec=project()
-            result=staged_build(lambda ids:export(spec,p,allocator=ids),p,ledger,previous or None)
+            spec=project();masters=[]
+            while messagebox.askyesno("Dependencies","Add the next dependency in load order?"):
+                dep=filedialog.askopenfilename(filetypes=[("Plugins","*.esm *.esp")])
+                if not dep:return
+                masters.append(dep)
+            result=staged_build(lambda ids:export(spec,p,masters,ids),p,ledger,previous or None)
             messagebox.showinfo("Record project",json.dumps(result,indent=2))
         except (OSError,ValueError,KeyError,TypeError) as e:messagebox.showerror("Record project",str(e))
     def compare_ui():
