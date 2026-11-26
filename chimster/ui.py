@@ -102,6 +102,27 @@ def launch():
  f=tab('3D viewport')
  from .viewport import mount
  mount(f)
+ f=tab('Worldspace validator')
+ ttk.Label(f,text='Add copied plugins in active load order, masters first. Read-only.').pack(anchor='w')
+ pathlist=tk.Listbox(f,height=6);pathlist.pack(fill='x')
+ bar=ttk.Frame(f);bar.pack(fill='x');wo=output(f)
+ def add_world_plugins():
+  for p in filedialog.askopenfilenames(filetypes=[('Plugins','*.esm *.esp')]):
+   if p not in pathlist.get(0,'end'):pathlist.insert('end',p)
+ def move_world_plugin(delta):
+  if not pathlist.curselection():return
+  i=pathlist.curselection()[0];j=i+delta
+  if 0<=j<pathlist.size():
+   value=pathlist.get(i);pathlist.delete(i);pathlist.insert(j,value);pathlist.selection_set(j)
+ def check_world():
+  from .world_validator import validate
+  try:show(wo,validate(pathlist.get(0,'end')))
+  except (OSError,ValueError,TypeError) as e:messagebox.showerror('Worldspace validator',str(e))
+ ttk.Button(bar,text='Add plugins',command=add_world_plugins).pack(side='left')
+ ttk.Button(bar,text='Up',command=lambda:move_world_plugin(-1)).pack(side='left')
+ ttk.Button(bar,text='Down',command=lambda:move_world_plugin(1)).pack(side='left')
+ ttk.Button(bar,text='Clear',command=lambda:pathlist.delete(0,'end')).pack(side='left')
+ ttk.Button(bar,text='Validate',command=check_world).pack(side='left')
  f=tab('Terrain editor')
  from .terrain_ui import mount as mount_terrain
  mount_terrain(f)
