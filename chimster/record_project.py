@@ -11,7 +11,7 @@ from .formids import FormIDs
 from .quest_editor import check_id
 from .gameplay_records import KINDS as GAMEPLAY,encode as gameplay_encode
 from .template_records import KINDS as TEMPLATES,clone
-KINDS=("GMST","GLOB","FACT","RACE","MGEF","SPEL","ARMO","CONT","MISC","STAT","WEAP","AMMO","NPC_","LVLI","PACK","FLST","PERK","ECZN","REPU")
+KINDS=("GMST","GLOB","CLAS","FACT","RACE","MGEF","SPEL","ARMO","CONT","MISC","STAT","WEAP","AMMO","NPC_","LVLN","KEYM","ALCH","LVLI","PACK","FLST","PERK","VTYP","ECZN","REPU")
 def export(project,output,masters=(),allocator=None):
     p=Path(output)
     if p.suffix.lower()!=".esp" or p.exists() or p.is_symlink():raise ValueError("expected new ESP")
@@ -83,19 +83,20 @@ def local_links(row):
     """Known symbolic reference fields only; external bindings are dictionaries."""
     f=row["fields"];sig=row["type"];refs=[]
     if sig=="FLST":refs.extend(f["entries"])
-    if sig=="LVLI":refs.extend(e["ref"] for e in f["entries"]);refs.append(f.get("global"))
+    if sig in {"LVLI","LVLN"}:refs.extend(e["ref"] for e in f["entries"]);refs.append(f.get("global"))
     if sig in {"CONT","NPC_"}:refs.extend(e["ref"] for e in f.get("items",[]))
     if sig=="FACT":refs.extend(e["ref"] for e in f.get("relations",[]));refs.append(f.get("reputation"))
     if sig=="ECZN":refs.append(f.get("owner"))
     if sig=="AMMO":refs.append(f.get("projectile"))
-    if sig in {"PERK","SPEL"}:refs.extend(e["ref"] for e in f["effects"])
+    if sig in {"PERK","SPEL","ALCH"}:refs.extend(e["ref"] for e in f["effects"])
+    if sig=="ALCH":refs.extend(f.get(k) for k in ("withdrawal","consume_sound"))
     if sig=="NPC_":
         refs.extend(e["ref"] for e in f.get("factions",[]));refs.extend(f.get("packages",[]))
         refs.extend(f.get(k) for k in ("race","voice","class"))
     return {v.casefold() for v in refs if isinstance(v,str)}
 def check_list_cycles(rows):
     from collections import deque
-    lists={r["id"].casefold():r for r in rows if r["type"]=="LVLI"}
+    lists={r["id"].casefold():r for r in rows if r["type"] in {"LVLI","LVLN"}}
     edges={k:local_links(v)&lists.keys() for k,v in lists.items()}
     counts={k:len(v) for k,v in edges.items()};rev={k:[] for k in lists}
     for k,v in edges.items():
