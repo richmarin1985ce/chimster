@@ -57,12 +57,28 @@ def main():
  a=s.add_parser('external-tool'); a.add_argument('tool',choices=['texconv','caprica','champollion','spriggit','bsarch']); a.add_argument('config'); a.add_argument('--execute',action='store_true')
  a=s.add_parser('knowledge'); a.add_argument('index'); a.add_argument('--rebuild'); a.add_argument('--query')
  a=s.add_parser('local-ai'); a.add_argument('model'); a.add_argument('game',choices=PROFILES); a.add_argument('request')
+ a=s.add_parser('wiki'); w=a.add_subparsers(dest='wikiop',required=True)
+ w.add_parser('list')
+ b=w.add_parser('search'); b.add_argument('query')
+ b=w.add_parser('read'); b.add_argument('page')
+ b=w.add_parser('ask'); b.add_argument('model'); b.add_argument('game',choices=PROFILES); b.add_argument('query')
  n=p.parse_args()
  try:
   if n.cmd=='ui':
    from .ui import launch
    launch(); return
-  if n.cmd=='knowledge':
+  if n.cmd=='wiki':
+   from .wiki import Wiki
+   with Wiki() as wiki:
+    if n.wikiop=='list':result=wiki.pages()
+    elif n.wikiop=='search':result=wiki.search(n.query)
+    elif n.wikiop=='read':result=wiki.read(n.page)
+    else:
+     from .local_ai import propose
+     refs=wiki.context(n.query)
+     result=propose(n.model,n.game,n.query,references=refs)
+     result['retrieved_references']=refs
+  elif n.cmd=='knowledge':
    from .knowledge import KnowledgeIndex
    idx=KnowledgeIndex(n.index)
    try:
