@@ -19,12 +19,17 @@ def main():
  for name in ('preview','launch'):
   b=x.add_parser(name); b.add_argument('profile'); b.add_argument('executable'); b.add_argument('--operation',choices=['inspect','conflicts','lod'],default='inspect')
  b=x.add_parser('report'); b.add_argument('logfile')
+ a=s.add_parser('asset-plan'); a.add_argument('game'); a.add_argument('data'); a.add_argument('manifest')
  n=p.parse_args()
  try:
   if n.cmd=='ui':
    from .ui import launch
    launch(); return
-  if n.cmd=='xedit':
+  if n.cmd=='asset-plan':
+   from .asset_plan import static_proposal
+   from pathlib import Path
+   result=static_proposal(n.game,n.data,json.loads(Path(n.manifest).read_text(encoding='utf-8')))
+  elif n.cmd=='xedit':
    from .xedit import Workspace, discover, preview, launch, report_from_log
    from pathlib import Path
    if n.xoperation=='discover': result=discover(n.game)
