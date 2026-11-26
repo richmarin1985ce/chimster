@@ -64,7 +64,7 @@ def encode(sig,f,link):
 
     if sig=="REPU":
         check(f,{"title","value"})
-        return sub(b"FULL",cstr(f["title"]))+sub(b"DATA",struct.pack("<f",number(f["value"],0,1e6)))
+        return sub(b"FULL",cstr(f["title"]))+sub(b"DATA",struct.pack("<f",number(f["value"],0.000001,1e6)))
     if sig=="FACT":
         check(f,{"title"},{"hidden","evil","special_combat","track_crime","allow_sell","relations","ranks","reputation"})
         body=sub(b"FULL",cstr(f["title"]));seen=set()
@@ -86,7 +86,9 @@ def encode(sig,f,link):
         return common(f)+inventory(f["items"],link)+sub(b"DATA",struct.pack("<Bf",2*boolean(f.get("respawns",False)),number(f.get("weight",0),0,1000)))
     if sig in {"LVLI","LVLN"}:
         check(f,{"entries"},{"chance_none","flags","bounds"}|({"global"} if sig=="LVLI" else set()))
-        entries=rows(f["entries"]);body=bounds(f.get("bounds",[0]*6))+sub(b"LVLD",bytes([integer(f.get("chance_none",0),0,100)]))+sub(b"LVLF",bytes([integer(f.get("flags",0),0,7 if sig=="LVLI" else 3)]))
+        entries=rows(f["entries"])
+        if not entries:raise ValueError("leveled list requires an entry")
+        body=bounds(f.get("bounds",[0]*6))+sub(b"LVLD",bytes([integer(f.get("chance_none",0),0,100)]))+sub(b"LVLF",bytes([integer(f.get("flags",0),0,7 if sig=="LVLI" else 3)]))
         if "global" in f:body+=sub(b"LVLG",u32(link(f["global"],{"GLOB"})))
         elif sig=="LVLI":body+=sub(b"LVLG",bytes(4))
         for e in sorted(entries,key=lambda r:r["level"]):
@@ -106,6 +108,7 @@ def encode(sig,f,link):
         return sub(b"DATA",struct.pack("<IbbBx",link(f["owner"],{"NPC_","FACT"}) if "owner" in f else 0,integer(f.get("rank",-1),-1,127),integer(f["minimum_level"],0,127),flags))
     if sig=="SPEL":
         check(f,{"title","type","effects"},{"flags"})
+        if type(f["type"]) is not int or f["type"] not in {0,1,2,3,4,5,10}:raise ValueError("unsupported actor effect type")
         body=sub(b"FULL",cstr(f["title"]))+sub(b"SPIT",struct.pack("<IIIB3x",integer(f["type"],0,10),0,0,integer(f.get("flags",0),0,255)))
         return body+effect_records(f["effects"],link)
     if sig=="PERK":
