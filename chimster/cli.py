@@ -48,12 +48,24 @@ def main():
  a=s.add_parser('flagstaff'); f=a.add_subparsers(dest='fop',required=True)
  b=f.add_parser('fetch'); b.add_argument('recipe'); b.add_argument('dem')
  b=f.add_parser('build'); b.add_argument('recipe'); b.add_argument('dem'); b.add_argument('output')
+ a=s.add_parser('fnv-index'); a.add_argument('cache'); a.add_argument('plugins',nargs='+'); a.add_argument('--origin'); a.add_argument('--id',type=lambda x:int(x,0))
+ a=s.add_parser('fnv-gmst-patch'); a.add_argument('output'); a.add_argument('origin'); a.add_argument('--id',action='append',type=lambda x:int(x,0),required=True); a.add_argument('plugins',nargs='+')
  n=p.parse_args()
  try:
   if n.cmd=='ui':
    from .ui import launch
    launch(); return
-  if n.cmd=='flagstaff':
+  if n.cmd=='fnv-index':
+   from .fnv_records import RecordIndex
+   idx=RecordIndex(n.cache)
+   try:
+    result=idx.refresh(n.plugins)
+    if n.origin is not None and n.id is not None:result['chain']=idx.chain(n.origin,n.id)
+   finally:idx.close()
+  elif n.cmd=='fnv-gmst-patch':
+   from .fnv_patch import build_gmst_patch
+   result=build_gmst_patch(n.plugins,n.output,n.origin,n.id)
+  elif n.cmd=='flagstaff':
    from .flagstaff import load_recipe,fetch_dem,read_dem,build
    recipe=load_recipe(n.recipe)
    if n.fop=='fetch':result=fetch_dem(recipe,n.dem)
