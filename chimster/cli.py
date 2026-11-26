@@ -66,12 +66,24 @@ def main():
  a=s.add_parser('scene-demo'); a.add_argument('output')
  a=s.add_parser('native-flora'); a.add_argument('game',choices=['fallout3','newvegas','skyrim','skyrimse','skyrimvr','fallout4','fallout4vr']); a.add_argument('output'); a.add_argument('helper'); a.add_argument('--seed',type=int,default=42); a.add_argument('--scale',type=float,default=1); a.add_argument('--size',type=int,default=64)
  a=s.add_parser('render-preview'); a.add_argument('output'); a.add_argument('--scene'); a.add_argument('--materials'); a.add_argument('--backend'); a.add_argument('--width',type=int,default=960); a.add_argument('--height',type=int,default=540); a.add_argument('--zoom',type=float,default=12); a.add_argument('--lod',type=float,nargs=3,default=[22,45,90])
+ a=s.add_parser('book'); b=a.add_subparsers(dest='bookop',required=True)
+ c=b.add_parser('inspect'); c.add_argument('project')
+ c=b.add_parser('export'); c.add_argument('project'); c.add_argument('output')
+ a=s.add_parser('render-benchmark'); a.add_argument('--count',type=int,default=2500); a.add_argument('--backend',default='egl'); a.add_argument('--frames',type=int,default=5)
  n=p.parse_args()
  try:
   if n.cmd=='ui':
    from .ui import launch
    launch(); return
-  if n.cmd=='render-preview':
+  if n.cmd=='book':
+   from .books import load,export
+   book=load(n.project)
+   if n.bookop=='export':result=export(book,n.output)
+   else:result={'editor_id':book.editor_id,'title':book.title,'pages':len(book.pages),'game':book.game,'kind':book.kind,'strings':book.localization()}
+  elif n.cmd=='render-benchmark':
+   from .render_benchmark import benchmark
+   result=benchmark(n.count,n.frames,n.backend)
+  elif n.cmd=='render-preview':
    from .gpu_viewport import Renderer,Settings,make_demo,load_materials
    from .scene import Scene,Camera
    from .atlas import write_png
