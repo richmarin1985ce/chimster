@@ -14,6 +14,14 @@ def string(s,maxlen=4096):
     return cstr(s)
 def empty_script():
     return sub(b"SCHR",bytes(20))+sub(b"SCDA",b"")+sub(b"SCTX",b"")
+def conditions(rows,qid,stages):
+    if not isinstance(rows,list) or len(rows)>64:raise ValueError("invalid conditions")
+    out=[]
+    for c in rows:
+        if set(c)!={"stage","done"} or type(c["stage"]) is not int or c["stage"] not in stages or type(c["done"]) is not bool:raise ValueError("unsupported stage condition")
+        # GetStageDone(current quest, stage) == 1/0, subject, no reference.
+        out.append(sub(b"CTDA",struct.pack("<B3xfIIIII",0,float(c["done"]),59,qid,c["stage"],0,0)))
+    return b"".join(out)
 def export(spec,output):
     if spec.get("schema")!=1 or not check_id(spec.get("id")):raise ValueError("invalid native quest specification")
     if set(spec)-{"schema","id","title","priority","stages","objectives","topics"}:raise ValueError("unsupported native quest fields")
@@ -51,12 +59,13 @@ def export(spec,output):
         dial=sub(b"EDID",ident(t["id"]))+sub(b"QSTI",u32(qid))+sub(b"FULL",string(t["prompt"],128))+sub(b"PNAM",struct.pack("<f",pr))+sub(b"DATA",bytes([0,2 if level else 0]))
         infos=[];previous=0
         for r in responses:
-            if set(r)-{"text","emotion","emotion_value","goodbye","choices","notes"}:raise ValueError("unsupported response fields")
+            if set(r)-{"text","emotion","emotion_value","goodbye","choices","notes","conditions"}:raise ValueError("unsupported response fields")
             emotion=r.get("emotion",0);value=r.get("emotion_value",0);goodbye=r.get("goodbye",False);choices=r.get("choices",[])
             if type(emotion) is not int or not 0<=emotion<=7 or type(value) is not int or not 0<=value<=100 or type(goodbye) is not bool or len(choices)>64 or len(set(choices))!=len(choices) or any(c not in ids for c in choices) or goodbye and choices:raise ValueError("invalid response")
             fid=next_id;next_id+=1;expected[fid]="INFO"
             info=sub(b"DATA",struct.pack("<BBH",0,0,int(goodbye)))+sub(b"QSTI",u32(qid))+sub(b"TPIC",u32(tid))+sub(b"PNAM",u32(previous))
             info+=sub(b"TRDT",struct.pack("<Ii4xB3xIB3x",emotion,value,1,0,0))+sub(b"NAM1",string(r["text"],1024))+sub(b"NAM2",string(r.get("notes",""),1024))
+            info+=conditions(r.get("conditions",[]),qid,stage_ids)
             info+=b"".join(sub(b"TCLT",u32(ids[c])) for c in choices)+empty_script()+sub(b"NEXT",b"")+empty_script()
             infos.append(record(b"INFO",info,fid));previous=fid
         dialogue.append(record(b"DIAL",dial,tid)+group(7,tid,b"".join(infos)))
