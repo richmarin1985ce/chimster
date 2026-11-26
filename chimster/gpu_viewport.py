@@ -177,8 +177,12 @@ class Renderer:
             except Exception:self.ctx=moderngl.create_standalone_context(require=330,backend="egl")
         self.program=self.ctx.program(vertex_shader=VERTEX,fragment_shader=FRAGMENT)
         self.program["albedo"].value=0;self.program["normalmap"].value=1;self.program["specmap"].value=2
-        self.meshes={};self.textures={};self.targets=None;self.ids={};self.size=(0,0)
+        self.meshes={};self.radii={};self.textures={};self.targets=None;self.ids={};self.size=(0,0)
         self.white=ImageMap(1,1,b"\xff\xff\xff\xff");self.flat=ImageMap(1,1,bytes((128,128,255,255)))
+    def radius(self,m):
+        key=id(m)
+        if key not in self.radii:self.radii[key]=(m,max(length(p) for p in m.vertices))
+        return self.radii[key][1]
     def mesh(self,m):
         key=id(m);entry=self.meshes.get(key)
         if entry is not None:return entry[1:]
@@ -187,7 +191,7 @@ class Renderer:
             ibo=self.ctx.buffer(array("I",indices).tobytes())
             vao=self.ctx.vertex_array(self.program,[(vbo,"3f 3f 2f","pos","norm","uv")],ibo,index_element_size=4)
             parts.append((mat,ibo,vao,len(indices)//3))
-        radius=max(length(p) for p in m.vertices)
+        radius=self.radius(m)
         self.meshes[key]=(m,vbo,parts,radius);return vbo,parts,radius
     def texture(self,img):
         key=id(img)
@@ -207,6 +211,8 @@ class Renderer:
         self.targets=(a,b,depth,fbo);self.size=(w,h)
     def prune(self,scene,materials):
         active={id(m) for m in scene.assets.values()}
+        for key in list(self.radii):
+            if key not in active:self.radii.pop(key)
         for key in list(self.meshes):
             if key not in active:
                 _,vbo,parts,_=self.meshes.pop(key)
@@ -232,7 +238,7 @@ class Renderer:
             lod=lod_index(distance,settings.lod_distances)
             while options[lod] is None:lod-=1
             # Bound all variants, not only the selected geometry.
-            radius=max(self.mesh(m)[2] for m in options if m is not None)*i.scale
+            radius=max(self.radius(m) for m in options if m is not None)*i.scale
             if settings.cull and not visible(center,radius,view,settings):
                 stats["culled"]+=1;continue
             _,parts,_=self.mesh(options[lod]);stats["visible"]+=1;stats["lod_counts"][lod]+=1
@@ -261,5 +267,29 @@ class Renderer:
         for _,tex in self.textures.values():tex.release()
         if self.targets:
             for obj in reversed(self.targets):obj.release()
-        self.meshes.clear();self.textures.clear();self.targets=None
+        self.meshes.clear();self.radii.clear();self.textures.clear();self.targets=None
         self.program.release();self.ctx.release()
+
+def load_materials(path):
+    """Explicit JSON mapping of material IDs to relative texture files/settings."""
+    import json
+    from pathlib import Path
+    path=Path(path).resolve(strict=True)
+    if path.stat().st_size>1024*1024:raise ValueError("material manifest too large")
+    data=json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data,dict) or len(data)>256:raise ValueError("invalid material manifest")
+    result={};root=path.parent
+    for name,props in data.items():
+        if not isinstance(name,str) or not name or not isinstance(props,dict):raise ValueError("invalid material")
+        props=dict(props)
+        for k in ("diffuse","normal","specular"):
+            value=props.get(k)
+            if value is None:continue
+            if not isinstance(value,str):raise ValueError("expected texture path")
+            p=Path(value)
+            if p.is_absolute():raise ValueError("texture paths must be relative")
+            p=(root/p).resolve(strict=True)
+            if not p.is_relative_to(root) or not p.is_file():raise ValueError("texture outside manifest directory")
+            props[k]=image_from_file(p)
+        result[name]=Material(**props).validate()
+    return result
