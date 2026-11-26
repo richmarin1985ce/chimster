@@ -99,6 +99,9 @@ def launch():
  f=tab('Installed tools'); bar=ttk.Frame(f);bar.pack(fill='x');det=output(f)
  from .tooling import discover_tools
  ttk.Button(bar,text='Detect executables',command=lambda:show(det,discover_tools())).pack(side='left')
+ f=tab('3D viewport')
+ from .viewport import mount
+ mount(f)
  f=tab('Local wiki')
  ttk.Label(f,text='Bundled documentation — no hosting or internet required.').pack(anchor='w')
  from .wiki import Wiki
