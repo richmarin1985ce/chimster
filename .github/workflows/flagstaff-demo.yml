@@ -1,0 +1,38 @@
+name: Flagstaff public DEM showcase
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'chimster/flagstaff.py'
+      - 'chimster/cli.py'
+      - 'chimster/lod*.py'
+      - 'chimster/flora.py'
+      - 'chimster/atlas.py'
+      - 'examples/flagstaff/**'
+      - 'tests/test_flagstaff.py'
+      - '.github/workflows/flagstaff-demo.yml'
+permissions:
+  contents: read
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install rasterio==1.4.3 numpy==2.2.6
+      - run: python -m unittest discover -s tests -p test_flagstaff.py -v
+      - name: Obtain public USGS elevations
+        run: python -m chimster flagstaff fetch examples/flagstaff/recipe.json flagstaff-dem.tif | tee source.json
+      - name: Generate Flagstaff demonstration from recipe
+        run: python -m chimster flagstaff build examples/flagstaff/recipe.json flagstaff-dem.tif flagstaff-demo
+      - name: Preserve source provenance
+        run: |
+          cp flagstaff-dem.tif flagstaff-demo/
+          cp source.json flagstaff-demo/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chimster-flagstaff-public-dem
+          path: flagstaff-demo/
