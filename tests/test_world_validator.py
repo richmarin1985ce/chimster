@@ -25,13 +25,13 @@ class ValidatorTests(unittest.TestCase):
         build(t,p,origin=(-1,-1),editor_id="TestWorld",content={"statics":[{"id":"TestMarker","model":"test.nif","bounds":[0,0,0,1,1,1]}]})
     def test_clean(self):
         with TemporaryDirectory() as d:
-            p=Path(d)/"Base.esm";self.fixture(p)
+            p=Path(d)/"Base.esp";self.fixture(p)
             r=validate([p])
             self.assertTrue(r["valid"],r["issues"])
             self.assertEqual((r["exterior_cells"],r["persistent_cells"],r["land_records"]),(4,1,4))
     def test_corrupt_group_label(self):
         with TemporaryDirectory() as d:
-            p=Path(d)/"Base.esm";self.fixture(p);data=bytearray(p.read_bytes())
+            p=Path(d)/"Base.esp";self.fixture(p);data=bytearray(p.read_bytes())
             for i in range(len(data)-24):
                 if data[i:i+4]==b"GRUP" and struct.unpack_from("<I",data,i+12)[0]==5:
                     struct.pack_into("<hh",data,i+8,55,55);break
@@ -40,7 +40,7 @@ class ValidatorTests(unittest.TestCase):
             self.assertTrue({"subblock-coordinate","cell-grid"}<=codes)
     def test_merge_conflict(self):
         with TemporaryDirectory() as d:
-            p=Path(d)/"Base.esm";self.fixture(p);q=Path(d)/"Patch.esp"
+            p=Path(d)/"Base.esp";self.fixture(p);q=Path(d)/"Patch.esp"
             patch(q,p.name,0x803,new=True,base=0x123456)
             r=validate([p,q]);codes={x["code"] for x in r["issues"]}
             self.assertIn("duplicate-cell-coordinate",codes)
@@ -48,11 +48,11 @@ class ValidatorTests(unittest.TestCase):
             self.assertIn("master-order",{x["code"] for x in validate([q,p])["issues"]})
     def test_valid_override(self):
         with TemporaryDirectory() as d:
-            p=Path(d)/"Base.esm";self.fixture(p);q=Path(d)/"Patch.esp"
+            p=Path(d)/"Base.esp";self.fixture(p);q=Path(d)/"Patch.esp"
             patch(q,p.name,0x803)
             r=validate([p,q]);self.assertTrue(r["valid"],r["issues"])
             self.assertEqual(r["exterior_cells"],4)
     def test_truncated(self):
         with TemporaryDirectory() as d:
-            p=Path(d)/"Base.esm";self.fixture(p);p.write_bytes(p.read_bytes()[:-1])
+            p=Path(d)/"Base.esp";self.fixture(p);p.write_bytes(p.read_bytes()[:-1])
             r=validate([p]);self.assertFalse(r["valid"]);self.assertFalse(r["complete"])
