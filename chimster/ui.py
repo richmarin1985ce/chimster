@@ -102,6 +102,9 @@ def launch():
  f=tab('3D viewport')
  from .viewport import mount
  mount(f)
+ f=tab('Terrain editor')
+ from .terrain_ui import mount as mount_terrain
+ mount_terrain(f)
  f=tab('Books & notes')
  from .book_ui import mount as mount_books
  mount_books(f)
