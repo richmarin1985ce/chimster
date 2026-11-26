@@ -6,6 +6,8 @@ on:
       - 'chimster/flagstaff.py'
       - 'chimster/worldspace.py'
       - 'chimster/fnv_world.py'
+      - 'chimster/world_validator.py'
+      - 'tests/test_world_validator.py'
       - 'tests/test_worldspace.py'
       - 'chimster/cli.py'
       - 'chimster/lod*.py'
@@ -35,6 +37,10 @@ jobs:
         run: |
           set -o pipefail
           python -m chimster fnv-world flagstaff-demo/elevation-meters.json flagstaff-demo/ChimsterFlagstaff.esp --spacing-m 31.25 --editor-id ChimsterFlagstaffDemo --title "Flagstaff terrain fixture" | tee flagstaff-demo/native-world-report.json
+      - name: Validate generated world hierarchy
+        run: |
+          set -o pipefail
+          python -m chimster world-check flagstaff-demo/ChimsterFlagstaff.esp --strict | tee flagstaff-demo/world-validation.json
       - name: Preserve source provenance
         run: |
           cp flagstaff-dem.tif flagstaff-demo/

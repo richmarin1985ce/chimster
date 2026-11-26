@@ -33,5 +33,17 @@ def mount(parent):
     def validate():
         try:b=book();messagebox.showinfo("Book",f"{len(b.pages)} pages; {sum(map(len,b.pages))} characters. Valid portable project.")
         except (ValueError,TypeError) as e:messagebox.showerror("Book",str(e))
+    def native():
+        from .fnv_content import export_book
+        from tkinter import simpledialog
+        try:
+            b=book();model=None
+            if b.kind=="book":
+                model=simpledialog.askstring("Book model","Relative NIF path under meshes (required)")
+                if not model:return
+            p=filedialog.asksaveasfilename(defaultextension=".esp",filetypes=[("New Vegas plugin","*.esp")])
+            if not p:return
+            export_book(b,p,model);messagebox.showinfo("Experimental ESP",p+"\nValidate in xEdit and game before use.")
+        except (ValueError,TypeError,OSError) as e:messagebox.showerror("Book",str(e))
     bar=ttk.Frame(parent);bar.pack(fill="x")
-    for label,cmd in [("Open",open_book),("Validate",validate),("Export project + preview",write)]:ttk.Button(bar,text=label,command=cmd).pack(side="left")
+    for label,cmd in [("Open",open_book),("Validate",validate),("Export project + preview",write),("Export FNV ESP",native)]:ttk.Button(bar,text=label,command=cmd).pack(side="left")

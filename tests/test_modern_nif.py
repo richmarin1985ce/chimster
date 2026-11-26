@@ -19,3 +19,12 @@ class ModernNifTests(unittest.TestCase):
                     p=Path(d)/(game+".nif");r=export(m,game,p,os.environ["CHIMSTER_NIFBRIDGE"],materials)
                     self.assertEqual(r["triangles"],176)
                     self.assertGreater(p.stat().st_size,128)
+
+    @unittest.skipUnless(os.environ.get("CHIMSTER_NIFBRIDGE"),"optional compiled native backend")
+    def test_native_box_collision(self):
+        m=generate(Recipe(),2)
+        with TemporaryDirectory() as d:
+            p=Path(d)/"box.nif"
+            result=export(m,"newvegas",p,os.environ["CHIMSTER_NIFBRIDGE"],scale=10,box_collision=True)
+            self.assertTrue(result["box_collision"])
+            self.assertTrue(p.is_file())
