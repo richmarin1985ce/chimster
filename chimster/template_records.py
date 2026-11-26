@@ -11,14 +11,14 @@ from .fnv_content import ident
 from .fnv_patch import sub
 from .loadorder import plugin_name
 from .record_schema import integer,number
-from .gameplay_records import inventory,rows,check,u32
+from .gameplay_records import inventory,rows,check,u32,services,boolean
 KINDS={"NPC_","RACE","WEAP","ARMO","PACK","MGEF"}
 def clone(sig,id,fields,bindings,link):
     allowed={"template","title"}
-    if sig=="NPC_":allowed|={"health","special","level","factions","items","packages","race","voice","class"}
+    if sig=="NPC_":allowed|={"health","special","level","factions","items","packages","race","voice","class","services","barter_gold","aggression","confidence","energy","responsibility","mood"}
     if sig=="WEAP":allowed|={"value","health","weight","damage","clip_size"}
     if sig=="ARMO":allowed|={"value","health","weight","damage_threshold"}
-    if sig=="PACK":allowed={"template"}
+    if sig=="PACK":allowed={"template","schedule","offers_services"}
     if sig=="MGEF":allowed|={"description"}
     check(fields,{"template"},allowed-{"template"})
     t=fields["template"];check(t,{"plugin","id"})
@@ -56,6 +56,8 @@ def clone(sig,id,fields,bindings,link):
         if len(acbs)!=24:raise ValueError("unsupported NPC ACBS")
         flags=struct.unpack_from("<I",acbs)[0]
         if flags&0x100 or any(k==b"TPLT" and v!=bytes(4) for k,v in parts):raise ValueError("template-inheriting NPCs need explicit flattening")
+        if "barter_gold" in fields:
+            struct.pack_into("<H",acbs,6,integer(fields["barter_gold"],0,65535));replacements[b"ACBS"]=bytes(acbs)
         if "level" in fields:
             if flags&0x80:raise ValueError("PC-level-mult template requires explicit conversion")
             struct.pack_into("<h",acbs,8,integer(fields["level"],1,32767));replacements[b"ACBS"]=bytes(acbs)
@@ -68,6 +70,14 @@ def clone(sig,id,fields,bindings,link):
                 if not isinstance(vals,list) or len(vals)!=7:raise ValueError("expected seven SPECIAL values")
                 stats[4:11]=bytes(integer(v,1,10) for v in vals)
             replacements[b"DATA"]=bytes(stats)
+        ai_fields={"services","aggression","confidence","energy","responsibility","mood"}&fields.keys()
+        if ai_fields:
+            ai=bytearray(one(b"AIDT"))
+            if len(ai)!=20:raise ValueError("unsupported NPC AIDT")
+            if "services" in fields:struct.pack_into("<I",ai,8,services(fields["services"]))
+            for i,(k,maximum) in enumerate((("aggression",3),("confidence",4),("energy",100),("responsibility",100),("mood",7))):
+                if k in fields:ai[i]=integer(fields[k],0,maximum)
+            replacements[b"AIDT"]=bytes(ai)
         for key,tag,kinds in (("race",b"RNAM",{"RACE"}),("voice",b"VTCK",{"VTYP"}),("class",b"CNAM",{"CLAS"})):
             if key in fields:one(tag);replacements[tag]=u32(link(fields[key],kinds))
         if "factions" in fields:
@@ -82,6 +92,16 @@ def clone(sig,id,fields,bindings,link):
             if any(k==b"COED" for k,v in parts):raise ValueError("template has item ownership/condition data; explicit handling required")
         if "packages" in fields:
             collections[b"PKID"]=([(b"PKID",u32(link(v,{"PACK"}))) for v in rows(fields["packages"])],b"CNAM")
+    if sig=="PACK":
+        if "schedule" in fields:
+            v=fields["schedule"];check(v,{"month","day","date","hour","duration"})
+            if len(one(b"PSDT"))!=8:raise ValueError("unsupported schedule")
+            replacements[b"PSDT"]=struct.pack("<bbBbi",integer(v["month"],-1,11),integer(v["day"],-1,10),integer(v["date"],0,31),integer(v["hour"],-1,23),integer(v["duration"],0,24))
+        if "offers_services" in fields:
+            v=bytearray(one(b"PKDT"))
+            if len(v) not in (8,12):raise ValueError("unsupported package flags")
+            flags=struct.unpack_from("<I",v)[0]
+            struct.pack_into("<I",v,0,(flags&~1)|boolean(fields["offers_services"]));replacements[b"PKDT"]=bytes(v)
     if sig in {"WEAP","ARMO"}:
         stats=bytearray(one(b"DATA"));expected=15 if sig=="WEAP" else 12
         if len(stats)!=expected:raise ValueError("unsupported equipment DATA")
