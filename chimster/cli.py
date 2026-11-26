@@ -63,14 +63,18 @@ def main():
  b=w.add_parser('read'); b.add_argument('page')
  b=w.add_parser('ask'); b.add_argument('model'); b.add_argument('game',choices=PROFILES); b.add_argument('query')
  a=s.add_parser('modern-nif'); a.add_argument('game',choices=['fallout3','newvegas','skyrim','skyrimse','skyrimvr','fallout4','fallout4vr']); a.add_argument('obj'); a.add_argument('output'); a.add_argument('helper'); a.add_argument('--materials'); a.add_argument('--scale',type=float,default=1)
+ a.add_argument('--box-collision',action='store_true')
  a=s.add_parser('scene-demo'); a.add_argument('output')
  a=s.add_parser('native-flora'); a.add_argument('game',choices=['fallout3','newvegas','skyrim','skyrimse','skyrimvr','fallout4','fallout4vr']); a.add_argument('output'); a.add_argument('helper'); a.add_argument('--seed',type=int,default=42); a.add_argument('--scale',type=float,default=1); a.add_argument('--size',type=int,default=64)
  a=s.add_parser('render-preview'); a.add_argument('output'); a.add_argument('--scene'); a.add_argument('--materials'); a.add_argument('--backend'); a.add_argument('--width',type=int,default=960); a.add_argument('--height',type=int,default=540); a.add_argument('--zoom',type=float,default=12); a.add_argument('--lod',type=float,nargs=3,default=[22,45,90])
  a=s.add_parser('book'); b=a.add_subparsers(dest='bookop',required=True)
  c=b.add_parser('inspect'); c.add_argument('project')
  c=b.add_parser('export'); c.add_argument('project'); c.add_argument('output')
+ c=b.add_parser('native'); c.add_argument('project'); c.add_argument('output'); c.add_argument('--model')
  a=s.add_parser('render-benchmark'); a.add_argument('--count',type=int,default=2500); a.add_argument('--backend',default='egl'); a.add_argument('--frames',type=int,default=5)
  a=s.add_parser('fnv-world'); a.add_argument('heightmap'); a.add_argument('output'); a.add_argument('--spacing-m',type=float,required=True); a.add_argument('--datum-m',type=float); a.add_argument('--origin',type=int,nargs=2,default=[-4,-4]); a.add_argument('--editor-id',default='ChimsterWorld'); a.add_argument('--title',default='Chimster World'); a.add_argument('--vertical-scale',type=float,default=1)
+ a.add_argument('--content')
+ a=s.add_parser('collision-box'); a.add_argument('obj'); a.add_argument('output')
  n=p.parse_args()
  try:
   if n.cmd=='ui':
@@ -80,11 +84,20 @@ def main():
    from .worldspace import Terrain
    from .fnv_world import build
    terrain=Terrain.load(n.heightmap,n.spacing_m,n.datum_m)
-   result=build(terrain,n.output,n.editor_id,n.title,tuple(n.origin),n.vertical_scale)
+   from pathlib import Path
+   content=json.loads(Path(n.content).read_text(encoding='utf-8')) if n.content else None
+   result=build(terrain,n.output,n.editor_id,n.title,tuple(n.origin),n.vertical_scale,content)
+  elif n.cmd=='collision-box':
+   from .collision import export_box
+   from .scene import load_obj
+   result=export_box(load_obj(n.obj),n.output)
   elif n.cmd=='book':
    from .books import load,export
    book=load(n.project)
    if n.bookop=='export':result=export(book,n.output)
+   elif n.bookop=='native':
+    from .fnv_content import export_book
+    result=export_book(book,n.output,n.model)
    else:result={'editor_id':book.editor_id,'title':book.title,'pages':len(book.pages),'game':book.game,'kind':book.kind,'strings':book.localization()}
   elif n.cmd=='render-benchmark':
    from .render_benchmark import benchmark
@@ -110,7 +123,7 @@ def main():
    from .scene import load_obj
    from pathlib import Path
    mats=json.loads(Path(n.materials).read_text(encoding='utf-8')) if n.materials else None
-   result=export(load_obj(n.obj),n.game,n.output,n.helper,mats,n.scale)
+   result=export(load_obj(n.obj),n.game,n.output,n.helper,mats,n.scale,n.box_collision)
   elif n.cmd=='scene-demo':
    from .scene import demo_scene
    scene=demo_scene();scene.save(n.output);result={'output':n.output,'instances':len(scene.instances)}
