@@ -49,3 +49,6 @@ The user clarified that quads means per-cell landscape texture quadrants, not me
 
 ## Sections 1–16 development pass
 See checklist-01-16-progress.md. Implemented narrow native staged record edits and payload comparison, quadrant budget checks/desktop inspector, modular buildings and collision recipes, mixed-LOD shared-perimeter terrain tiles, chunk storage and selective loading, portable quest/dialogue authoring/playtest, skill book fields and Papyrus structural checks. New CI pending. Do not mark broader categories complete.
+
+## Native compound collision
+Implemented explicit static multi-box Havok list serialization for FO3/FNV, separate component material and list material assignments, 128 game-specific material IDs, shared geometry/collision scale and native reopen validation. Original building recipes include editable material defaults. CI and independent engine behavior remain to be verified. Per-child sound/FX may be overridden by the list material; no promise of mixed-material runtime fidelity. Complex triangle/MOPP collision and other engine families pending. See compound-collision.md.
