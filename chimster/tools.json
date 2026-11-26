@@ -1,0 +1,788 @@
+[
+  {
+    "name": "TES Construction Set (Morrowind)",
+    "category": "editor",
+    "games": [
+      "morrowind"
+    ],
+    "source": "https://morrowind-modding.github.io/modding-tools/",
+    "integration": "user-installed",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "OpenMW-CS",
+    "category": "editor",
+    "games": [
+      "openmw",
+      "morrowind"
+    ],
+    "source": "https://github.com/OpenMW/openmw",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "TES Construction Set (Oblivion)",
+    "category": "editor",
+    "games": [
+      "oblivion"
+    ],
+    "source": "https://cs.uesp.net/wiki/Main_Page",
+    "integration": "user-installed",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "GECK",
+    "category": "editor",
+    "games": [
+      "fallout3",
+      "newvegas"
+    ],
+    "source": "https://geckwiki.com/index.php?title=Bethsoft_Tutorial_GECK_Setup",
+    "integration": "user-installed",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "Creation Kit (Skyrim)",
+    "category": "editor",
+    "games": [
+      "skyrim",
+      "skyrimse",
+      "skyrimvr"
+    ],
+    "source": "https://www.creationkit.com/",
+    "integration": "user-installed",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "Creation Kit (Fallout 4)",
+    "category": "editor",
+    "games": [
+      "fallout4",
+      "fallout4vr"
+    ],
+    "source": "https://www.creationkit.com/",
+    "integration": "user-installed",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "Creation Kit (Starfield)",
+    "category": "editor",
+    "games": [
+      "starfield"
+    ],
+    "source": "https://starfield.creationkit.bethesda.net/",
+    "integration": "user-installed",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "Creation Kit Platform Extended",
+    "category": "editor",
+    "games": [
+      "skyrimse",
+      "fallout4",
+      "starfield"
+    ],
+    "source": "https://github.com/Perchik71/Creation-Kit-Platform-Extended",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "GECK Extender",
+    "category": "editor",
+    "games": [
+      "fallout3",
+      "newvegas"
+    ],
+    "source": "https://geckwiki.com/index.php/GECK_Extender",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "Construction Set Extender (Morrowind)",
+    "category": "editor",
+    "games": [
+      "morrowind"
+    ],
+    "source": "https://wiki.project-tamriel.com/wiki/Exterior_Modding_Tutorial",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "Construction Set Extender (Oblivion)",
+    "category": "editor",
+    "games": [
+      "oblivion"
+    ],
+    "source": "https://cs.uesp.net/wiki/Main_Page",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "xEdit (TES4Edit, FO3Edit, FNVEdit, TES5Edit, SSEEdit, FO4Edit, SF1Edit and variants)",
+    "category": "records",
+    "games": [
+      "oblivion",
+      "fallout3",
+      "newvegas",
+      "skyrim",
+      "skyrimse",
+      "skyrimvr",
+      "fallout4",
+      "fallout4vr",
+      "starfield",
+      "oblivionremastered"
+    ],
+    "source": "https://github.com/TES5Edit/TES5Edit",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "Mutagen",
+    "category": "records",
+    "games": [
+      "skyrim",
+      "skyrimse",
+      "skyrimvr",
+      "fallout4",
+      "starfield"
+    ],
+    "source": "https://github.com/Mutagen-Modding/Mutagen",
+    "integration": "separate-process",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "Spriggit",
+    "category": "version control",
+    "games": [
+      "skyrim",
+      "skyrimse",
+      "fallout4",
+      "starfield"
+    ],
+    "source": "https://github.com/Mutagen-Modding/Spriggit",
+    "integration": "separate-process",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "Synthesis",
+    "category": "patching",
+    "games": [
+      "skyrimse",
+      "fallout4",
+      "starfield"
+    ],
+    "source": "https://github.com/Mutagen-Modding/Synthesis",
+    "integration": "separate-process",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "tes3cmd",
+    "category": "records",
+    "games": [
+      "morrowind",
+      "openmw"
+    ],
+    "source": "https://modding-openmw.com/mods/tes3cmd/",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "tes3conv",
+    "category": "records",
+    "games": [
+      "morrowind",
+      "openmw"
+    ],
+    "source": "https://morrowind-modding.github.io/modding-tools/",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "Delta Plugin",
+    "category": "patching",
+    "games": [
+      "openmw"
+    ],
+    "source": "https://modding-openmw.com/mods/delta-plugin/",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "TES3Merge",
+    "category": "patching",
+    "games": [
+      "morrowind"
+    ],
+    "source": "https://morrowind-modding.github.io/modding-tools/",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "Merged Lands",
+    "category": "terrain",
+    "games": [
+      "openmw",
+      "morrowind"
+    ],
+    "source": "https://modding-openmw.gitlab.io/momw-tools-pack/",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "mlox",
+    "category": "load order",
+    "games": [
+      "morrowind",
+      "openmw"
+    ],
+    "source": "https://morrowind-modding.github.io/modding-tools/",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "Wrye Mash",
+    "category": "load order",
+    "games": [
+      "morrowind",
+      "openmw"
+    ],
+    "source": "https://morrowind-modding.github.io/modding-tools/",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "Wrye Bash",
+    "category": "load order",
+    "games": [
+      "oblivion",
+      "fallout3",
+      "newvegas",
+      "skyrim",
+      "skyrimse",
+      "skyrimvr",
+      "fallout4",
+      "fallout4vr",
+      "starfield",
+      "oblivionremastered"
+    ],
+    "source": "https://github.com/wrye-bash/wrye-bash",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "LOOT",
+    "category": "load order",
+    "games": [
+      "oblivion",
+      "fallout3",
+      "newvegas",
+      "skyrim",
+      "skyrimse",
+      "skyrimvr",
+      "fallout4",
+      "fallout4vr",
+      "starfield",
+      "oblivionremastered"
+    ],
+    "source": "https://github.com/loot/loot",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "Mod Organizer 2",
+    "category": "mod manager",
+    "games": [
+      "*"
+    ],
+    "source": "https://github.com/ModOrganizer2/modorganizer",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "Vortex",
+    "category": "mod manager",
+    "games": [
+      "*"
+    ],
+    "source": "https://github.com/Nexus-Mods/Vortex",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "NifSkope",
+    "category": "mesh",
+    "games": [
+      "*"
+    ],
+    "source": "https://github.com/niftools/nifskope",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "PyNifly",
+    "category": "mesh",
+    "games": [
+      "skyrim",
+      "skyrimse",
+      "fallout4"
+    ],
+    "source": "https://github.com/BadDogSkyrim/PyNifly",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "Blender",
+    "category": "mesh",
+    "games": [
+      "*"
+    ],
+    "source": "https://www.blender.org/",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "Blender Niftools Addon",
+    "category": "mesh",
+    "games": [
+      "morrowind",
+      "oblivion",
+      "fallout3",
+      "newvegas",
+      "skyrim"
+    ],
+    "source": "https://github.com/niftools/blender_niftools_addon",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "Cathedral Assets Optimizer",
+    "category": "assets",
+    "games": [
+      "skyrim",
+      "skyrimse",
+      "fallout3",
+      "newvegas",
+      "fallout4"
+    ],
+    "source": "https://github.com/Guekka/Cathedral-Assets-Optimizer",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "DirectXTex / texconv",
+    "category": "texture",
+    "games": [
+      "*"
+    ],
+    "source": "https://github.com/microsoft/DirectXTex",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "BSArch / BSArchPro",
+    "category": "archives",
+    "games": [
+      "oblivion",
+      "fallout3",
+      "newvegas",
+      "skyrim",
+      "skyrimse",
+      "skyrimvr",
+      "fallout4",
+      "fallout4vr",
+      "starfield",
+      "oblivionremastered"
+    ],
+    "source": "https://github.com/TES5Edit/TES5Edit",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "Bethesda Archive Extractor",
+    "category": "archives",
+    "games": [
+      "oblivion",
+      "fallout3",
+      "newvegas",
+      "skyrim",
+      "skyrimse",
+      "skyrimvr",
+      "fallout4",
+      "fallout4vr",
+      "starfield",
+      "oblivionremastered"
+    ],
+    "source": "https://baddogskyrim.github.io/BethesdaLibrary/reference/external-resources/",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "Archive2",
+    "category": "archives",
+    "games": [
+      "fallout4",
+      "starfield"
+    ],
+    "source": "https://starfield.creationkit.bethesda.net/",
+    "integration": "user-installed",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "TESAnnwyn",
+    "category": "terrain",
+    "games": [
+      "morrowind",
+      "oblivion",
+      "fallout3",
+      "newvegas",
+      "skyrim"
+    ],
+    "source": "https://morrowind-modding.github.io/modding-tools/landmass-utilities/tesannwyn",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "Oscape",
+    "category": "terrain",
+    "games": [
+      "skyrim"
+    ],
+    "source": "https://www.nexusmods.com/skyrim/mods/4727",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "xLODGen",
+    "category": "terrain LOD",
+    "games": [
+      "oblivion",
+      "fallout3",
+      "newvegas",
+      "skyrim",
+      "skyrimse",
+      "skyrimvr",
+      "fallout4",
+      "fallout4vr",
+      "starfield",
+      "oblivionremastered"
+    ],
+    "source": "https://dyndolod.info/Help/xLODGen",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "DynDOLOD",
+    "category": "object LOD",
+    "games": [
+      "skyrim",
+      "skyrimse",
+      "skyrimvr"
+    ],
+    "source": "https://dyndolod.info/Quickstart",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "TexGen",
+    "category": "texture LOD",
+    "games": [
+      "skyrim",
+      "skyrimse",
+      "skyrimvr"
+    ],
+    "source": "https://dyndolod.info/Quickstart",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "TreeLODGen",
+    "category": "object LOD",
+    "games": [
+      "skyrim",
+      "skyrimse",
+      "skyrimvr"
+    ],
+    "source": "https://dyndolod.info/Help/LODGen",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "MWSE",
+    "category": "scripts",
+    "games": [
+      "morrowind"
+    ],
+    "source": "https://github.com/MWSE/MWSE",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "OpenMW Lua",
+    "category": "scripts",
+    "games": [
+      "openmw"
+    ],
+    "source": "https://github.com/OpenMW/openmw",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "xOBSE",
+    "category": "scripts",
+    "games": [
+      "oblivion"
+    ],
+    "source": "https://github.com/llde/xOBSE",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "FOSE",
+    "category": "scripts",
+    "games": [
+      "fallout3"
+    ],
+    "source": "https://fose.silverlock.org/",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "xNVSE",
+    "category": "scripts",
+    "games": [
+      "newvegas"
+    ],
+    "source": "https://github.com/xNVSE/NVSE",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "SKSE",
+    "category": "scripts",
+    "games": [
+      "skyrim",
+      "skyrimse",
+      "skyrimvr"
+    ],
+    "source": "https://skse.silverlock.org/",
+    "integration": "user-installed",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "F4SE",
+    "category": "scripts",
+    "games": [
+      "fallout4",
+      "fallout4vr"
+    ],
+    "source": "https://f4se.silverlock.org/",
+    "integration": "user-installed",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "SFSE",
+    "category": "scripts",
+    "games": [
+      "starfield"
+    ],
+    "source": "https://github.com/ianpatt/sfse",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "Papyrus Compiler",
+    "category": "scripts",
+    "games": [
+      "skyrim",
+      "skyrimse",
+      "skyrimvr",
+      "fallout4",
+      "fallout4vr",
+      "starfield"
+    ],
+    "source": "https://starfield.creationkit.bethesda.net/",
+    "integration": "user-installed",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "Caprica",
+    "category": "scripts",
+    "games": [
+      "skyrim",
+      "skyrimse",
+      "fallout4"
+    ],
+    "source": "https://github.com/Orvid/Caprica",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "Champollion",
+    "category": "scripts",
+    "games": [
+      "skyrim",
+      "skyrimse",
+      "fallout4"
+    ],
+    "source": "https://github.com/Orvid/Champollion",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "xTranslator",
+    "category": "localization",
+    "games": [
+      "oblivion",
+      "skyrim",
+      "skyrimse",
+      "fallout4",
+      "starfield"
+    ],
+    "source": "https://baddogskyrim.github.io/BethesdaLibrary/reference/external-resources/",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "ReSaver / FallrimTools",
+    "category": "save analysis",
+    "games": [
+      "skyrim",
+      "skyrimse",
+      "fallout4"
+    ],
+    "source": "https://baddogskyrim.github.io/BethesdaLibrary/reference/external-resources/",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "PJM Precombine/Previs Patching Scripts",
+    "category": "visibility",
+    "games": [
+      "fallout4"
+    ],
+    "source": "https://www.nexusmods.com/fallout4/mods/69978",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "AgentCreationKit",
+    "category": "automation",
+    "games": [
+      "fallout4"
+    ],
+    "source": "https://github.com/IronAdamant/AgentCreationKit",
+    "integration": "external",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "FOMOD installer tooling",
+    "category": "packaging",
+    "games": [
+      "*"
+    ],
+    "source": "https://github.com/Th0rgal/awesome-modding",
+    "integration": "research",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "Creation Companion",
+    "category": "editor",
+    "games": [
+      "skyrimse"
+    ],
+    "source": "https://github.com/Elscrux/Creation-Companion",
+    "integration": "research",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "GECKO Modding Studio",
+    "category": "editor",
+    "games": [
+      "newvegas"
+    ],
+    "source": "https://www.nexusmods.com/newvegas/mods/100125",
+    "integration": "research",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "Skyrim AI Toolkit",
+    "category": "automation",
+    "games": [
+      "skyrimse"
+    ],
+    "source": "https://github.com/ia-kobos/skyrim-ai-toolkit",
+    "integration": "research",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  },
+  {
+    "name": "Unreal PAK tooling",
+    "category": "archives",
+    "games": [
+      "oblivionremastered"
+    ],
+    "source": "https://forums.nexusmods.com/topic/13515989-list-of-tools-and-tutorials-for-making-oblivion-remastered-mods/",
+    "integration": "research",
+    "status": "catalog only",
+    "note": "Verify exact version, game support and distribution terms before integration."
+  }
+]
