@@ -127,6 +127,12 @@ def validate(paths,max_records=2000000,max_issues=10000):
                                     if math.isfinite(x) and math.isfinite(y):item["position"]=(math.floor(x/4096),math.floor(y/4096))
                                     else:issue("reference-position",name,off,"Nonfinite reference transform")
                             if kind=="LAND":
+                                from .texture_budget import audit
+                                budget=audit(parts,"newvegas")
+                                for q in budget["quadrants"]:
+                                    if q["over_budget"]:issue("land-texture-budget",name,off,f"Quadrant {q['quadrant']}: {q['allocated']} allocated, limit {q['limit']}")
+                                    for detail in q["issues"]:issue("land-alpha-layer",name,off,f"Quadrant {q['quadrant']}: {detail}")
+                                for detail in budget["issues"]:issue("land-alpha-layer",name,off,detail)
                                 quadrants=set()
                                 for k,v in parts:
                                     if k in (b"BTXT",b"ATXT"):
