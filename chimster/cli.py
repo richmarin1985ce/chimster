@@ -74,7 +74,7 @@ def main():
  a=s.add_parser('render-benchmark'); a.add_argument('--count',type=int,default=2500); a.add_argument('--backend',default='egl'); a.add_argument('--frames',type=int,default=5)
  a=s.add_parser('fnv-world'); a.add_argument('heightmap'); a.add_argument('output'); a.add_argument('--spacing-m',type=float,required=True); a.add_argument('--datum-m',type=float); a.add_argument('--origin',type=int,nargs=2,default=[-4,-4]); a.add_argument('--editor-id',default='ChimsterWorld'); a.add_argument('--title',default='Chimster World'); a.add_argument('--vertical-scale',type=float,default=1)
  a.add_argument('--content')
- a=s.add_parser('collision-box'); a.add_argument('obj'); a.add_argument('output')
+ a=s.add_parser('collision-box'); a.add_argument('obj'); a.add_argument('output'); a.add_argument('--compound',action='store_true')
  a=s.add_parser('minigame'); a.add_argument('project'); a.add_argument('output')
  a=s.add_parser('compatibility'); c=a.add_subparsers(dest='compatop',required=True)
  b=c.add_parser('inspect'); b.add_argument('game',choices=['oblivionremastered','fallout76']); b.add_argument('path')
@@ -111,9 +111,9 @@ def main():
    content=json.loads(Path(n.content).read_text(encoding='utf-8')) if n.content else None
    result=build(terrain,n.output,n.editor_id,n.title,tuple(n.origin),n.vertical_scale,content)
   elif n.cmd=='collision-box':
-   from .collision import export_box
+   from .collision import export_box,export_compound
    from .scene import load_obj
-   result=export_box(load_obj(n.obj),n.output)
+   result=(export_compound if n.compound else export_box)(load_obj(n.obj),n.output)
   elif n.cmd=='book':
    from .books import load,export
    book=load(n.project)
