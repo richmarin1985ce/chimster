@@ -36,6 +36,7 @@ def main():
  a=s.add_parser('lod'); l=a.add_subparsers(dest='lop',required=True)
  b=l.add_parser('tree'); b.add_argument('output'); b.add_argument('--seed',type=int,default=42); b.add_argument('--size',type=int,default=128); b.add_argument('--views',type=int,choices=[1,2,4],default=2)
  b=l.add_parser('nif'); b.add_argument('output'); b.add_argument('--seed',type=int,default=42); b.add_argument('--level',type=int,choices=[0,1,2],default=2); b.add_argument('--scale',type=float,default=1)
+ b=l.add_parser('legacy-billboard'); b.add_argument('output'); b.add_argument('--seed',type=int,default=42); b.add_argument('--size',type=int,default=128); b.add_argument('--views',type=int,choices=[1,2,4],default=2); b.add_argument('--scale',type=float,default=1)
  b=l.add_parser('terrain'); b.add_argument('heightmap'); b.add_argument('output'); b.add_argument('--step',type=int,default=2)
  b=l.add_parser('benchmark'); b.add_argument('--count',type=int,default=10); b.add_argument('--size',type=int,default=64)
  b=l.add_parser('workflow'); b.add_argument('game')
@@ -61,6 +62,9 @@ def main():
    elif n.lop=='nif':
     from .nif_export import export_legacy
     result=export_legacy(generate(Recipe(seed=n.seed),n.level),n.output,scale=n.scale)
+   elif n.lop=='legacy-billboard':
+    from .nif_export import export_billboard
+    result=export_billboard(Recipe(seed=n.seed),n.output,n.size,n.views,n.scale)
    elif n.lop=='terrain':
     mesh=terrain_grid(json.loads(Path(n.heightmap).read_text(encoding='utf-8')),n.step)
     write_obj(mesh,n.output);result=mesh.stats()
