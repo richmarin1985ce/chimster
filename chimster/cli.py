@@ -103,12 +103,69 @@ def main():
  a=s.add_parser('record-edit'); a.add_argument('plugin'); a.add_argument('output'); a.add_argument('origin'); a.add_argument('id',type=lambda x:int(x,0)); a.add_argument('field'); a.add_argument('value_json'); a.add_argument('hash')
  a=s.add_parser('record-build'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--master',action='append',default=[]); a.add_argument('--ledger-in'); a.add_argument('--ledger-out')
  a=s.add_parser('master-reorder'); a.add_argument('source'); a.add_argument('output'); a.add_argument('masters',nargs='+')
+ a=s.add_parser('project'); c=a.add_subparsers(dest='project_op',required=True)
+ b=c.add_parser('create'); b.add_argument('root'); b.add_argument('name'); b.add_argument('game',choices=PROFILES)
+ for name in ('status','verify'):
+  b=c.add_parser(name); b.add_argument('root')
+ b=c.add_parser('add'); b.add_argument('root'); b.add_argument('id'); b.add_argument('kind'); b.add_argument('source'); b.add_argument('--revision',type=int,required=True); b.add_argument('--replace',action='store_true')
+ b=c.add_parser('batch'); b.add_argument('root'); b.add_argument('changes'); b.add_argument('--revision',type=int,required=True)
+ b=c.add_parser('remove'); b.add_argument('root'); b.add_argument('id'); b.add_argument('--revision',type=int,required=True)
+ b=c.add_parser('export'); b.add_argument('root'); b.add_argument('id'); b.add_argument('output')
+ b=c.add_parser('rollback'); b.add_argument('root'); b.add_argument('target',type=int); b.add_argument('--revision',type=int,required=True)
+ b=c.add_parser('build'); b.add_argument('root'); b.add_argument('kind',choices=['records','quest']); b.add_argument('source'); b.add_argument('id'); b.add_argument('filename'); b.add_argument('--revision',type=int,required=True); b.add_argument('--master',action='append',default=[]); b.add_argument('--script-draft',action='store_true')
+ a=s.add_parser('dependencies'); c=a.add_subparsers(dest='dependency_op',required=True)
+ b=c.add_parser('status'); b.add_argument('--config')
+ b=c.add_parser('pin'); b.add_argument('config'); b.add_argument('tool'); b.add_argument('executable')
+ a=s.add_parser('extension-approve'); a.add_argument('manifest'); a.add_argument('executable'); a.add_argument('trust')
+ a=s.add_parser('extension-run'); a.add_argument('trust'); a.add_argument('capability'); a.add_argument('payload'); a.add_argument('--execute',action='store_true')
+ a=s.add_parser('app-release'); c=a.add_subparsers(dest='release_op',required=True)
+ b=c.add_parser('build'); b.add_argument('source'); b.add_argument('output'); b.add_argument('version'); b.add_argument('entrypoint')
+ b=c.add_parser('verify'); b.add_argument('archive'); b.add_argument('--sha256')
+ b=c.add_parser('install'); b.add_argument('root'); b.add_argument('archive'); b.add_argument('--sha256',required=True); b.add_argument('--activate',action='store_true')
+ b=c.add_parser('activate'); b.add_argument('root'); b.add_argument('version')
+ b=c.add_parser('status'); b.add_argument('root')
  n=p.parse_args()
  try:
   if n.cmd=='ui':
    from .ui import launch
    launch(); return
-  if n.cmd=='quest-states':
+  if n.cmd=='project':
+   from .project import Project,read_json
+   from pathlib import Path
+   if n.project_op=='create':result=Project.create(n.root,n.name,n.game).read()
+   else:
+    project=Project(n.root)
+    if n.project_op=='status':result=project.read()
+    elif n.project_op=='verify':result=project.verify()
+    elif n.project_op=='add':result=project.add(n.id,n.kind,n.source,n.revision,n.replace)
+    elif n.project_op=='batch':result=project.batch(read_json(Path(n.changes)),n.revision)
+    elif n.project_op=='remove':result=project.remove(n.id,n.revision)
+    elif n.project_op=='export':result={'output':project.export(n.id,n.output)}
+    elif n.project_op=='rollback':result=project.rollback(n.target,n.revision)
+    else:
+     from .project_build import build
+     result=build(project,n.kind,n.source,n.id,n.filename,n.revision,n.master,n.script_draft)
+  elif n.cmd=='dependencies':
+   from .dependencies import pin,report
+   result=report(n.config) if n.dependency_op=='status' else pin(n.config,n.tool,n.executable)
+  elif n.cmd=='extension-approve':
+   from .extension_runtime import approve
+   result=approve(n.manifest,n.executable,n.trust)
+  elif n.cmd=='extension-run':
+   from .extension_runtime import invoke
+   from .project import read_json
+   from pathlib import Path
+   result=invoke(n.trust,n.capability,read_json(Path(n.payload)),execute=n.execute)
+  elif n.cmd=='app-release':
+   from .app_releases import build,verify_archive,Installation
+   if n.release_op=='build':result=build(n.source,n.output,n.version,n.entrypoint)
+   elif n.release_op=='verify':result=verify_archive(n.archive,n.sha256)
+   else:
+    inst=Installation(n.root)
+    if n.release_op=='install':result=inst.install(n.archive,n.sha256,n.activate)
+    elif n.release_op=='activate':result=inst.activate(n.version)
+    else:result=inst.status()
+  elif n.cmd=='quest-states':
    from .quest_editor import load
    from .quest_states import analyze
    result=analyze(load(n.project),n.max_states)
