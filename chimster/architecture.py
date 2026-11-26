@@ -38,7 +38,7 @@ def generate(b):
     for name,lo,hi in pieces(b):
         part=box_mesh(lo,hi,"floor" if name=="floor" else "roof" if name=="roof" else "wall")
         i=len(m.vertices);m.vertices.extend(part.vertices);m.uv.extend(part.uv);m.faces.extend((tuple(i+j for j in t),mat) for t,mat in part.faces)
-        bounds.append({"id":name,"min":lo,"max":hi})
+        bounds.append({"id":name,"min":lo,"max":hi,"material":"wood" if name=="floor" else "sheet_metal" if name=="roof" else "stone"})
     validate_mesh(m);return m,bounds
 def export(b,folder):
     m,boxes=generate(b);p=Path(folder);p.mkdir(parents=True,exist_ok=False)
