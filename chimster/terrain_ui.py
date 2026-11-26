@@ -13,10 +13,11 @@ def mount(parent):
     paint=Paint(tuple(tuple("Ground" for x in range(4)) for y in range(4)))
     past=[];future=[];photo=None
     mode=tk.StringVar(value="Raise");radius=tk.DoubleVar(value=4);amount=tk.DoubleVar(value=1)
+    target=tk.DoubleVar(value=0)
     spacing=tk.DoubleVar(value=4);material=tk.StringVar(value="Ground")
     bar=ttk.Frame(parent);bar.pack(fill="x")
-    ttk.Combobox(bar,textvariable=mode,values=("Raise","Lower","Paint"),state="readonly",width=8).pack(side="left")
-    for name,var in [("Radius",radius),("Height m",amount),("Spacing m",spacing),("Texture ID",material)]:
+    ttk.Combobox(bar,textvariable=mode,values=("Raise","Lower","Smooth","Flatten","Paint"),state="readonly",width=8).pack(side="left")
+    for name,var in [("Radius",radius),("Height m",amount),("Target m",target),("Spacing m",spacing),("Texture ID",material)]:
         ttk.Label(bar,text=name).pack(side="left");ttk.Entry(bar,textvariable=var,width=9).pack(side="left")
     panes=ttk.Panedwindow(parent,orient="horizontal");panes.pack(fill="both",expand=True)
     mapview=tk.Canvas(panes,bg="#222a32",width=380,height=380);view=tk.Canvas(panes,bg="#19232c",width=400,height=380)
@@ -56,6 +57,9 @@ def mount(parent):
             if mode.get()=="Paint":
                 updated=paint.brush(x/16-.5,y/16-.5,max(.5,radius.get()/16),material.get())
                 paint=updated
+            elif mode.get() in ("Smooth","Flatten"):
+                from .world_tools import brush
+                h.current=brush(h.current,x,y,radius.get(),mode.get().lower(),min(1,max(0,amount.get())),target.get())
             else:
                 h.current=h.current.sculpt(x,y,radius.get(),amount.get()*(1 if mode.get()=="Raise" else -1))
             past.append(before);past[:]=past[-10:];future.clear();draw()
@@ -72,6 +76,16 @@ def mount(parent):
             t=Terrain.load(p,spacing.get());h.current=t;paint=Paint(tuple(tuple("Ground" for _ in range(t.cells*2)) for _ in range(t.cells*2)))
             past.clear();future.clear();draw()
         except (OSError,ValueError,TypeError,tk.TclError) as e:messagebox.showerror("Terrain",str(e))
+    def reopen():
+        nonlocal paint
+        d=filedialog.askdirectory(title="Open saved terrain project")
+        if not d:return
+        try:
+            p=Path(d);m=json.loads((p/"metadata.json").read_text(encoding="utf-8"))
+            t=Terrain.load(p/"elevation-meters.json",m["spacing_m"],m["datum_m"])
+            q=Paint(tuple(tuple(r) for r in json.loads((p/"paint.json").read_text(encoding="utf-8")))).validate(t.cells)
+            h.current=t;paint=q;spacing.set(t.spacing_m);past.clear();future.clear();draw()
+        except (OSError,ValueError,KeyError,TypeError) as e:messagebox.showerror("Terrain",str(e))
     def save():
         d=filedialog.askdirectory(title="Select parent for new terrain project")
         if not d:return
@@ -83,7 +97,7 @@ def mount(parent):
             messagebox.showinfo("Saved",str(p))
         except OSError as e:messagebox.showerror("Terrain",str(e))
     buttons=ttk.Frame(parent);buttons.pack(fill="x")
-    for label,fn in [("Import heights",load),("Undo",lambda:history(past,future)),("Redo",lambda:history(future,past)),("Save terrain project",save)]:
+    for label,fn in [("Import heights",load),("Reopen project",reopen),("Undo",lambda:history(past,future)),("Redo",lambda:history(future,past)),("Save terrain project",save)]:
         ttk.Button(buttons,text=label,command=fn).pack(side="left")
     mapview.bind("<Button-1>",edit)
     # Draw lazily; Pillow is optional in source installs.
