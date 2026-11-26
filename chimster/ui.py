@@ -51,4 +51,52 @@ def launch():
  ttk.Button(bar,text='Preview profile',command=choose_profile).pack(side='left')
  ttk.Button(bar,text='Launch game',command=lambda:choose_profile(True)).pack(side='left')
  ttk.Button(bar,text='Launch editor',command=editor).pack(side='left')
+ f=tab('Texture Forge'); ttk.Label(f,text='Generate normal/specular maps from explicit masks, or a six-face DDS cubemap.').pack(anchor='w')
+ bar=ttk.Frame(f);bar.pack(fill='x')
+ strength=tk.DoubleVar(value=4.0);convention=tk.StringVar(value='directx');wrap=tk.BooleanVar(value=False);alpha=tk.BooleanVar(value=False);face=tk.IntVar(value=128)
+ ttk.Label(bar,text='Strength').pack(side='left');ttk.Entry(bar,textvariable=strength,width=6).pack(side='left')
+ ttk.Combobox(bar,textvariable=convention,values=['directx','opengl'],state='readonly',width=10).pack(side='left')
+ ttk.Checkbutton(bar,text='Tile edges',variable=wrap).pack(side='left');ttk.Checkbutton(bar,text='Specular in alpha',variable=alpha).pack(side='left')
+ ttk.Label(bar,text='Cube size').pack(side='left');ttk.Combobox(bar,textvariable=face,values=[64,128,256,512],state='readonly',width=5).pack(side='left')
+ bar=ttk.Frame(f);bar.pack(fill='x');to=output(f)
+ def material():
+  from .textures import build_material
+  h=filedialog.askopenfilename(title='Select height image')
+  if not h:return
+  m=filedialog.askopenfilename(title='Select specular mask')
+  if not m:return
+  parent=filedialog.askdirectory(title='Choose parent for new texture-material directory')
+  if not parent:return
+  try:
+   from pathlib import Path
+   show(to,build_material(h,m,Path(parent)/'texture-material',strength.get(),convention.get(),wrap.get(),alpha.get()))
+  except (OSError,ValueError,ImportError,tk.TclError) as e:messagebox.showerror('Texture generation failed',str(e))
+ def cube():
+  from .textures import build_cube
+  source=filedialog.askopenfilename(title='Select 2:1 panorama')
+  if not source:return
+  parent=filedialog.askdirectory(title='Choose parent for new texture-cube directory')
+  if not parent:return
+  try:
+   from pathlib import Path
+   show(to,build_cube(source,Path(parent)/'texture-cube',face.get()))
+  except (OSError,ValueError,ImportError,tk.TclError) as e:messagebox.showerror('Cubemap generation failed',str(e))
+ ttk.Button(bar,text='Generate material maps',command=material).pack(side='left')
+ ttk.Button(bar,text='Generate cubemap',command=cube).pack(side='left')
+ f=tab('Load order'); ttk.Label(f,text='Scan a JSON load-order profile, without altering installed plugins.').pack(anchor='w')
+ bar=ttk.Frame(f);bar.pack(fill='x');lo=output(f)
+ def scan_order():
+  path=filedialog.askopenfilename(title='Select profile JSON',filetypes=[('JSON','*.json')])
+  if not path:return
+  try:
+   from pathlib import Path
+   from .loadorder import HeaderCache,scan_profile
+   p=Path(path).resolve();c=json.loads(p.read_text(encoding='utf-8'));cache=HeaderCache(p.parent/'.chimster-header-cache.sqlite')
+   try:show(lo,scan_profile(c['game'],[p.parent/d for d in c['data_dirs']],c['plugins'],cache,c.get('after',[])))
+   finally:cache.close()
+  except (OSError,ValueError,KeyError,TypeError) as e:messagebox.showerror('Profile scan failed',str(e))
+ ttk.Button(bar,text='Scan profile',command=scan_order).pack(side='left')
+ f=tab('Installed tools'); bar=ttk.Frame(f);bar.pack(fill='x');det=output(f)
+ from .tooling import discover_tools
+ ttk.Button(bar,text='Detect executables',command=lambda:show(det,discover_tools())).pack(side='left')
  root.mainloop()
