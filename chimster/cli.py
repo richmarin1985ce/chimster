@@ -50,12 +50,30 @@ def main():
  b=f.add_parser('build'); b.add_argument('recipe'); b.add_argument('dem'); b.add_argument('output')
  a=s.add_parser('fnv-index'); a.add_argument('cache'); a.add_argument('plugins',nargs='+'); a.add_argument('--origin'); a.add_argument('--id',type=lambda x:int(x,0))
  a=s.add_parser('fnv-gmst-patch'); a.add_argument('output'); a.add_argument('origin'); a.add_argument('--id',action='append',type=lambda x:int(x,0),required=True); a.add_argument('plugins',nargs='+')
+ a=s.add_parser('textures'); t=a.add_subparsers(dest='texop',required=True)
+ b=t.add_parser('material'); b.add_argument('height'); b.add_argument('mask'); b.add_argument('output'); b.add_argument('--strength',type=float,default=4); b.add_argument('--convention',choices=['directx','opengl'],default='directx'); b.add_argument('--wrap',action='store_true'); b.add_argument('--pack-alpha',action='store_true'); b.add_argument('--low',type=float,default=.04); b.add_argument('--high',type=float,default=.5)
+ b=t.add_parser('cube'); b.add_argument('panorama'); b.add_argument('output'); b.add_argument('--size',type=int,default=128)
+ a=s.add_parser('stage-overlay'); a.add_argument('output'); a.add_argument('sources',nargs='+')
+ a=s.add_parser('external-tool'); a.add_argument('tool',choices=['texconv','caprica','champollion','spriggit','bsarch']); a.add_argument('config'); a.add_argument('--execute',action='store_true')
  n=p.parse_args()
  try:
   if n.cmd=='ui':
    from .ui import launch
    launch(); return
-  if n.cmd=='fnv-index':
+  if n.cmd=='textures':
+   from .textures import build_material,build_cube
+   if n.texop=='material': result=build_material(n.height,n.mask,n.output,n.strength,n.convention,n.wrap,n.pack_alpha,n.low,n.high)
+   else:result=build_cube(n.panorama,n.output,n.size)
+  elif n.cmd=='stage-overlay':
+   from .deploy import stage_overlay
+   result=stage_overlay(n.sources,n.output)
+  elif n.cmd=='external-tool':
+   from pathlib import Path
+   from . import integrations
+   config=json.loads(Path(n.config).read_text(encoding='utf-8'))
+   result=getattr(integrations,n.tool)(**config)
+   if n.execute:result=integrations.run(result)
+  elif n.cmd=='fnv-index':
    from .fnv_records import RecordIndex
    idx=RecordIndex(n.cache)
    try:
@@ -188,5 +206,5 @@ def main():
   elif n.cmd=='inspect': result=inspect_plugin(n.path,n.game)
   else: result=plan(n.game,n.request)
   print(json.dumps(result,indent=2))
- except (OSError,ValueError,KeyError,TypeError,ImportError) as e: p.exit(2,f'Error: {e}\n')
+ except (OSError,ValueError,KeyError,TypeError,ImportError,RuntimeError) as e: p.exit(2,f'Error: {e}\n')
 if __name__=='__main__': main()
