@@ -35,5 +35,13 @@ def mount(parent):
         if p:
             try:save(project(),p)
             except (OSError,ValueError,KeyError,TypeError) as e:messagebox.showerror("Quest",str(e))
+    def graph():
+        from .quest_graph_ui import mount as graph_mount
+        def set_project(p):editor.delete("1.0","end");editor.insert("1.0",json.dumps(p,indent=2))
+        graph_mount(parent,project,set_project)
+    def exact():
+        from .quest_states import analyze
+        try:status.set(json.dumps(analyze(project()),indent=2))
+        except (ValueError,KeyError,TypeError) as e:messagebox.showerror("Quest",str(e))
     bar=ttk.Frame(parent);bar.pack(fill="x")
-    for label,fn in (("Open",open_project),("Save as",write),("Validate",check),("Playtest",start)):ttk.Button(bar,text=label,command=fn).pack(side="left")
+    for label,fn in (("Open",open_project),("Save as",write),("Validate",check),("Playtest",start),("Visual graph",graph),("Check states",exact)):ttk.Button(bar,text=label,command=fn).pack(side="left")
