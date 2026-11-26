@@ -14,12 +14,24 @@ def main():
  b=o.add_parser('editor'); b.add_argument('--executable')
  b=o.add_parser('reload-plan'); b.add_argument('paths',nargs='+')
  a=s.add_parser('flora'); a.add_argument('output'); a.add_argument('--species',choices=['tree','shrub','grass'],default='tree'); a.add_argument('--seed',type=int,default=42); a.add_argument('--count',type=int,default=1); a.add_argument('--height',type=float,default=8.0); a.add_argument('--branches',type=int,default=24); a.add_argument('--leaves',type=int,default=240)
+ a=s.add_parser('xedit'); x=a.add_subparsers(dest='xoperation',required=True)
+ b=x.add_parser('discover'); b.add_argument('game')
+ for name in ('preview','launch'):
+  b=x.add_parser(name); b.add_argument('profile'); b.add_argument('executable'); b.add_argument('--operation',choices=['inspect','conflicts','lod'],default='inspect')
+ b=x.add_parser('report'); b.add_argument('logfile')
  n=p.parse_args()
  try:
   if n.cmd=='ui':
    from .ui import launch
    launch(); return
-  if n.cmd=='flora':
+  if n.cmd=='xedit':
+   from .xedit import Workspace, discover, preview, launch, report_from_log
+   from pathlib import Path
+   if n.xoperation=='discover': result=discover(n.game)
+   elif n.xoperation=='report': result=report_from_log(Path(n.logfile).read_text(encoding='utf-8-sig'))
+   elif n.xoperation=='preview': result=preview(Workspace.load(n.profile),n.executable,n.operation)
+   else: result={'pid':launch(Workspace.load(n.profile),n.executable,n.operation).pid}
+  elif n.cmd=='flora':
    from .flora import Recipe, batch
    if not 1<=n.count<=1000: raise ValueError('count must be 1..1000')
    result=batch([Recipe(species=n.species,seed=n.seed+i,height=n.height,radius=n.height*.0275,branches=n.branches,leaves=n.leaves) for i in range(n.count)],n.output)
