@@ -27,19 +27,21 @@ def textures(tx,lt,s):
     if not isinstance(material,int) or not 0<=material<=30:raise ValueError("invalid material")
     b=record(b"LTEX",sub(b"EDID",ident(s["id"]))+sub(b"ICON",b"\0")+sub(b"MICO",b"\0")+sub(b"TNAM",struct.pack("<I",tx))+sub(b"HNAM",bytes((material,30,0)))+sub(b"SNAM",b"\x1e"),lt)
     return a,b
-def book_record(form,b,model=None,value=1,weight=.2,object_bounds=(0,0,0,8,8,2)):
+def book_record(form,b,model=None,value=1,weight=.2,object_bounds=(0,0,0,8,8,2),skill=-1,untakeable=False):
     b.validate()
     if b.game!="newvegas":raise ValueError("native writer is New Vegas only")
     content=(b.author+"\n\n" if b.author else "")+"\n\n".join(b.pages)
     body=sub(b"EDID",ident(b.editor_id))+bounds(object_bounds)+sub(b"FULL",cstr(b.title))
     if model:body+=sub(b"MODL",asset(model,".nif"))
+    if type(skill) is not int or skill not in {-1,0,2,3,4,5,6,7,8,9,10,11,12,13} or type(untakeable) is not bool:raise ValueError("invalid book skill/flags")
+    if b.kind!="book" and (skill!=-1 or untakeable):raise ValueError("skill and book flags require BOOK")
     if b.kind=="book":
         if not model:raise ValueError("BOOK requires author-supplied model path")
         if not isinstance(value,int) or not 0<=value<=2**31-1 or not math.isfinite(weight) or not 0<=weight<=1000:raise ValueError("invalid book value/weight")
-        return b"BOOK",record(b"BOOK",body+sub(b"DESC",cstr(content))+sub(b"DATA",struct.pack("<Bbif",0,-1,value,weight)),form)
+        return b"BOOK",record(b"BOOK",body+sub(b"DESC",cstr(content))+sub(b"DATA",struct.pack("<Bbif",2 if untakeable else 0,skill,value,weight)),form)
     return b"NOTE",record(b"NOTE",body+sub(b"DATA",b"\x01")+sub(b"TNAM",cstr(content)),form)
-def export_book(b,output,model=None):
-    sig,raw=book_record(0x800,b,model)
+def export_book(b,output,model=None,skill=-1,untakeable=False):
+    sig,raw=book_record(0x800,b,model,skill=skill,untakeable=untakeable)
     p=Path(output)
     if p.suffix.lower()!=".esp" or p.exists() or p.is_symlink():raise ValueError("expected new ESP")
     header=record(b"TES4",sub(b"HEDR",struct.pack("<fII",1.34,2,0x801))+sub(b"CNAM",b"Chimster\0"))
