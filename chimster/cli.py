@@ -81,12 +81,19 @@ def main():
  b=c.add_parser('snapshot'); b.add_argument('game',choices=['oblivionremastered','fallout76']); b.add_argument('root'); b.add_argument('release')
  b=c.add_parser('compare'); b.add_argument('old'); b.add_argument('new')
  b=c.add_parser('package-layout'); b.add_argument('paths',nargs='+')
+ a=s.add_parser('world-check'); a.add_argument('plugins',nargs='+'); a.add_argument('--strict',action='store_true')
  n=p.parse_args()
  try:
   if n.cmd=='ui':
    from .ui import launch
    launch(); return
-  if n.cmd=='minigame':
+  if n.cmd=='world-check':
+   from .world_validator import validate
+   result=validate(n.plugins)
+   print(json.dumps(result,indent=2))
+   if not result['valid'] or (n.strict and result['warnings']):raise SystemExit(1)
+   return
+  elif n.cmd=='minigame':
    from .minigames import load,export
    result=export(load(n.project),n.output)
   elif n.cmd=='compatibility':
