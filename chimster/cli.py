@@ -96,6 +96,7 @@ def main():
  a=s.add_parser('quest-native'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--master',action='append',default=[]); a.add_argument('--ledger-in'); a.add_argument('--ledger-out'); a.add_argument('--script-draft',action='store_true')
  a=s.add_parser('quest-attach-scripts'); a.add_argument('draft'); a.add_argument('compiled'); a.add_argument('output')
  a=s.add_parser('quest-scenes'); a.add_argument('project'); a.add_argument('--scene')
+ a=s.add_parser('dialogue-view-generate'); a.add_argument('graph'); a.add_argument('identities'); a.add_argument('output')
  a=s.add_parser('dialogue-view-inspect'); a.add_argument('xml')
  a=s.add_parser('dialogue-view-remap'); a.add_argument('source'); a.add_argument('output'); a.add_argument('mapping'); a.add_argument('--positions')
  a=s.add_parser('quest-scripts'); a.add_argument('project'); a.add_argument('output')
@@ -246,6 +247,10 @@ def main():
    from .quest_editor import load
    from .quest_scenes import validate,timeline
    spec=load(n.project);result=timeline(spec,n.scene) if n.scene else validate(spec)
+  elif n.cmd=='dialogue-view-generate':
+   from .quest_editor import load
+   from .dialogue_views import generate_graph
+   result=generate_graph(n.output,load(n.graph),load(n.identities))
   elif n.cmd=='dialogue-view-inspect':
    from .dialogue_views import parse,inspect
    result=inspect(parse(n.xml))

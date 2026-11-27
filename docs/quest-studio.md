@@ -15,3 +15,5 @@ References: https://tes5edit.github.io/fopdoc/FalloutNV/Records/QUST.html ; http
 Remaining section 14: actual native compiler/runtime verification, complete CK XML resource templates, native Skyrim/FO4 aliases/scenes/DLBR/DLVW and adapters for other game families. All newly implemented features await CI and retail testing.
 
 Python API: generate_graph(output, graph, identities) accepts nodes with id/caption/kind and edges with source/target, plus an exact mapping of node keys to native FormID strings. This is an adapter contract, not yet wired to the desktop quest editor. CI execution deferred.
+
+Generate an experimental layout with `python -m chimster dialogue-view-generate graph.json identities.json staged/02000800.xml`. Optional node `branch` identifies a branch node by graph key; containers are sized around explicit member bounds. This does not establish native ownership. Output must not exist. CLI regression execution deferred.
