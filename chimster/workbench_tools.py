@@ -32,31 +32,86 @@ GROUPS={
 "Expansion projects":("flagstaff",),
 }
 def mount(parent):
-    area=tk.StringVar(value="Records");command=tk.StringVar();args=tk.StringVar(value="[]")
+    import argparse
+    from tkinter import filedialog
+    from .cli import build_parser
+    parser=build_parser()
+    commands=next(a for a in parser._actions if isinstance(a,argparse._SubParsersAction)).choices
+    area=tk.StringVar(value="Records");command=tk.StringVar()
     bar=ttk.Frame(parent);bar.pack(fill="x")
-    group=ttk.Combobox(bar,textvariable=area,values=list(GROUPS),state="readonly");group.pack(side="left")
+    ttk.Combobox(bar,textvariable=area,values=list(GROUPS),state="readonly").pack(side="left")
     choices=ttk.Combobox(bar,textvariable=command,state="readonly");choices.pack(side="left",fill="x",expand=True)
-    ttk.Label(parent,text="Arguments as JSON array of strings. Help shows supported parameters.").pack(anchor="w")
-    ttk.Entry(parent,textvariable=args).pack(fill="x")
-    out=tk.Text(parent,wrap="word");out.pack(fill="both",expand=True)
-    results=queue.Queue();busy=False
+    form=ttk.Frame(parent);form.pack(fill="x")
+    out=tk.Text(parent,height=12,wrap="word");out.pack(fill="both",expand=True)
+    results=queue.Queue();busy=False;fields=[];route=[]
+    def render():
+        for child in form.winfo_children():child.destroy()
+        fields.clear();route.clear()
+        if command.get() not in commands:return
+        def populate(p,host):
+            for a in p._actions:
+                if isinstance(a,argparse._HelpAction):continue
+                if isinstance(a,argparse._SubParsersAction):
+                    v=tk.StringVar(value=next(iter(a.choices)))
+                    ttk.Label(host,text="Operation").pack(anchor="w")
+                    ttk.Combobox(host,textvariable=v,values=list(a.choices),state="readonly").pack(fill="x")
+                    child=ttk.Frame(host);child.pack(fill="x")
+                    start=len(fields);depth=len(route);route.append(v)
+                    def change(*_):
+                        del fields[start:];del route[depth+1:]
+                        for w in child.winfo_children():w.destroy()
+                        populate(a.choices[v.get()],child)
+                    v.trace_add("write",change);change()
+                    continue
+                row=ttk.Frame(host);row.pack(fill="x")
+                ttk.Label(row,text=a.dest.replace("_"," ").title(),width=22).pack(side="left")
+                flag=isinstance(a,(argparse._StoreTrueAction,argparse._StoreFalseAction))
+                multi=a.nargs in ("+","*") or isinstance(a.nargs,int) or isinstance(a,argparse._AppendAction)
+                default=a.default
+                v=tk.BooleanVar(value=False) if flag else tk.StringVar(value="" if default is None or default==argparse.SUPPRESS else ("\n".join(map(str,default)) if isinstance(default,(list,tuple)) else str(default)))
+                if flag:ttk.Checkbutton(row,variable=v).pack(side="left")
+                elif a.choices and not multi:ttk.Combobox(row,textvariable=v,values=list(a.choices),state="readonly").pack(side="left",fill="x",expand=True)
+                else:
+                    ttk.Entry(row,textvariable=v).pack(side="left",fill="x",expand=True)
+                    if multi:ttk.Label(row,text="Separate values with |").pack(side="right")
+                    else:
+                        ttk.Button(row,text="File",command=lambda v=v:pick(v,filedialog.askopenfilename)).pack(side="right")
+                        ttk.Button(row,text="Folder",command=lambda v=v:pick(v,filedialog.askdirectory)).pack(side="right")
+                        ttk.Button(row,text="Save as",command=lambda v=v:pick(v,filedialog.asksaveasfilename)).pack(side="right")
+                fields.append((a,v,flag,multi))
+        populate(commands[command.get()],form)
+    def pick(v,dialog):
+        value=dialog()
+        if value:v.set(value)
     def select(*_):
         values=GROUPS[area.get()];choices.configure(values=values);command.set(values[0] if values else "")
-    area.trace_add("write",select);select()
-    def run(help_only=False):
+    command.trace_add("write",lambda *_:render());area.trace_add("write",select);select()
+    def run():
         nonlocal busy
-        if busy:return
+        if busy or not command.get():return
+        argv=[command.get()]+[v.get() for v in route]
         try:
-            cmd=command.get()
-            if cmd not in GROUPS[area.get()]:raise ValueError("No available command")
-            argv=["--help"] if help_only else json.loads(args.get())
-            if not isinstance(argv,list) or not all(isinstance(x,str) for x in argv):raise ValueError("Expected JSON array of strings")
-            if not help_only and not messagebox.askyesno("Run local tool",repr([cmd]+argv)+"\nMay write files or invoke installed tools. Continue?"):return
-        except ValueError as exc:messagebox.showerror("Tool arguments",str(exc));return
+            for a,v,flag,multi in fields:
+                value=v.get()
+                if flag:
+                    if value:argv.append(a.option_strings[0])
+                    continue
+                if not value:
+                    if a.required:raise ValueError("Required: "+a.dest)
+                    continue
+                values=value.split("|") if multi else [value]
+                if isinstance(a,argparse._AppendAction):
+                    for x in values:argv.extend([a.option_strings[0],x])
+                else:
+                    if a.option_strings:argv.append(a.option_strings[0])
+                    argv.extend(values)
+            parser.parse_args(argv)
+        except (ValueError,SystemExit) as exc:messagebox.showerror("Tool parameters","Check required fields and value types.");return
+        if not messagebox.askyesno("Run tool","Run "+command.get()+" with the selected settings? This may write files or invoke installed tools."):return
         busy=True
         def worker():
             try:
-                r=subprocess.run([sys.executable,"-m","chimster",cmd,*argv],capture_output=True,text=True,timeout=300)
+                r=subprocess.run([sys.executable,"-m","chimster",*argv],capture_output=True,text=True,timeout=300)
                 results.put(f"Exit {r.returncode}\n"+r.stdout+"\n"+r.stderr)
             except Exception as exc:results.put(str(exc))
         threading.Thread(target=worker,daemon=True).start()
@@ -66,6 +121,5 @@ def mount(parent):
             value=results.get_nowait();busy=False;out.delete("1.0","end");out.insert("1.0",value)
         except queue.Empty:pass
         if parent.winfo_exists():parent.after(150,poll)
-    ttk.Button(bar,text="Help",command=lambda:run(True)).pack(side="left")
     ttk.Button(bar,text="Run",command=run).pack(side="left")
     poll()
