@@ -9,8 +9,24 @@ def launch():
  top=ttk.Frame(root,padding=12); top.pack(fill='x'); ttk.Label(top,text='CHIMSTER',font=('TkDefaultFont',20,'bold')).pack(side='left')
  game=tk.StringVar(value='newvegas'); ttk.Combobox(top,textvariable=game,values=list(PROFILES),state='readonly').pack(side='right')
  tabs=ttk.Notebook(root); tabs.pack(fill='both',expand=True,padx=12,pady=8)
+ menu=tk.Menu(root);root.configure(menu=menu)
+ sections={
+  'Project':('Project','Core management','Record projects','Action planner'),
+  'Records':('Native records','Record editor','Plugin inspector','Load order'),
+  'World':('3D viewport','Terrain editor','Worldspace validator','Landscape budget'),
+  'Narrative':('Quest editor','Dialogue views','Books & notes','Localization'),
+  'Assets':('Texture Forge',),
+  'Gameplay':('Minigame editor',),
+  'Tools':('Tool registry','Installed tools','OpenMW bridge'),
+  'Help':('Local wiki',)}
+ menus={}
+ for label,names in sections.items():
+  submenu=tk.Menu(menu,tearoff=False);menu.add_cascade(label=label,menu=submenu)
+  for name in names:menus[name]=submenu
  def tab(name):
-  frame=ttk.Frame(tabs,padding=12); tabs.add(frame,text=name); return frame
+  frame=ttk.Frame(tabs,padding=12); tabs.add(frame,text=name)
+  if name in menus:menus[name].add_command(label=name,command=lambda f=frame:tabs.select(f))
+  return frame
  def output(frame):
   t=tk.Text(frame,wrap='word',bg='#1c2229',fg='#d6dce0',insertbackground='white'); t.pack(fill='both',expand=True,pady=8); return t
  def show(t,obj):
