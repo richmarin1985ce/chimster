@@ -15,6 +15,12 @@ def launch():
   t=tk.Text(frame,wrap='word',bg='#1c2229',fg='#d6dce0',insertbackground='white'); t.pack(fill='both',expand=True,pady=8); return t
  def show(t,obj):
   t.delete('1.0','end'); t.insert('1.0',json.dumps(obj,indent=2,ensure_ascii=False))
+ f=tab('Project')
+ from .project_ui import mount as mount_project
+ mount_project(f,game)
+ f=tab('Core management')
+ from .core_ui import mount as mount_core
+ mount_core(f)
  f=tab('Tool registry'); bar=ttk.Frame(f); bar.pack(fill='x'); out=output(f)
  def refresh(): show(out,[x for x in catalog() if '*' in x['games'] or game.get() in x['games']])
  ttk.Button(bar,text='Refresh for selected game',command=refresh).pack(side='left'); game.trace_add('write',lambda *_:refresh()); refresh()
@@ -45,7 +51,7 @@ def launch():
  ttk.Button(rb,text='Source plugin',command=record_source).pack(side='left')
  ttk.Entry(rb,textvariable=rp).pack(side='left',fill='x',expand=True)
  fields=ttk.Frame(f);fields.pack(fill='x')
- for label,var in [('Origin',ro),('Local ID',ri),('Field',rf),('New text',rv)]:
+ for label,var in [('Origin',ro),('Local ID',ri),('Field',rf),('New value (JSON)',rv)]:
   ttk.Label(fields,text=label).pack(side='left');ttk.Entry(fields,textvariable=var,width=16).pack(side='left')
  actions=ttk.Frame(f);actions.pack(fill='x');record_out=output(f);record_state={}
  def read_record():
@@ -56,15 +62,18 @@ def launch():
    show(record_out,r)
   except (OSError,ValueError,KeyError) as e:messagebox.showerror('Record editor',str(e))
  def edit_record():
-  from .record_editor import edit_text
+  from .record_editor import edit_typed
   from pathlib import Path
   try:
    if not record_state or (rp.get(),ro.get(),int(ri.get(),0))!=(record_state['path'],record_state['origin'],record_state['id']):raise ValueError('Inspect the current record first')
    d=filedialog.askdirectory(title='Choose staging directory (same plugin name, no overwrite)')
-   if d:show(record_out,edit_text(rp.get(),Path(d)/Path(rp.get()).name,ro.get(),int(ri.get(),0),rf.get(),rv.get(),record_state['hash']))
+   if d:show(record_out,edit_typed(rp.get(),Path(d)/Path(rp.get()).name,ro.get(),int(ri.get(),0),rf.get(),json.loads(rv.get()),record_state['hash']))
   except (OSError,ValueError,KeyError) as e:messagebox.showerror('Record editor',str(e))
  ttk.Button(actions,text='Inspect record',command=read_record).pack(side='left')
- ttk.Button(actions,text='Save staged text edit',command=edit_record).pack(side='left')
+ ttk.Button(actions,text='Save staged typed edit',command=edit_record).pack(side='left')
+ f=tab('Record projects')
+ from .record_project_ui import mount as record_project_mount
+ record_project_mount(f)
  f=tab('Action planner'); ttk.Label(f,text='Describe a mod task. Template-based proposal; no AI backend connected.').pack(anchor='w'); entry=ttk.Entry(f); entry.pack(fill='x',pady=5); bar=ttk.Frame(f); bar.pack(fill='x'); po=output(f)
  def propose():
   try: show(po,plan(game.get(),entry.get()))
@@ -169,12 +178,18 @@ def launch():
  f=tab('Books & notes')
  from .book_ui import mount as mount_books
  mount_books(f)
+ f=tab('Dialogue views')
+ from .dialogue_view_ui import mount as mount_dialogue_views
+ mount_dialogue_views(f)
  f=tab('Quest editor')
  from .quest_ui import mount as mount_quests
  mount_quests(f)
  f=tab('Minigame editor')
  from .minigame_ui import mount as mount_minigames
  mount_minigames(f)
+ f=tab('Localization')
+ from .localization_ui import mount as mount_localization
+ mount_localization(f)
  f=tab('Local wiki')
  ttk.Label(f,text='Bundled documentation — no hosting or internet required.').pack(anchor='w')
  from .wiki import Wiki
@@ -188,11 +203,37 @@ def launch():
   sb=ttk.Scrollbar(left,command=pages.yview);sb.pack(side='right',fill='y');pages.configure(yscrollcommand=sb.set)
   body=tk.Text(right,wrap='word',bg='#1c2229',fg='#d6dce0',state='disabled');body.pack(side='left',fill='both',expand=True)
   sb2=ttk.Scrollbar(right,command=body.yview);sb2.pack(side='right',fill='y');body.configure(yscrollcommand=sb2.set)
-  visible=[]
+  from .wiki_render import blocks,spans,resolve
+  visible=[];history=[];current=[None];known={p['id'] for p in wiki.pages()}
+  for tag,options in {'h1':{'font':('TkDefaultFont',19,'bold'),'spacing3':8},'h2':{'font':('TkDefaultFont',16,'bold'),'spacing3':6},'heading':{'font':('TkDefaultFont',13,'bold')},'code':{'font':('TkFixedFont',10),'background':'#303943'},'bold':{'font':('TkDefaultFont',11,'bold')},'italic':{'font':('TkDefaultFont',11,'italic')},'quote':{'lmargin1':18,'lmargin2':18,'foreground':'#aebbc7'}}.items():body.tag_configure(tag,**options)
+  def open_page(key,remember=True):
+   if key not in known:return
+   if remember and current[0] and current[0]!=key:history.append(current[0])
+   current[0]=key;page=wiki.read(key)
+   body.configure(state='normal');body.delete('1.0','end')
+   for tag in body.tag_names():
+    if tag.startswith('local_link_'):body.tag_delete(tag)
+   count=0
+   for kind,line in blocks(page['body']):
+    tag=kind if kind in ('h1','h2','code','quote') else 'heading' if kind.startswith('h') else ''
+    if kind=='bullet':body.insert('end','• ')
+    if kind=='code':body.insert('end',line+'\n',('code',));continue
+    for style,value,target in spans(line):
+     tags=[tag] if tag else []
+     if style in ('code','bold','italic'):tags.append(style)
+     if style=='link':
+      destination=resolve(key,target,known)
+      if destination:
+       count+=1;link='local_link_'+str(count);tags.append(link)
+       body.tag_configure(link,foreground='#89bbef',underline=True)
+       body.tag_bind(link,'<Button-1>',lambda e,d=destination:open_page(d))
+     body.insert('end',value,tuple(tags))
+    body.insert('end','\n',tuple([tag] if tag else []))
+   body.configure(state='disabled');body.see('1.0')
   def display_page(event=None):
-   if not pages.curselection():return
-   page=wiki.read(visible[pages.curselection()[0]])
-   body.configure(state='normal');body.delete('1.0','end');body.insert('1.0',page['body']);body.configure(state='disabled')
+   if pages.curselection():open_page(visible[pages.curselection()[0]])
+  def back_page():
+   if history:open_page(history.pop(),False)
   def refresh_wiki():
    titles={p['id']:p['title'] for p in wiki.pages()}
    ids=[r['id'] for r in wiki.search(query.get(),30)] if query.get().strip() else list(titles)
@@ -202,6 +243,7 @@ def launch():
    else:
     body.configure(state='normal');body.delete('1.0','end');body.insert('1.0','No matching pages.');body.configure(state='disabled')
   ttk.Button(bar,text='Search',command=refresh_wiki).pack(side='left')
+  ttk.Button(bar,text='Back',command=back_page).pack(side='left')
   ttk.Button(bar,text='All pages',command=lambda:(query.set(''),refresh_wiki())).pack(side='left')
   search_entry.bind('<Return>',lambda e:refresh_wiki())
   pages.bind('<<ListboxSelect>>',display_page);refresh_wiki()

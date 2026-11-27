@@ -73,7 +73,7 @@ def main():
  c=b.add_parser('native'); c.add_argument('project'); c.add_argument('output'); c.add_argument('--model'); c.add_argument('--skill',type=int,default=-1); c.add_argument('--untakeable',action='store_true')
  a=s.add_parser('render-benchmark'); a.add_argument('--count',type=int,default=2500); a.add_argument('--backend',default='egl'); a.add_argument('--frames',type=int,default=5)
  a=s.add_parser('fnv-world'); a.add_argument('heightmap'); a.add_argument('output'); a.add_argument('--spacing-m',type=float,required=True); a.add_argument('--datum-m',type=float); a.add_argument('--origin',type=int,nargs=2,default=[-4,-4]); a.add_argument('--editor-id',default='ChimsterWorld'); a.add_argument('--title',default='Chimster World'); a.add_argument('--vertical-scale',type=float,default=1)
- a.add_argument('--content')
+ a.add_argument('--content'); a.add_argument('--ledger-in'); a.add_argument('--ledger-out')
  a=s.add_parser('collision-box'); a.add_argument('obj'); a.add_argument('output'); a.add_argument('--compound',action='store_true')
  a=s.add_parser('minigame'); a.add_argument('project'); a.add_argument('output')
  a=s.add_parser('compatibility'); c=a.add_subparsers(dest='compatop',required=True)
@@ -93,15 +93,139 @@ def main():
  a=s.add_parser('quest-check'); a.add_argument('project')
  a=s.add_parser('script-check'); a.add_argument('path')
  a=s.add_parser('quest-states'); a.add_argument('project'); a.add_argument('--max-states',type=int,default=100000)
- a=s.add_parser('quest-native'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--master',action='append',default=[])
+ a=s.add_parser('quest-native'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--master',action='append',default=[]); a.add_argument('--ledger-in'); a.add_argument('--ledger-out'); a.add_argument('--script-draft',action='store_true')
+ a=s.add_parser('quest-attach-scripts'); a.add_argument('draft'); a.add_argument('compiled'); a.add_argument('output')
+ a=s.add_parser('quest-scenes'); a.add_argument('project'); a.add_argument('--scene')
+ a=s.add_parser('dialogue-view-inspect'); a.add_argument('xml')
+ a=s.add_parser('dialogue-view-remap'); a.add_argument('source'); a.add_argument('output'); a.add_argument('mapping'); a.add_argument('--positions')
  a=s.add_parser('quest-scripts'); a.add_argument('project'); a.add_argument('output')
  a=s.add_parser('interior-check'); a.add_argument('project'); a.add_argument('--room'); a.add_argument('--closed',action='append',default=[])
+ a=s.add_parser('record-edit'); a.add_argument('plugin'); a.add_argument('output'); a.add_argument('origin'); a.add_argument('id',type=lambda x:int(x,0)); a.add_argument('field'); a.add_argument('value_json'); a.add_argument('hash')
+ a=s.add_parser('record-build'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--master',action='append',default=[]); a.add_argument('--ledger-in'); a.add_argument('--ledger-out')
+ a=s.add_parser('master-reorder'); a.add_argument('source'); a.add_argument('output'); a.add_argument('masters',nargs='+')
+ a=s.add_parser('project'); c=a.add_subparsers(dest='project_op',required=True)
+ b=c.add_parser('create'); b.add_argument('root'); b.add_argument('name'); b.add_argument('game',choices=PROFILES)
+ for name in ('status','verify'):
+  b=c.add_parser(name); b.add_argument('root')
+ b=c.add_parser('add'); b.add_argument('root'); b.add_argument('id'); b.add_argument('kind'); b.add_argument('source'); b.add_argument('--revision',type=int,required=True); b.add_argument('--replace',action='store_true')
+ b=c.add_parser('batch'); b.add_argument('root'); b.add_argument('changes'); b.add_argument('--revision',type=int,required=True)
+ b=c.add_parser('remove'); b.add_argument('root'); b.add_argument('id'); b.add_argument('--revision',type=int,required=True)
+ b=c.add_parser('export'); b.add_argument('root'); b.add_argument('id'); b.add_argument('output')
+ b=c.add_parser('rollback'); b.add_argument('root'); b.add_argument('target',type=int); b.add_argument('--revision',type=int,required=True)
+ b=c.add_parser('build'); b.add_argument('root'); b.add_argument('kind',choices=['records','quest']); b.add_argument('source'); b.add_argument('id'); b.add_argument('filename'); b.add_argument('--revision',type=int,required=True); b.add_argument('--master',action='append',default=[]); b.add_argument('--script-draft',action='store_true')
+ a=s.add_parser('dependencies'); c=a.add_subparsers(dest='dependency_op',required=True)
+ b=c.add_parser('status'); b.add_argument('--config')
+ b=c.add_parser('pin'); b.add_argument('config'); b.add_argument('tool'); b.add_argument('executable')
+ a=s.add_parser('extension-approve'); a.add_argument('manifest'); a.add_argument('executable'); a.add_argument('trust')
+ a=s.add_parser('extension-run'); a.add_argument('trust'); a.add_argument('capability'); a.add_argument('payload'); a.add_argument('--execute',action='store_true')
+ a=s.add_parser('app-release'); c=a.add_subparsers(dest='release_op',required=True)
+ b=c.add_parser('build'); b.add_argument('source'); b.add_argument('output'); b.add_argument('version'); b.add_argument('entrypoint')
+ b=c.add_parser('verify'); b.add_argument('archive'); b.add_argument('--sha256')
+ b=c.add_parser('install'); b.add_argument('root'); b.add_argument('archive'); b.add_argument('--sha256',required=True); b.add_argument('--activate',action='store_true')
+ b=c.add_parser('activate'); b.add_argument('root'); b.add_argument('version')
+ b=c.add_parser('status'); b.add_argument('root')
+ a=s.add_parser('wiki-export'); a.add_argument('output')
+ a=s.add_parser('wiki-check-links')
+ a=s.add_parser('localize'); l=a.add_subparsers(dest='locop',required=True)
+ b=l.add_parser('catalog'); b.add_argument('kind',choices=['book','quest','native-quest','records']); b.add_argument('project'); b.add_argument('source_lang'); b.add_argument('target_lang'); b.add_argument('output')
+ for op in ('check','apply','reuse','remember'):
+  b=l.add_parser(op); b.add_argument('project'); b.add_argument('catalog'); b.add_argument('--encoding',choices=['utf-8','cp1252'],default='utf-8')
+  if op in ('apply','reuse'):b.add_argument('output')
+  if op in ('reuse','remember'):b.add_argument('memory')
+  if op=='check':b.add_argument('--glossary')
+ a=s.add_parser('book-layout'); a.add_argument('book'); a.add_argument('layout'); a.add_argument('assets'); a.add_argument('output')
+ a=s.add_parser('texture-compress'); a.add_argument('source'); a.add_argument('output'); a.add_argument('--format',choices=['BC1','BC1A','BC3'],default='BC3'); a.add_argument('--no-mips',action='store_true'); a.add_argument('--alpha-coverage',action='store_true')
+ a=s.add_parser('texture-height-alpha'); a.add_argument('source'); a.add_argument('height'); a.add_argument('output')
  n=p.parse_args()
  try:
   if n.cmd=='ui':
    from .ui import launch
    launch(); return
-  if n.cmd=='quest-states':
+  if n.cmd=='texture-compress':
+   from .textures import load_pixels
+   from .texture_processing import dds
+   from pathlib import Path
+   w,h,raw=load_pixels(n.source,'RGBA')
+   data=dds(w,h,raw,n.format,not n.no_mips,n.alpha_coverage)
+   with Path(n.output).open('xb') as f:f.write(data)
+   result={'output':n.output,'format':n.format,'bytes':len(data)}
+  elif n.cmd=='texture-height-alpha':
+   from .textures import load_pixels
+   from .texture_processing import height_alpha
+   from .atlas import write_png
+   from pathlib import Path
+   w,h,raw=load_pixels(n.source,'RGBA');a,b,height=load_pixels(n.height,'L')
+   if (w,h)!=(a,b):raise ValueError('image dimensions differ')
+   if Path(n.output).exists():raise ValueError('new output required')
+   write_png(n.output,w,h,height_alpha(w,h,raw,height));result={'output':n.output}
+  elif n.cmd in ('wiki-export','wiki-check-links'):
+   from .wiki import Wiki
+   from .wiki_render import export,link_report
+   with Wiki() as wiki:result=export(wiki,n.output) if n.cmd=='wiki-export' else link_report(wiki)
+  elif n.cmd=='localize':
+   from . import localization_project as loc
+   from .project import read_json
+   from pathlib import Path
+   from .localization import TranslationMemory
+   spec=read_json(Path(n.project))
+   def write_json(value):
+    with Path(n.output).open('x',encoding='utf-8') as f:json.dump(value,f,ensure_ascii=False,indent=2)
+    return {'output':n.output}
+   if n.locop=='catalog':result=write_json(loc.catalog(n.kind,spec,n.source_lang,n.target_lang))
+   else:
+    catalog=read_json(Path(n.catalog))
+    if n.locop=='check':result=loc.check(catalog,spec,n.encoding,read_json(Path(n.glossary)) if n.glossary else None)
+    elif n.locop=='apply':result=write_json(loc.apply(catalog,spec,n.encoding))
+    else:
+     memory=TranslationMemory(n.memory)
+     try:
+      if n.locop=='remember':result={'remembered':loc.remember(catalog,spec,memory,n.encoding)}
+      else:
+       c,count=loc.reuse(catalog,spec,memory);result={**write_json(c),'reused':count}
+     finally:memory.close()
+  elif n.cmd=='book-layout':
+   from .books import load
+   from .book_layout import export
+   from .project import read_json
+   from pathlib import Path
+   result=export(load(n.book),read_json(Path(n.layout)),n.assets,n.output)
+  elif n.cmd=='project':
+   from .project import Project,read_json
+   from pathlib import Path
+   if n.project_op=='create':result=Project.create(n.root,n.name,n.game).read()
+   else:
+    project=Project(n.root)
+    if n.project_op=='status':result=project.read()
+    elif n.project_op=='verify':result=project.verify()
+    elif n.project_op=='add':result=project.add(n.id,n.kind,n.source,n.revision,n.replace)
+    elif n.project_op=='batch':result=project.batch(read_json(Path(n.changes)),n.revision)
+    elif n.project_op=='remove':result=project.remove(n.id,n.revision)
+    elif n.project_op=='export':result={'output':project.export(n.id,n.output)}
+    elif n.project_op=='rollback':result=project.rollback(n.target,n.revision)
+    else:
+     from .project_build import build
+     result=build(project,n.kind,n.source,n.id,n.filename,n.revision,n.master,n.script_draft)
+  elif n.cmd=='dependencies':
+   from .dependencies import pin,report
+   result=report(n.config) if n.dependency_op=='status' else pin(n.config,n.tool,n.executable)
+  elif n.cmd=='extension-approve':
+   from .extension_runtime import approve
+   result=approve(n.manifest,n.executable,n.trust)
+  elif n.cmd=='extension-run':
+   from .extension_runtime import invoke
+   from .project import read_json
+   from pathlib import Path
+   result=invoke(n.trust,n.capability,read_json(Path(n.payload)),execute=n.execute)
+  elif n.cmd=='app-release':
+   from .app_releases import build,verify_archive,Installation
+   if n.release_op=='build':result=build(n.source,n.output,n.version,n.entrypoint)
+   elif n.release_op=='verify':result=verify_archive(n.archive,n.sha256)
+   else:
+    inst=Installation(n.root)
+    if n.release_op=='install':result=inst.install(n.archive,n.sha256,n.activate)
+    elif n.release_op=='activate':result=inst.activate(n.version)
+    else:result=inst.status()
+  elif n.cmd=='quest-states':
    from .quest_editor import load
    from .quest_states import analyze
    result=analyze(load(n.project),n.max_states)
@@ -111,7 +235,24 @@ def main():
   elif n.cmd=='quest-native':
    from .quest_editor import load
    from .fnv_quest import export
-   result=export(load(n.project),n.output,n.master)
+   from .formids import staged_build
+   spec=load(n.project)
+   if n.ledger_in and not n.ledger_out:raise ValueError('previous ledger requires output ledger')
+   result=staged_build(lambda ids:export(spec,n.output,n.master,ids,script_draft=n.script_draft),n.output,n.ledger_out,n.ledger_in) if n.ledger_out else export(spec,n.output,n.master,script_draft=n.script_draft)
+  elif n.cmd=='quest-attach-scripts':
+   from .quest_compile import attach
+   result=attach(n.draft,n.compiled,n.output)
+  elif n.cmd=='quest-scenes':
+   from .quest_editor import load
+   from .quest_scenes import validate,timeline
+   spec=load(n.project);result=timeline(spec,n.scene) if n.scene else validate(spec)
+  elif n.cmd=='dialogue-view-inspect':
+   from .dialogue_views import parse,inspect
+   result=inspect(parse(n.xml))
+  elif n.cmd=='dialogue-view-remap':
+   from .quest_editor import load
+   from .dialogue_views import remap
+   result=remap(n.source,n.output,load(n.mapping),positions=load(n.positions) if n.positions else None)
   elif n.cmd=='quest-scripts':
    from .quest_editor import load
    from .quest_scripts import export
@@ -139,6 +280,19 @@ def main():
   elif n.cmd=='record-inspect':
    from .record_editor import inspect
    result=inspect(n.plugin,n.origin,n.id)
+  elif n.cmd=='record-edit':
+   from .record_editor import edit_typed
+   result=edit_typed(n.plugin,n.output,n.origin,n.id,n.field,json.loads(n.value_json),n.hash)
+  elif n.cmd=='record-build':
+   from .record_project import export
+   from .quest_editor import load
+   from .formids import staged_build
+   spec=load(n.project)
+   if n.ledger_in and not n.ledger_out:raise ValueError('previous ledger requires output ledger')
+   result=staged_build(lambda ids:export(spec,n.output,n.master,ids),n.output,n.ledger_out,n.ledger_in) if n.ledger_out else export(spec,n.output,n.master)
+  elif n.cmd=='master-reorder':
+   from .master_remap import reorder
+   result=reorder(n.source,n.output,n.masters)
   elif n.cmd=='record-edit-text':
    from .record_editor import edit_text
    result=edit_text(n.plugin,n.output,n.origin,n.id,n.field,n.value,n.hash)
@@ -189,7 +343,10 @@ def main():
    terrain=Terrain.load(n.heightmap,n.spacing_m,n.datum_m)
    from pathlib import Path
    content=json.loads(Path(n.content).read_text(encoding='utf-8')) if n.content else None
-   result=build(terrain,n.output,n.editor_id,n.title,tuple(n.origin),n.vertical_scale,content)
+   from .formids import staged_build
+   if n.ledger_in and not n.ledger_out:raise ValueError('previous ledger requires output ledger')
+   args=(terrain,n.output,n.editor_id,n.title,tuple(n.origin),n.vertical_scale,content)
+   result=staged_build(lambda ids:build(*args,allocator=ids),n.output,n.ledger_out,n.ledger_in) if n.ledger_out else build(*args)
   elif n.cmd=='collision-box':
    from .collision import export_box,export_compound
    from .scene import load_obj
