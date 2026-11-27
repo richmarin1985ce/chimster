@@ -201,10 +201,34 @@ def launch():
   body=tk.Text(right,wrap='word',bg='#1c2229',fg='#d6dce0',state='disabled');body.pack(side='left',fill='both',expand=True)
   sb2=ttk.Scrollbar(right,command=body.yview);sb2.pack(side='right',fill='y');body.configure(yscrollcommand=sb2.set)
   visible=[]
+  from .wiki_render import blocks,inline
+  body.tag_configure('h1',font=('TkDefaultFont',18,'bold'));body.tag_configure('h2',font=('TkDefaultFont',15,'bold'));body.tag_configure('h3',font=('TkDefaultFont',13,'bold'));body.tag_configure('bold',font=('TkDefaultFont',10,'bold'));body.tag_configure('code',font=('TkFixedFont',10),background='#29333d')
+  def navigate(dest):
+   query.set('');refresh_wiki()
+   if dest[0] in visible:
+    pages.selection_clear(0,'end');i=visible.index(dest[0]);pages.selection_set(i);pages.see(i);display_page()
+    if 'wiki_anchor_'+dest[1] in body.mark_names():body.see('wiki_anchor_'+dest[1])
   def display_page(event=None):
    if not pages.curselection():return
    page=wiki.read(visible[pages.curselection()[0]])
-   body.configure(state='normal');body.delete('1.0','end');body.insert('1.0',page['body']);body.configure(state='disabled')
+   body.configure(state='normal');body.delete('1.0','end')
+   for t in body.tag_names():
+    if t.startswith('wiki_link_'):body.tag_delete(t)
+   for mark in body.mark_names():
+    if mark.startswith('wiki_anchor_'):body.mark_unset(mark)
+   known={r['id'] for r in wiki.pages()};links=0;anchors={}
+   for kind,line,anchor in blocks(page['body']):
+    if anchor is not None:
+     count=anchors.get(anchor,0);anchors[anchor]=count+1;mark='wiki_anchor_'+anchor+('-'+str(count) if count else '');body.mark_set(mark,'end-1c');body.mark_gravity(mark,'left')
+    if kind=='code':body.insert('end',line+'\n',('code',));continue
+    for style,label,dest in inline(line,page['id'],known):
+     tags=(kind,) if kind in {'h1','h2','h3'} else ()
+     if style in {'bold','code'}:tags+=(style,)
+     if dest:
+      tag='wiki_link_'+str(links);links+=1;body.tag_configure(tag,foreground='#83c9ff',underline=True);body.tag_bind(tag,'<Button-1>',lambda e,d=dest:navigate(d));tags+=(tag,)
+     body.insert('end',label,tags)
+    body.insert('end','\n')
+   body.configure(state='disabled')
   def refresh_wiki():
    titles={p['id']:p['title'] for p in wiki.pages()}
    ids=[r['id'] for r in wiki.search(query.get(),30)] if query.get().strip() else list(titles)
