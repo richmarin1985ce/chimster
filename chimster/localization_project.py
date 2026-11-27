@@ -1,7 +1,7 @@
 """Stable localization catalogs and review-only translation memory reuse."""
 from pathlib import Path
 from copy import deepcopy
-import json,re,hashlib
+import json,re
 from .localization import TranslationMemory
 from .localization_audit import audit
 from .project import read_json
@@ -15,6 +15,9 @@ def catalog(kind,source):
         p=read_json(Path(source));r=validate(p)
         if not r["valid"]:raise ValueError("invalid quest")
         strings=r["localization"]
+    elif kind in {"native-quest","records"}:
+        from .localization_fields import extract
+        strings={k:v for k,v,_ in extract(kind,read_json(Path(source)))}
     elif kind=="strings":
         p=read_json(Path(source))
         if not isinstance(p,dict) or any(not isinstance(k,str) or not isinstance(v,str) for k,v in p.items()):raise ValueError("expected string dictionary")
@@ -23,7 +26,7 @@ def catalog(kind,source):
     if len(strings)>100000:raise ValueError("catalog too large")
     return {"schema":1,"kind":kind,"entries":[{"id":k,"source":v,"context":kind+":"+k,"target":None,"status":"untranslated"} for k,v in sorted(strings.items())]}
 def validate(c):
-    if c.get("schema")!=1 or c.get("kind") not in {"book","quest","strings"}:raise ValueError("invalid catalog")
+    if c.get("schema")!=1 or c.get("kind") not in {"book","quest","strings","native-quest","records"}:raise ValueError("invalid catalog")
     rows=c["entries"];seen=set()
     if not isinstance(rows,list) or len(rows)>100000:raise ValueError("catalog exceeds limit")
     for r in rows:
@@ -84,6 +87,9 @@ def apply(c,source,output,encoding="utf-8"):
             n["text"]=values[key+"text"]
             for e in n.get("choices",[]):e["text"]=values[key+e["id"]]
         save(q,p)
+    elif c["kind"] in {"native-quest","records"}:
+        from .localization_fields import replace
+        save_json(replace(c["kind"],read_json(Path(source)),values),p)
     else:save_json(values,p)
     return {"output":str(p),"strings":len(values)}
 def save_json(value,path):
