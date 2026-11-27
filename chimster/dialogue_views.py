@@ -182,4 +182,25 @@ def generate_graph(output,graph,identities):
         if not isinstance(edge,dict) or "source" not in edge or "target" not in edge:
             raise ValueError("invalid graph edge")
         links.append((edge["source"],edge["target"]))
+    # Explicit membership only: branch containment is not a dialogue edge.
+    by_key={row["id"]:row for row in rows}
+    members={}
+    for i,row in enumerate(rows):
+        row.setdefault("bounds",[float(i%5)*240,float(i//5)*120,200,80])
+        parent=row.get("branch")
+        if parent is None:continue
+        if not isinstance(parent,str) or parent not in by_key or by_key[parent].get("kind")!="branch" or row.get("kind","topic")!="topic":
+            raise ValueError("invalid branch membership")
+        members.setdefault(parent,[]).append(row)
+    for parent,children in members.items():
+        bounds=[child["bounds"] for child in children]
+        if any(not isinstance(v,(list,tuple)) or len(v)!=4 or any(type(x) not in (int,float) or not math.isfinite(x) for x in v) or min(v[2:])<=0 for v in bounds):
+            raise ValueError("invalid member bounds")
+        left=min(v[0] for v in bounds)-24
+        top=min(v[1] for v in bounds)-40
+        right=max(v[0]+v[2] for v in bounds)+24
+        bottom=max(v[1]+v[3] for v in bounds)+24
+        by_key[parent]["bounds"]=[left,top,right-left,bottom-top]
+    # Emit containers first so their members remain visible in ordinary renderers.
+    rows.sort(key=lambda row:row.get("kind")!="branch")
     return generate(output,rows,links)
