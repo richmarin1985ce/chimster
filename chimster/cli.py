@@ -127,7 +127,7 @@ def main():
  a=s.add_parser('wiki-export'); a.add_argument('output')
  a=s.add_parser('wiki-audit')
  a=s.add_parser('localization-project'); c=a.add_subparsers(dest='loc_op',required=True)
- b=c.add_parser('catalog'); b.add_argument('kind',choices=['book','quest','strings']); b.add_argument('source'); b.add_argument('output')
+ b=c.add_parser('catalog'); b.add_argument('kind',choices=['book','quest','strings','native-quest','records']); b.add_argument('source'); b.add_argument('output')
  b=c.add_parser('suggest'); b.add_argument('catalog'); b.add_argument('database'); b.add_argument('src'); b.add_argument('dst'); b.add_argument('output')
  b=c.add_parser('review'); b.add_argument('catalog'); b.add_argument('--encoding',default='utf-8')
  b=c.add_parser('remember'); b.add_argument('catalog'); b.add_argument('database')
