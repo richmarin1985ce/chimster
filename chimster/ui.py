@@ -187,6 +187,9 @@ def launch():
  f=tab('Minigame editor')
  from .minigame_ui import mount as mount_minigames
  mount_minigames(f)
+ f=tab('Localization')
+ from .localization_ui import mount as mount_localization
+ mount_localization(f)
  f=tab('Local wiki')
  ttk.Label(f,text='Bundled documentation — no hosting or internet required.').pack(anchor='w')
  from .wiki import Wiki
