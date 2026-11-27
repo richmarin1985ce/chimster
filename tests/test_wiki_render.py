@@ -14,3 +14,17 @@ class RenderTests(unittest.TestCase):
                 self.assertEqual(len(r["unresolved_links"]),1)
                 s=(p/"out/a.md.html").read_text();self.assertIn('href="b.md.html"',s);self.assertIn("&lt;script&gt;",s);self.assertNotIn("<script>",s)
             self.assertIsNone(resolve("a.md","https://example.com",{"a.md"}))
+
+    def test_heading_fragments(self):
+        with TemporaryDirectory() as d:
+            p=Path(d);src=p/"docs";src.mkdir()
+            (src/"a.md").write_text("# Repeat\n# Repeat\n# Repeat-1\n[Here](#repeat-1) [Other](b.md#other) [Missing](#missing)")
+            (src/"b.md").write_text("# Other")
+            with Wiki(src) as w:
+                report=export(w,p/"out")
+                self.assertEqual(report["internal_links"],2)
+                self.assertEqual(len(report["unresolved_links"]),1)
+                page=(p/"out/a.md.html").read_text()
+                for anchor in ("repeat","repeat-1","repeat-1-1"):
+                    self.assertIn('id="'+anchor+'"',page)
+                self.assertIn('href="b.md.html#other"',page)

@@ -42,8 +42,19 @@ def spans(text):
         else:yield ("italic",m[5],None)
         pos=m.end()
     if pos<len(text):yield ("plain",text[pos:],None)
+def heading_ids(body):
+    used=set()
+    for kind,text in blocks(body):
+        if not kind.startswith('h'):continue
+        base=re.sub(r'[^\w-]', '', re.sub(r'\s+', '-', text.strip().casefold())) or 'section'
+        anchor=base;n=1
+        while anchor in used:
+            anchor=f'{base}-{n}';n+=1
+        used.add(anchor)
+        yield anchor
+
 def render(page,body,pages):
-    result=[]
+    result=[];anchors=iter(heading_ids(body))
     for kind,text in blocks(body):
         if kind=="code":result.append("<pre><code>"+html.escape(text)+"</code></pre>");continue
         parts=[]
@@ -53,23 +64,31 @@ def render(page,body,pages):
                 dest=resolve(page,target,pages)
                 if dest:
                     rel=posixpath.relpath(dest+".html",posixpath.dirname(page) or ".")
+                    fragment=urlsplit(target).fragment
+                    if fragment:rel+='#'+fragment
                     safe='<a href="'+html.escape(rel,quote=True)+'">'+safe+'</a>'
             elif style in {"code","bold","italic"}:
                 tag={"code":"code","bold":"strong","italic":"em"}[style];safe=f"<{tag}>{safe}</{tag}>"
             parts.append(safe)
         tag=kind if kind.startswith("h") else "blockquote" if kind=="quote" else "p"
-        result.append(f"<{tag}>"+("• " if kind=="bullet" else "")+"".join(parts)+f"</{tag}>")
+        attr=' id="'+html.escape(next(anchors),quote=True)+'"' if kind.startswith("h") else ""
+        result.append(f"<{tag}{attr}>"+("• " if kind=="bullet" else "")+"".join(parts)+f"</{tag}>")
     return "<!doctype html><html><meta charset='utf-8'><title>Local manual</title><style>body{font:17px system-ui;max-width:850px;margin:2rem auto;padding:1rem}pre{white-space:pre-wrap;background:#eee;padding:1rem}code{font-family:monospace}blockquote{border-left:3px solid #777;padding-left:1rem}</style><body>"+"\n".join(result)+"</body></html>"
 def link_report(wiki):
     pages={p["id"] for p in wiki.pages()};broken=[];internal=0;external=0
+    anchors={p:set(heading_ids(wiki.read(p)["body"])) for p in pages}
     for page in sorted(pages):
         for kind,line in blocks(wiki.read(page)["body"]):
             if kind=="code":continue
             for style,value,target in spans(line):
                 if style!="link":continue
-                if resolve(page,target,pages):internal+=1
-                elif urlsplit(target).scheme in ("https","http"):external+=1
-                elif not target.startswith("#"):broken.append({"page":page,"target":target})
+                dest=resolve(page,target,pages)
+                try:u=urlsplit(target)
+                except ValueError:
+                    broken.append({"page":page,"target":target});continue
+                if dest and (not u.fragment or unquote(u.fragment) in anchors[dest]):internal+=1
+                elif u.scheme in ("https","http"):external+=1
+                else:broken.append({"page":page,"target":target})
     return {"pages":len(pages),"internal_links":internal,"external_links_not_fetched":external,"unresolved_links":broken}
 def export(wiki,folder):
     from pathlib import Path
