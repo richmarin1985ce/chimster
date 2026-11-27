@@ -203,35 +203,37 @@ def launch():
   sb=ttk.Scrollbar(left,command=pages.yview);sb.pack(side='right',fill='y');pages.configure(yscrollcommand=sb.set)
   body=tk.Text(right,wrap='word',bg='#1c2229',fg='#d6dce0',state='disabled');body.pack(side='left',fill='both',expand=True)
   sb2=ttk.Scrollbar(right,command=body.yview);sb2.pack(side='right',fill='y');body.configure(yscrollcommand=sb2.set)
-  visible=[]
-  from .wiki_render import blocks,inline
-  body.tag_configure('h1',font=('TkDefaultFont',18,'bold'));body.tag_configure('h2',font=('TkDefaultFont',15,'bold'));body.tag_configure('h3',font=('TkDefaultFont',13,'bold'));body.tag_configure('bold',font=('TkDefaultFont',10,'bold'));body.tag_configure('code',font=('TkFixedFont',10),background='#29333d')
-  def navigate(dest):
-   query.set('');refresh_wiki()
-   if dest[0] in visible:
-    pages.selection_clear(0,'end');i=visible.index(dest[0]);pages.selection_set(i);pages.see(i);display_page()
-    if 'wiki_anchor_'+dest[1] in body.mark_names():body.see('wiki_anchor_'+dest[1])
-  def display_page(event=None):
-   if not pages.curselection():return
-   page=wiki.read(visible[pages.curselection()[0]])
+  from .wiki_render import blocks,spans,resolve
+  visible=[];history=[];current=[None];known={p['id'] for p in wiki.pages()}
+  for tag,options in {'h1':{'font':('TkDefaultFont',19,'bold'),'spacing3':8},'h2':{'font':('TkDefaultFont',16,'bold'),'spacing3':6},'heading':{'font':('TkDefaultFont',13,'bold')},'code':{'font':('TkFixedFont',10),'background':'#303943'},'bold':{'font':('TkDefaultFont',11,'bold')},'italic':{'font':('TkDefaultFont',11,'italic')},'quote':{'lmargin1':18,'lmargin2':18,'foreground':'#aebbc7'}}.items():body.tag_configure(tag,**options)
+  def open_page(key,remember=True):
+   if key not in known:return
+   if remember and current[0] and current[0]!=key:history.append(current[0])
+   current[0]=key;page=wiki.read(key)
    body.configure(state='normal');body.delete('1.0','end')
-   for t in body.tag_names():
-    if t.startswith('wiki_link_'):body.tag_delete(t)
-   for mark in body.mark_names():
-    if mark.startswith('wiki_anchor_'):body.mark_unset(mark)
-   known={r['id'] for r in wiki.pages()};links=0;anchors={}
-   for kind,line,anchor in blocks(page['body']):
-    if anchor is not None:
-     count=anchors.get(anchor,0);anchors[anchor]=count+1;mark='wiki_anchor_'+anchor+('-'+str(count) if count else '');body.mark_set(mark,'end-1c');body.mark_gravity(mark,'left')
+   for tag in body.tag_names():
+    if tag.startswith('local_link_'):body.tag_delete(tag)
+   count=0
+   for kind,line in blocks(page['body']):
+    tag=kind if kind in ('h1','h2','code','quote') else 'heading' if kind.startswith('h') else ''
+    if kind=='bullet':body.insert('end','• ')
     if kind=='code':body.insert('end',line+'\n',('code',));continue
-    for style,label,dest in inline(line,page['id'],known):
-     tags=(kind,) if kind in {'h1','h2','h3'} else ()
-     if style in {'bold','code'}:tags+=(style,)
-     if dest:
-      tag='wiki_link_'+str(links);links+=1;body.tag_configure(tag,foreground='#83c9ff',underline=True);body.tag_bind(tag,'<Button-1>',lambda e,d=dest:navigate(d));tags+=(tag,)
-     body.insert('end',label,tags)
-    body.insert('end','\n')
-   body.configure(state='disabled')
+    for style,value,target in spans(line):
+     tags=[tag] if tag else []
+     if style in ('code','bold','italic'):tags.append(style)
+     if style=='link':
+      destination=resolve(key,target,known)
+      if destination:
+       count+=1;link='local_link_'+str(count);tags.append(link)
+       body.tag_configure(link,foreground='#89bbef',underline=True)
+       body.tag_bind(link,'<Button-1>',lambda e,d=destination:open_page(d))
+     body.insert('end',value,tuple(tags))
+    body.insert('end','\n',tuple([tag] if tag else []))
+   body.configure(state='disabled');body.see('1.0')
+  def display_page(event=None):
+   if pages.curselection():open_page(visible[pages.curselection()[0]])
+  def back_page():
+   if history:open_page(history.pop(),False)
   def refresh_wiki():
    titles={p['id']:p['title'] for p in wiki.pages()}
    ids=[r['id'] for r in wiki.search(query.get(),30)] if query.get().strip() else list(titles)
@@ -241,6 +243,7 @@ def launch():
    else:
     body.configure(state='normal');body.delete('1.0','end');body.insert('1.0','No matching pages.');body.configure(state='disabled')
   ttk.Button(bar,text='Search',command=refresh_wiki).pack(side='left')
+  ttk.Button(bar,text='Back',command=back_page).pack(side='left')
   ttk.Button(bar,text='All pages',command=lambda:(query.set(''),refresh_wiki())).pack(side='left')
   search_entry.bind('<Return>',lambda e:refresh_wiki())
   pages.bind('<<ListboxSelect>>',display_page);refresh_wiki()

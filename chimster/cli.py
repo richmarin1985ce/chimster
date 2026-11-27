@@ -125,42 +125,70 @@ def main():
  b=c.add_parser('activate'); b.add_argument('root'); b.add_argument('version')
  b=c.add_parser('status'); b.add_argument('root')
  a=s.add_parser('wiki-export'); a.add_argument('output')
- a=s.add_parser('wiki-audit')
- a=s.add_parser('localization-project'); c=a.add_subparsers(dest='loc_op',required=True)
- b=c.add_parser('catalog'); b.add_argument('kind',choices=['book','quest','strings','native-quest','records']); b.add_argument('source'); b.add_argument('output')
- b=c.add_parser('suggest'); b.add_argument('catalog'); b.add_argument('database'); b.add_argument('src'); b.add_argument('dst'); b.add_argument('output'); b.add_argument('--reuse-unambiguous',action='store_true')
- b=c.add_parser('review'); b.add_argument('catalog'); b.add_argument('--encoding',default='utf-8')
- b=c.add_parser('remember'); b.add_argument('catalog'); b.add_argument('database')
- b=c.add_parser('apply'); b.add_argument('catalog'); b.add_argument('source'); b.add_argument('output'); b.add_argument('--encoding',default='utf-8')
- b=c.add_parser('pack'); b.add_argument('source'); b.add_argument('output'); b.add_argument('kind',choices=['STRINGS','DLSTRINGS','ILSTRINGS']); b.add_argument('--encoding',required=True)
+ a=s.add_parser('wiki-check-links')
+ a=s.add_parser('localize'); l=a.add_subparsers(dest='locop',required=True)
+ b=l.add_parser('catalog'); b.add_argument('kind',choices=['book','quest','native-quest','records']); b.add_argument('project'); b.add_argument('source_lang'); b.add_argument('target_lang'); b.add_argument('output')
+ for op in ('check','apply','reuse','remember'):
+  b=l.add_parser(op); b.add_argument('project'); b.add_argument('catalog'); b.add_argument('--encoding',choices=['utf-8','cp1252'],default='utf-8')
+  if op in ('apply','reuse'):b.add_argument('output')
+  if op in ('reuse','remember'):b.add_argument('memory')
+  if op=='check':b.add_argument('--glossary')
+ a=s.add_parser('book-layout'); a.add_argument('book'); a.add_argument('layout'); a.add_argument('assets'); a.add_argument('output')
+ a=s.add_parser('texture-compress'); a.add_argument('source'); a.add_argument('output'); a.add_argument('--format',choices=['BC1','BC1A','BC3'],default='BC3'); a.add_argument('--no-mips',action='store_true'); a.add_argument('--alpha-coverage',action='store_true')
+ a=s.add_parser('texture-height-alpha'); a.add_argument('source'); a.add_argument('height'); a.add_argument('output')
  n=p.parse_args()
  try:
   if n.cmd=='ui':
    from .ui import launch
    launch(); return
-  if n.cmd in ('wiki-export','wiki-audit'):
+  if n.cmd=='texture-compress':
+   from .textures import load_pixels
+   from .texture_processing import dds
+   from pathlib import Path
+   w,h,raw=load_pixels(n.source,'RGBA')
+   data=dds(w,h,raw,n.format,not n.no_mips,n.alpha_coverage)
+   with Path(n.output).open('xb') as f:f.write(data)
+   result={'output':n.output,'format':n.format,'bytes':len(data)}
+  elif n.cmd=='texture-height-alpha':
+   from .textures import load_pixels
+   from .texture_processing import height_alpha
+   from .atlas import write_png
+   from pathlib import Path
+   w,h,raw=load_pixels(n.source,'RGBA');a,b,height=load_pixels(n.height,'L')
+   if (w,h)!=(a,b):raise ValueError('image dimensions differ')
+   if Path(n.output).exists():raise ValueError('new output required')
+   write_png(n.output,w,h,height_alpha(w,h,raw,height));result={'output':n.output}
+  elif n.cmd in ('wiki-export','wiki-check-links'):
    from .wiki import Wiki
-   from .wiki_render import export,audit
-   with Wiki() as wiki:result=export(wiki,n.output) if n.cmd=='wiki-export' else audit(wiki)
-  elif n.cmd=='localization-project':
+   from .wiki_render import export,link_report
+   with Wiki() as wiki:result=export(wiki,n.output) if n.cmd=='wiki-export' else link_report(wiki)
+  elif n.cmd=='localize':
    from . import localization_project as loc
    from .project import read_json
    from pathlib import Path
-   op=n.loc_op
-   if op=='catalog':
-    data=loc.catalog(n.kind,n.source);loc.save_json(data,n.output);result={'output':n.output,'entries':len(data['entries'])}
-   elif op=='pack':result=loc.pack_native(n.source,n.output,n.kind,n.encoding)
+   from .localization import TranslationMemory
+   spec=read_json(Path(n.project))
+   def write_json(value):
+    with Path(n.output).open('x',encoding='utf-8') as f:json.dump(value,f,ensure_ascii=False,indent=2)
+    return {'output':n.output}
+   if n.locop=='catalog':result=write_json(loc.catalog(n.kind,spec,n.source_lang,n.target_lang))
    else:
-    data=read_json(Path(n.catalog))
-    if op=='suggest':
-     data=loc.suggest(data,n.database,n.src,n.dst,n.reuse_unambiguous);loc.save_json(data,n.output);result={'output':n.output,'suggested':sum(r['status']=='suggested' for r in data['entries'])}
-    elif op=='review':
-     result=loc.review(data,n.encoding)
-     print(json.dumps(result,indent=2))
-     if not result['valid']:raise SystemExit(1)
-     return
-    elif op=='remember':result=loc.remember(data,n.database)
-    else:result=loc.apply(data,n.source,n.output,n.encoding)
+    catalog=read_json(Path(n.catalog))
+    if n.locop=='check':result=loc.check(catalog,spec,n.encoding,read_json(Path(n.glossary)) if n.glossary else None)
+    elif n.locop=='apply':result=write_json(loc.apply(catalog,spec,n.encoding))
+    else:
+     memory=TranslationMemory(n.memory)
+     try:
+      if n.locop=='remember':result={'remembered':loc.remember(catalog,spec,memory,n.encoding)}
+      else:
+       c,count=loc.reuse(catalog,spec,memory);result={**write_json(c),'reused':count}
+     finally:memory.close()
+  elif n.cmd=='book-layout':
+   from .books import load
+   from .book_layout import export
+   from .project import read_json
+   from pathlib import Path
+   result=export(load(n.book),read_json(Path(n.layout)),n.assets,n.output)
   elif n.cmd=='project':
    from .project import Project,read_json
    from pathlib import Path

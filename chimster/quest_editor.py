@@ -23,7 +23,7 @@ def validate(p):
         ids=set()
         for e in edges:
             eid=e["id"];target=e["target"]
-            if not check_id(eid) or eid=="text" or eid in ids or target not in index or not isinstance(e["text"],str) or len(e["text"])>4000:raise ValueError("invalid choice or target")
+            if not check_id(eid) or eid in ids or target not in index or not isinstance(e["text"],str) or len(e["text"])>4000:raise ValueError("invalid choice or target")
             ids.add(eid);reverse[target].append(id);strings[p["id"]+"."+id+"."+eid]=e["text"]
             for key in ("requires","sets"):
                 cond=e.get(key,{})

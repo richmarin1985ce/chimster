@@ -1,88 +1,101 @@
-"""Safe offline Markdown subset, shared by the desktop reader and HTML export.
-No HTML interpretation, external resource fetching or code execution."""
+"""Small safe Markdown renderer and relative documentation link resolver.
+No remote content, raw HTML, JavaScript, or embedded images are loaded."""
+from pathlib import PurePosixPath
+from urllib.parse import unquote,urlsplit
 import re,html,posixpath
-from urllib.parse import unquote
-INLINE=re.compile(r"\[([^\]\n]+)\]\(([^)\n]+)\)|\x60([^\x60\n]+)\x60|\*\*([^*\n]+)\*\*")
-def heading_id(s):
-    return re.sub(r"[^\w-]","",re.sub(r"\s+","-",s.strip().casefold()))
-def target(page,url,pages):
-    url=unquote(url)
-    if any(c in url for c in ("\\",":","\0","?")) or url.startswith("/"):return None
-    path,_,fragment=url.partition("#")
-    p=posixpath.normpath(posixpath.join(posixpath.dirname(page),path)) if path else page
-    if p not in pages:return None
-    return p,fragment
-def inline(s,page,pages):
-    out=[];last=0
-    for m in INLINE.finditer(s):
-        if m.start()>last:out.append(("text",s[last:m.start()],None))
-        if m[1] is not None:out.append(("link",m[1],target(page,m[2],pages)))
-        elif m[3] is not None:out.append(("code",m[3],None))
-        else:out.append(("bold",m[4],None))
-        last=m.end()
-    if last<len(s):out.append(("text",s[last:],None))
-    return out
+LINK=re.compile(r'\[([^\]\n]+)\]\(([^)\n]+)\)|\x60([^\x60\n]+)\x60|\*\*([^*\n]+)\*\*|\*([^*\n]+)\*')
+def resolve(page,target,pages):
+    if not isinstance(target,str) or len(target)>2048:return None
+    try:u=urlsplit(target)
+    except ValueError:return None
+    if u.scheme or u.netloc or u.query:return None
+    raw=unquote(u.path)
+    if "\\" in raw or raw.startswith("/") or "\0" in raw:return None
+    dest=posixpath.normpath(posixpath.join(posixpath.dirname(page),raw)) if raw else page
+    if dest==".." or dest.startswith("../") or dest not in pages:return None
+    return dest
 def blocks(body):
-    fence=None
+    """Conservative subset, represented as semantic blocks for both HTML and Tk."""
+    if not isinstance(body,str) or len(body)>1024*1024:raise ValueError("document too large")
+    result=[];code=None
     for line in body.splitlines():
-        if line.startswith(("~~~","\x60\x60\x60")):
-            if fence is None:fence=line[:3]
-            elif line.startswith(fence):fence=None
-            else:yield "code",line,None
+        if line.lstrip().startswith("\x60\x60\x60"):
+            if code is None:code=[]
+            else:result.append(("code","\n".join(code)));code=None
             continue
-        if fence:yield "code",line,None;continue
-        h=re.match(r"^(#{1,6})\s+(.+)$",line)
-        if h:yield "h"+str(len(h[1])),h[2],heading_id(h[2]);continue
-        m=re.match(r"^\s*[-*]\s+(.*)$",line)
-        if m:yield "list","• "+m[1],None;continue
-        yield "text",line,None
-def render_html(page,body,pages,filename):
-    esc=html.escape
-    out=["<!doctype html><html><meta charset='utf-8'><meta name='viewport' content='width=device-width'><title>"+esc(page)+"</title><style>body{font:16px system-ui;max-width:960px;margin:2rem auto;padding:0 1rem;line-height:1.55;color:#20262b}code,pre{background:#eef1f4;font-family:monospace}pre{white-space:pre-wrap;padding:.15rem .5rem;margin:0}a{color:#225b87}p{margin:.35rem 0}h1,h2,h3{margin-top:1.1em}</style><nav><a href='index.html'>Contents</a></nav>"]
-    anchors={}
-    for kind,s,anchor in blocks(body):
-        if kind=="code":out.append("<pre>"+esc(s)+"</pre>");continue
+        if code is not None:code.append(line);continue
+        if line.startswith("    "):result.append(("code",line[4:]));continue
+        m=re.match(r"^(#{1,6})\s+(.*)$",line)
+        if m:result.append(("h"+str(len(m[1])),m[2]));continue
+        if re.match(r"^\s*[-*+]\s+",line):result.append(("bullet",re.sub(r"^\s*[-*+]\s+","",line)));continue
+        if line.startswith("> "):result.append(("quote",line[2:]));continue
+        result.append(("p",line))
+    if code is not None:result.append(("code","\n".join(code)))
+    return result
+def spans(text):
+    pos=0
+    for m in LINK.finditer(text):
+        if m.start()>pos:yield ("plain",text[pos:m.start()],None)
+        if m[1]:yield ("link",m[1],m[2])
+        elif m[3]:yield ("code",m[3],None)
+        elif m[4]:yield ("bold",m[4],None)
+        else:yield ("italic",m[5],None)
+        pos=m.end()
+    if pos<len(text):yield ("plain",text[pos:],None)
+def heading_ids(body):
+    used=set()
+    for kind,text in blocks(body):
+        if not kind.startswith('h'):continue
+        base=re.sub(r'[^\w-]', '', re.sub(r'\s+', '-', text.strip().casefold())) or 'section'
+        anchor=base;n=1
+        while anchor in used:
+            anchor=f'{base}-{n}';n+=1
+        used.add(anchor)
+        yield anchor
+
+def render(page,body,pages):
+    result=[];anchors=iter(heading_ids(body))
+    for kind,text in blocks(body):
+        if kind=="code":result.append("<pre><code>"+html.escape(text)+"</code></pre>");continue
         parts=[]
-        for style,label,dest in inline(s,page,pages):
-            value=esc(label)
-            if style=="link" and dest:
-                url=filename[dest[0]]+("#"+dest[1] if dest[1] else "")
-                value="<a href='"+esc(url,quote=True)+"'>"+value+"</a>"
-            elif style=="code":value="<code>"+value+"</code>"
-            elif style=="bold":value="<strong>"+value+"</strong>"
-            parts.append(value)
-        tag=kind if kind in {"h1","h2","h3","h4","h5","h6"} else "p"
-        if anchor is not None:
-            n=anchors.get(anchor,0);anchors[anchor]=n+1
-            anchor=anchor+("-"+str(n) if n else "")
-        attr=" id='"+esc(anchor,quote=True)+"'" if anchor is not None else ""
-        out.append("<"+tag+attr+">"+"".join(parts)+"</"+tag+">")
-    return "\n".join(out)+"</html>"
+        for style,value,target in spans(text):
+            safe=html.escape(value)
+            if style=="link":
+                dest=resolve(page,target,pages)
+                if dest:
+                    rel=posixpath.relpath(dest+".html",posixpath.dirname(page) or ".")
+                    fragment=urlsplit(target).fragment
+                    if fragment:rel+='#'+fragment
+                    safe='<a href="'+html.escape(rel,quote=True)+'">'+safe+'</a>'
+            elif style in {"code","bold","italic"}:
+                tag={"code":"code","bold":"strong","italic":"em"}[style];safe=f"<{tag}>{safe}</{tag}>"
+            parts.append(safe)
+        tag=kind if kind.startswith("h") else "blockquote" if kind=="quote" else "p"
+        attr=\' id="\'+html.escape(next(anchors),quote=True)+\'"\' if kind.startswith("h") else ""
+        result.append(f"<{tag}{attr}>"+("• " if kind=="bullet" else "")+"".join(parts)+f"</{tag}>")
+    return "<!doctype html><html><meta charset='utf-8'><title>Local manual</title><style>body{font:17px system-ui;max-width:850px;margin:2rem auto;padding:1rem}pre{white-space:pre-wrap;background:#eee;padding:1rem}code{font-family:monospace}blockquote{border-left:3px solid #777;padding-left:1rem}</style><body>"+"\n".join(result)+"</body></html>"
+def link_report(wiki):
+    pages={p["id"] for p in wiki.pages()};broken=[];internal=0;external=0
+    anchors={p:set(heading_ids(wiki.read(p)["body"])) for p in pages}
+    for page in sorted(pages):
+        for kind,line in blocks(wiki.read(page)["body"]):
+            if kind=="code":continue
+            for style,value,target in spans(line):
+                if style!="link":continue
+                dest=resolve(page,target,pages)
+                try:u=urlsplit(target)
+                except ValueError:
+                    broken.append({"page":page,"target":target});continue
+                if dest and (not u.fragment or unquote(u.fragment) in anchors[dest]):internal+=1
+                elif u.scheme in ("https","http"):external+=1
+                else:broken.append({"page":page,"target":target})
+    return {"pages":len(pages),"internal_links":internal,"external_links_not_fetched":external,"unresolved_links":broken}
 def export(wiki,folder):
     from pathlib import Path
-    import hashlib
-    p=Path(folder);p.mkdir(parents=True,exist_ok=False)
-    rows=wiki.pages();ids={r["id"] for r in rows};names={k:"page-"+hashlib.sha256(k.encode()).hexdigest()[:24]+".html" for k in ids}
-    for r in rows:(p/names[r["id"]]).write_text(render_html(r["id"],wiki.read(r["id"])["body"],ids,names),encoding="utf-8")
-    index="<!doctype html><meta charset='utf-8'><title>Chimster manual</title><h1>Chimster manual</h1><ul>"+"".join("<li><a href='"+names[r["id"]]+"'>"+html.escape(r["title"])+"</a></li>" for r in rows)+"</ul>"
-    (p/"index.html").write_text(index,encoding="utf-8")
-    return {"pages":len(rows),"index":str(p/"index.html"),"scope":"safe Markdown subset; external links displayed as text"}
-def audit(wiki):
-    ids={r["id"] for r in wiki.pages()};anchors={}
-    for k in ids:
-        seen={};values=set()
-        for _,_,a in blocks(wiki.read(k)["body"]):
-            if a is not None:
-                n=seen.get(a,0);seen[a]=n+1;values.add(a+("-"+str(n) if n else ""))
-        anchors[k]=values
-    broken=[];external=0
-    for k in sorted(ids):
-        for kind,s,_ in blocks(wiki.read(k)["body"]):
-            if kind=="code":continue
-            for m in INLINE.finditer(s):
-                if m[1] is None:continue
-                url=m[2]
-                if re.match(r"^[A-Za-z][A-Za-z0-9+.-]*:",url):external+=1;continue
-                t=target(k,url,ids)
-                if not t or t[1] and t[1] not in anchors[t[0]]:broken.append({"page":k,"target":url})
-    return {"pages":len(ids),"broken_links":broken,"external_links_not_checked":external}
+    p=Path(folder);p.mkdir(parents=True,exist_ok=False);pages=wiki.pages();ids={r["id"] for r in pages}
+    for page in pages:
+        q=p/(page["id"]+".html");q.parent.mkdir(parents=True,exist_ok=True)
+        q.write_text(render(page["id"],wiki.read(page["id"])["body"],ids),encoding="utf-8")
+    links="".join('<li><a href="'+html.escape(r["id"]+".html",quote=True)+'">'+html.escape(r["title"])+"</a></li>" for r in pages)
+    (p/"index.html").write_text("<!doctype html><meta charset=utf-8><title>Chimster manual</title><h1>Manual</h1><ul>"+links+"</ul>",encoding="utf-8")
+    return {"output":str(p),**link_report(wiki)}
