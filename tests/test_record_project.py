@@ -13,7 +13,7 @@ class ProjectTests(unittest.TestCase):
             row=lambda id:{"id":id,"type":"GLOB","fields":{"kind":"f","value":2.}}
             export({"schema":1,"records":[row("One")]},a);export({"schema":1,"records":[row("Two")]},b)
             p=root/"Source.esp";project={"schema":1,"records":[row("Local"),{"id":"List","type":"FLST","fields":{"entries":["Local",{"plugin":"A.esp","id":0x800}]}}]}
-            export(project,p,[a,b])
+            exported=export(project,p,[a,b]);local=exported["records"]["local"]&0xffffff
             with self.assertRaises(ValueError):remove(project,"Local")
             self.assertEqual(len(remove(project,"List")["records"]),1)
             folder=root/"new";folder.mkdir();q=folder/p.name
@@ -22,7 +22,7 @@ class ProjectTests(unittest.TestCase):
             rec=next(x for x in scan(q)["records"] if x["signature"]=="FLST")
             with q.open("rb") as f:
                 f.seek(rec["offset"]);_,size,*_=HEADER.unpack(f.read(24));refs=[struct.unpack("<I",v)[0] for k,v in subs(f.read(size)) if k==b"LNAM"]
-            self.assertEqual(refs,[0x02000800,0x01000800])
-            folder2=root/"edit";folder2.mkdir();r=inspect(p,p.name,0x800)
-            edit_typed(p,folder2/p.name,p.name,0x800,"FLTV",3.5,r["payload_sha256"])
-            self.assertEqual(next(f["value"] for f in inspect(folder2/p.name,p.name,0x800)["fields"] if f["tag"]=="FLTV"),3.5)
+            self.assertEqual(refs,[0x02000000|local,0x01000800])
+            folder2=root/"edit";folder2.mkdir();r=inspect(p,p.name,local)
+            edit_typed(p,folder2/p.name,p.name,local,"FLTV",3.5,r["payload_sha256"])
+            self.assertEqual(next(f["value"] for f in inspect(folder2/p.name,p.name,local)["fields"] if f["tag"]=="FLTV"),3.5)
