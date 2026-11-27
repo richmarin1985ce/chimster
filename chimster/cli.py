@@ -124,12 +124,44 @@ def main():
  b=c.add_parser('install'); b.add_argument('root'); b.add_argument('archive'); b.add_argument('--sha256',required=True); b.add_argument('--activate',action='store_true')
  b=c.add_parser('activate'); b.add_argument('root'); b.add_argument('version')
  b=c.add_parser('status'); b.add_argument('root')
+ a=s.add_parser('wiki-export'); a.add_argument('output')
+ a=s.add_parser('wiki-audit')
+ a=s.add_parser('localization-project'); c=a.add_subparsers(dest='loc_op',required=True)
+ b=c.add_parser('catalog'); b.add_argument('kind',choices=['book','quest','strings']); b.add_argument('source'); b.add_argument('output')
+ b=c.add_parser('suggest'); b.add_argument('catalog'); b.add_argument('database'); b.add_argument('src'); b.add_argument('dst'); b.add_argument('output')
+ b=c.add_parser('review'); b.add_argument('catalog'); b.add_argument('--encoding',default='utf-8')
+ b=c.add_parser('remember'); b.add_argument('catalog'); b.add_argument('database')
+ b=c.add_parser('apply'); b.add_argument('catalog'); b.add_argument('source'); b.add_argument('output'); b.add_argument('--encoding',default='utf-8')
+ b=c.add_parser('pack'); b.add_argument('source'); b.add_argument('output'); b.add_argument('kind',choices=['STRINGS','DLSTRINGS','ILSTRINGS']); b.add_argument('--encoding',required=True)
  n=p.parse_args()
  try:
   if n.cmd=='ui':
    from .ui import launch
    launch(); return
-  if n.cmd=='project':
+  if n.cmd in ('wiki-export','wiki-audit'):
+   from .wiki import Wiki
+   from .wiki_render import export,audit
+   with Wiki() as wiki:result=export(wiki,n.output) if n.cmd=='wiki-export' else audit(wiki)
+  elif n.cmd=='localization-project':
+   from . import localization_project as loc
+   from .project import read_json
+   from pathlib import Path
+   op=n.loc_op
+   if op=='catalog':
+    data=loc.catalog(n.kind,n.source);loc.save_json(data,n.output);result={'output':n.output,'entries':len(data['entries'])}
+   elif op=='pack':result=loc.pack_native(n.source,n.output,n.kind,n.encoding)
+   else:
+    data=read_json(Path(n.catalog))
+    if op=='suggest':
+     data=loc.suggest(data,n.database,n.src,n.dst);loc.save_json(data,n.output);result={'output':n.output,'suggested':sum(r['status']=='suggested' for r in data['entries'])}
+    elif op=='review':
+     result=loc.review(data,n.encoding)
+     print(json.dumps(result,indent=2))
+     if not result['valid']:raise SystemExit(1)
+     return
+    elif op=='remember':result=loc.remember(data,n.database)
+    else:result=loc.apply(data,n.source,n.output,n.encoding)
+  elif n.cmd=='project':
    from .project import Project,read_json
    from pathlib import Path
    if n.project_op=='create':result=Project.create(n.root,n.name,n.game).read()
