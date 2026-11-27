@@ -1,7 +1,7 @@
 import argparse,json
 from .core import catalog, inspect_plugin, plan, PROFILES
 
-def main():
+def build_parser():
  p=argparse.ArgumentParser(prog='chimster'); s=p.add_subparsers(dest='cmd',required=True)
  a=s.add_parser('tools'); a.add_argument('--game',choices=PROFILES)
  a=s.add_parser('inspect'); a.add_argument('game',choices=PROFILES); a.add_argument('path')
@@ -137,7 +137,10 @@ def main():
  a=s.add_parser('book-layout'); a.add_argument('book'); a.add_argument('layout'); a.add_argument('assets'); a.add_argument('output')
  a=s.add_parser('texture-compress'); a.add_argument('source'); a.add_argument('output'); a.add_argument('--format',choices=['BC1','BC1A','BC3'],default='BC3'); a.add_argument('--no-mips',action='store_true'); a.add_argument('--alpha-coverage',action='store_true')
  a=s.add_parser('texture-height-alpha'); a.add_argument('source'); a.add_argument('height'); a.add_argument('output')
- n=p.parse_args()
+ return p
+
+def main(argv=None):
+ n=build_parser().parse_args(argv)
  try:
   if n.cmd=='ui':
    from .ui import launch
