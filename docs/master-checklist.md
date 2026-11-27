@@ -118,3 +118,6 @@ PR21 merged, eight CI workflows green, 188 foundation passes/12 skips, three ins
 
 ## Reconciliation
 PR23 supersedes overlapping PR22 architecture; retain main catalog schema and selectively port missing features with regression tests. PR17 roadmap numbering is canonical. No retail certification.
+
+### Section 14 — DialogueViews generation
+PR26 merged at 4c333a74222f23283d525a42dd318b4dce9fc3d1. Observed v12 subset scratch generation implemented; regression tests added, execution deferred by user due to Actions quota. Explicit graph binding adapter added in follow-up; desktop integration, native DLBR/DLVW synchronization, resource templates and official editor verification remain open. No compatibility certification.

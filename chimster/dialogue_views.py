@@ -155,3 +155,31 @@ def generate(output,nodes,edges):
     with q.open("xb") as f:f.write(raw)
     try:return inspect(parse(q))
     except Exception:q.unlink();raise
+
+
+def generate_graph(output,graph,identities):
+    """Adapt a portable directed graph to XML using explicit native bindings.
+    Graph contract: nodes [{id, caption, kind?}], edges [{source,target}].
+    No inferred FormIDs or runtime record creation.
+    """
+    if not isinstance(graph,dict) or not isinstance(identities,dict):
+        raise ValueError("expected graph and native identity mapping")
+    nodes=graph.get("nodes");edges=graph.get("edges")
+    if not isinstance(nodes,list) or not isinstance(edges,list):
+        raise ValueError("expected graph nodes and edges")
+    keys=set()
+    rows=[]
+    for node in nodes:
+        if not isinstance(node,dict) or not isinstance(node.get("id"),str):
+            raise ValueError("invalid graph node")
+        key=node["id"]
+        if key in keys or key not in identities:raise ValueError("duplicate or unbound graph node")
+        keys.add(key)
+        rows.append({**node,"form_id":identities[key]})
+    if keys!=set(identities):raise ValueError("unused native identity binding")
+    links=[]
+    for edge in edges:
+        if not isinstance(edge,dict) or "source" not in edge or "target" not in edge:
+            raise ValueError("invalid graph edge")
+        links.append((edge["source"],edge["target"]))
+    return generate(output,rows,links)
