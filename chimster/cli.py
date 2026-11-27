@@ -134,12 +134,31 @@ def main():
   if op in ('reuse','remember'):b.add_argument('memory')
   if op=='check':b.add_argument('--glossary')
  a=s.add_parser('book-layout'); a.add_argument('book'); a.add_argument('layout'); a.add_argument('assets'); a.add_argument('output')
+ a=s.add_parser('texture-compress'); a.add_argument('source'); a.add_argument('output'); a.add_argument('--format',choices=['BC1','BC1A','BC3'],default='BC3'); a.add_argument('--no-mips',action='store_true'); a.add_argument('--alpha-coverage',action='store_true')
+ a=s.add_parser('texture-height-alpha'); a.add_argument('source'); a.add_argument('height'); a.add_argument('output')
  n=p.parse_args()
  try:
   if n.cmd=='ui':
    from .ui import launch
    launch(); return
-  if n.cmd in ('wiki-export','wiki-check-links'):
+  if n.cmd=='texture-compress':
+   from .textures import load_pixels
+   from .texture_processing import dds
+   from pathlib import Path
+   w,h,raw=load_pixels(n.source,'RGBA')
+   data=dds(w,h,raw,n.format,not n.no_mips,n.alpha_coverage)
+   with Path(n.output).open('xb') as f:f.write(data)
+   result={'output':n.output,'format':n.format,'bytes':len(data)}
+  elif n.cmd=='texture-height-alpha':
+   from .textures import load_pixels
+   from .texture_processing import height_alpha
+   from .atlas import write_png
+   from pathlib import Path
+   w,h,raw=load_pixels(n.source,'RGBA');a,b,height=load_pixels(n.height,'L')
+   if (w,h)!=(a,b):raise ValueError('image dimensions differ')
+   if Path(n.output).exists():raise ValueError('new output required')
+   write_png(n.output,w,h,height_alpha(w,h,raw,height));result={'output':n.output}
+  elif n.cmd in ('wiki-export','wiki-check-links'):
    from .wiki import Wiki
    from .wiki_render import export,link_report
    with Wiki() as wiki:result=export(wiki,n.output) if n.cmd=='wiki-export' else link_report(wiki)
