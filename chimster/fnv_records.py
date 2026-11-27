@@ -31,10 +31,18 @@ def scan(path):
             return b
         h=read(24);sig,n,flags,form,vc,ver,unknown=HEADER.unpack(h)
         if sig!=b"TES4" or form or flags&~1 or n>MAX_RECORD or 24+n>size:raise ValueError("unsupported FNV header")
-        master=[text(v) for k,v in subs(read(n)) if k==b"MAST"]
+        parts=list(subs(read(n)))
+        master=[text(v) for k,v in parts if k==b"MAST"]
+        headers=[v for k,v in parts if k==b"HEDR"]
+        from .identity_policy import header_cursor
+        cursor=header_cursor(headers[0]) if len(headers)==1 and len(headers[0])==12 else None
+        groups=[]
+        from .record_graph import Slots
+        from .historical_schema import group_label
+        slots=Slots(path.name,master)
         names=[plugin_name(x) for x in [*master,path.name]]
         if len(set(names))!=len(names) or len(names)>254:raise ValueError("duplicate/too many masters")
-        def walk(end,depth=0):
+        def walk(end,depth=0,parents=()):
             if depth>64:raise ValueError("group nesting limit")
             while f.tell()<end:
                 offset=f.tell()
@@ -43,7 +51,16 @@ def scan(path):
                 if sig==b"GRUP":
                     stop=offset+n
                     if n<24 or stop>end:raise ValueError("invalid group")
-                    yield from walk(stop,depth+1);continue
+                    kind=struct.unpack_from("<i",h,12)[0]
+                    label=h[8:12]
+                    entry={"offset":offset,"type":kind,"label":label.hex(),"parents":list(parents)}
+                    try:
+                        role,value=group_label(kind,label,slots)
+                        entry["role"]=role
+                        if hasattr(value,"origin"):entry["owner"]={"origin":value.origin,"local_id":value.local}
+                    except ValueError as e:entry["warning"]=str(e)
+                    groups.append(entry)
+                    yield from walk(stop,depth+1,(*parents,offset));continue
                 if n>MAX_RECORD or f.tell()+n>end:raise ValueError("invalid record size")
                 data=read(n);slot=form>>24;local=form&0xffffff
                 if slot>=len(names) or not local:raise ValueError("unsupported/null FormID")
@@ -52,9 +69,10 @@ def scan(path):
                     for k,v in subs(data):
                         if k==b"EDID":edid=text(v);break
                 yield {"origin":names[slot],"local_id":local,"signature":sig.decode("ascii"),
-                       "flags":flags,"editor_id":edid,"offset":offset,"payload_sha256":hashlib.sha256(data).hexdigest()}
+                       "flags":flags,"editor_id":edid,"offset":offset,"groups":list(parents),"payload_sha256":hashlib.sha256(data).hexdigest()}
             if f.tell()!=end:raise ValueError("group boundary mismatch")
-        return {"name":path.name,"masters":master,"records":list(walk(size))}
+        records=list(walk(size))
+        return {"name":path.name,"masters":master,"records":records,"groups":groups,"next_object_id":cursor}
 
 class RecordIndex:
     def __init__(self,path):
