@@ -204,3 +204,41 @@ def generate_graph(output,graph,identities):
     # Emit containers first so their members remain visible in ordinary renderers.
     rows.sort(key=lambda row:row.get("kind")!="branch")
     return generate(output,rows,links)
+
+
+def generate_from_template(source,output,graph,identities):
+    """Preserve an existing v12 template's resources and unknown fields.
+    Only same-topology templates are supported; no guessed resource references.
+    Graph keys bind to existing diagram node IDs, not native FormIDs.
+    """
+    p=Path(source);q=Path(output);root=parse(p);report=inspect(root)
+    if not isinstance(graph,dict) or not isinstance(identities,dict):
+        raise ValueError("expected graph and identities")
+    rows=graph.get("nodes");edges=graph.get("edges")
+    if not isinstance(rows,list) or not isinstance(edges,list):
+        raise ValueError("expected nodes and edges")
+    known={n["id"]:n for n in report["nodes"]}
+    if any(not isinstance(n,dict) or not isinstance(n.get("id"),str) for n in rows):
+        raise ValueError("invalid graph nodes")
+    keys={n["id"] for n in rows}
+    if len(keys)!=len(rows) or keys!=set(known) or keys!=set(identities):
+        raise ValueError("template node topology mismatch")
+    if any(not isinstance(e,dict) or not isinstance(e.get("source"),str) or not isinstance(e.get("target"),str) for e in edges):
+        raise ValueError("invalid graph edges")
+    if sorted((e["source"],e["target"]) for e in edges)!=sorted((e["origin"],e["destination"]) for e in report["links"]):
+        raise ValueError("template link topology mismatch")
+    mapping={}
+    positions={}
+    for row in rows:
+        key=row["id"];old=known[key]["form_id"]
+        if old is None or known[key]["class"] not in ("std:ShapeNode","std:TableNode"):
+            raise ValueError("unsupported template node")
+        value=identities[key]
+        if not isinstance(value,str) or not re.fullmatch(r"[0-9A-Fa-f]{8}",value) or not int(value,16):raise ValueError("invalid native identity")
+        mapping[old]=value.upper()
+        if "position" in row:positions[key]=row["position"]
+    old_view=p.stem.upper()
+    if old_view in mapping and mapping[old_view].upper()!=q.stem.upper():
+        raise ValueError("conflicting view identity")
+    mapping[old_view]=q.stem.upper()
+    return remap(p,q,mapping,positions=positions or None)

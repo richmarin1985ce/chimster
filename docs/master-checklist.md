@@ -123,3 +123,5 @@ PR23 supersedes overlapping PR22 architecture; retain main catalog schema and se
 PR26 merged at 4c333a74222f23283d525a42dd318b4dce9fc3d1. Observed v12 subset scratch generation implemented; regression tests added, execution deferred by user due to Actions quota. Explicit graph binding adapter added in follow-up; desktop integration, native DLBR/DLVW synchronization, resource templates and official editor verification remain open. No compatibility certification.
 
 Section 14 follow-up: PR27 merged at 1e63b5752a24967d5d446b4fd2f670b7ed74ff1f (graph adapter); PR28 merged at 7e07aad99f8847b7111c344e68dbb1e1a8ed6a2f (branch layout). Both await regression execution. CLI generation and CLI regression fixture added in subsequent change; desktop controls and native record synchronization remain open.
+
+Section 14: PR29 merged at 87aa7a6b0883009e80c8699d5d3a273a4dce1520; CLI regression execution deferred. Follow-up adds same-topology resource-preserving template generation API and synthetic regression fixture; execution deferred. Arbitrary topology/style synthesis, desktop integration and native record synchronization remain open.
