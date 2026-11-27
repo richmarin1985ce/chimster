@@ -71,7 +71,7 @@ def render(page,body,pages):
                 tag={"code":"code","bold":"strong","italic":"em"}[style];safe=f"<{tag}>{safe}</{tag}>"
             parts.append(safe)
         tag=kind if kind.startswith("h") else "blockquote" if kind=="quote" else "p"
-        attr=\' id="\'+html.escape(next(anchors),quote=True)+\'"\' if kind.startswith("h") else ""
+        attr=' id="'+html.escape(next(anchors),quote=True)+'"' if kind.startswith("h") else ""
         result.append(f"<{tag}{attr}>"+("• " if kind=="bullet" else "")+"".join(parts)+f"</{tag}>")
     return "<!doctype html><html><meta charset='utf-8'><title>Local manual</title><style>body{font:17px system-ui;max-width:850px;margin:2rem auto;padding:1rem}pre{white-space:pre-wrap;background:#eee;padding:1rem}code{font-family:monospace}blockquote{border-left:3px solid #777;padding-left:1rem}</style><body>"+"\n".join(result)+"</body></html>"
 def link_report(wiki):
