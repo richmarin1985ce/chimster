@@ -128,7 +128,7 @@ def main():
  a=s.add_parser('wiki-audit')
  a=s.add_parser('localization-project'); c=a.add_subparsers(dest='loc_op',required=True)
  b=c.add_parser('catalog'); b.add_argument('kind',choices=['book','quest','strings','native-quest','records']); b.add_argument('source'); b.add_argument('output')
- b=c.add_parser('suggest'); b.add_argument('catalog'); b.add_argument('database'); b.add_argument('src'); b.add_argument('dst'); b.add_argument('output')
+ b=c.add_parser('suggest'); b.add_argument('catalog'); b.add_argument('database'); b.add_argument('src'); b.add_argument('dst'); b.add_argument('output'); b.add_argument('--reuse-unambiguous',action='store_true')
  b=c.add_parser('review'); b.add_argument('catalog'); b.add_argument('--encoding',default='utf-8')
  b=c.add_parser('remember'); b.add_argument('catalog'); b.add_argument('database')
  b=c.add_parser('apply'); b.add_argument('catalog'); b.add_argument('source'); b.add_argument('output'); b.add_argument('--encoding',default='utf-8')
@@ -153,7 +153,7 @@ def main():
    else:
     data=read_json(Path(n.catalog))
     if op=='suggest':
-     data=loc.suggest(data,n.database,n.src,n.dst);loc.save_json(data,n.output);result={'output':n.output,'suggested':sum(r['status']=='suggested' for r in data['entries'])}
+     data=loc.suggest(data,n.database,n.src,n.dst,n.reuse_unambiguous);loc.save_json(data,n.output);result={'output':n.output,'suggested':sum(r['status']=='suggested' for r in data['entries'])}
     elif op=='review':
      result=loc.review(data,n.encoding)
      print(json.dumps(result,indent=2))
