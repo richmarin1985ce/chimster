@@ -17,3 +17,13 @@ class LocalizationTests(unittest.TestCase):
             apply(r,q,p/"out.json");pack_native(p/"out.json",p/"out.strings","STRINGS","utf-8")
             r["entries"][0]["target"]="Bonjour"
             self.assertFalse(review(r)["valid"])
+
+    def test_native_fields(self):
+        from chimster.localization_fields import extract,replace
+        p={"schema":1,"id":"Quest","title":"Title","stages":[{"index":0,"log":"Begin","actions":[{"op":"stage","index":1}]}],"topics":[{"id":"Talk","prompt":"Talk","responses":[{"id":"Reply","lines":[{"text":"Hello","emotion":1}],"choices":["Other"]}]}]}
+        values={k:v+"!" for k,v,_ in extract("native-quest",p)}
+        q=replace("native-quest",p,values)
+        self.assertEqual(q["topics"][0]["responses"][0]["lines"][0]["text"],"Hello!")
+        self.assertEqual(q["topics"][0]["responses"][0]["choices"],["Other"])
+        self.assertEqual(q["stages"][0]["actions"],p["stages"][0]["actions"])
+        self.assertEqual(p["title"],"Title")
