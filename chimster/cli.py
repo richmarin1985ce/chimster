@@ -124,12 +124,53 @@ def main():
  b=c.add_parser('install'); b.add_argument('root'); b.add_argument('archive'); b.add_argument('--sha256',required=True); b.add_argument('--activate',action='store_true')
  b=c.add_parser('activate'); b.add_argument('root'); b.add_argument('version')
  b=c.add_parser('status'); b.add_argument('root')
+ a=s.add_parser('wiki-export'); a.add_argument('output')
+ a=s.add_parser('wiki-check-links')
+ a=s.add_parser('localize'); l=a.add_subparsers(dest='locop',required=True)
+ b=l.add_parser('catalog'); b.add_argument('kind',choices=['book','quest','native-quest','records']); b.add_argument('project'); b.add_argument('source_lang'); b.add_argument('target_lang'); b.add_argument('output')
+ for op in ('check','apply','reuse','remember'):
+  b=l.add_parser(op); b.add_argument('project'); b.add_argument('catalog'); b.add_argument('--encoding',choices=['utf-8','cp1252'],default='utf-8')
+  if op in ('apply','reuse'):b.add_argument('output')
+  if op in ('reuse','remember'):b.add_argument('memory')
+  if op=='check':b.add_argument('--glossary')
+ a=s.add_parser('book-layout'); a.add_argument('book'); a.add_argument('layout'); a.add_argument('assets'); a.add_argument('output')
  n=p.parse_args()
  try:
   if n.cmd=='ui':
    from .ui import launch
    launch(); return
-  if n.cmd=='project':
+  if n.cmd in ('wiki-export','wiki-check-links'):
+   from .wiki import Wiki
+   from .wiki_render import export,link_report
+   with Wiki() as wiki:result=export(wiki,n.output) if n.cmd=='wiki-export' else link_report(wiki)
+  elif n.cmd=='localize':
+   from . import localization_project as loc
+   from .project import read_json
+   from pathlib import Path
+   from .localization import TranslationMemory
+   spec=read_json(Path(n.project))
+   def write_json(value):
+    with Path(n.output).open('x',encoding='utf-8') as f:json.dump(value,f,ensure_ascii=False,indent=2)
+    return {'output':n.output}
+   if n.locop=='catalog':result=write_json(loc.catalog(n.kind,spec,n.source_lang,n.target_lang))
+   else:
+    catalog=read_json(Path(n.catalog))
+    if n.locop=='check':result=loc.check(catalog,spec,n.encoding,read_json(Path(n.glossary)) if n.glossary else None)
+    elif n.locop=='apply':result=write_json(loc.apply(catalog,spec,n.encoding))
+    else:
+     memory=TranslationMemory(n.memory)
+     try:
+      if n.locop=='remember':result={'remembered':loc.remember(catalog,spec,memory,n.encoding)}
+      else:
+       c,count=loc.reuse(catalog,spec,memory);result={**write_json(c),'reused':count}
+     finally:memory.close()
+  elif n.cmd=='book-layout':
+   from .books import load
+   from .book_layout import export
+   from .project import read_json
+   from pathlib import Path
+   result=export(load(n.book),read_json(Path(n.layout)),n.assets,n.output)
+  elif n.cmd=='project':
    from .project import Project,read_json
    from pathlib import Path
    if n.project_op=='create':result=Project.create(n.root,n.name,n.game).read()
