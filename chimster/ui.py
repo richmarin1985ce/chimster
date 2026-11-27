@@ -15,7 +15,7 @@ def launch():
   'Records':('Native records','Record editor','Plugin inspector','Load order'),
   'World':('3D viewport','Terrain editor','Worldspace validator','Landscape budget'),
   'Narrative':('Quest editor','Dialogue views','Books & notes','Localization'),
-  'Assets':('Texture Forge',),
+  'Assets':('Texture Forge','Voice containers'),
   'Gameplay':('Minigame editor',),
   'Tools':('Tool registry','Installed tools','OpenMW bridge','All development tools'),
   'Help':('Local wiki',)}
@@ -209,6 +209,9 @@ def launch():
  f=tab('Localization')
  from .localization_ui import mount as mount_localization
  mount_localization(f)
+ f=tab('Voice containers')
+ from .audio_ui import mount as mount_audio
+ mount_audio(f)
  f=tab('All development tools')
  from .workbench_tools import mount as mount_tools
  mount_tools(f)
