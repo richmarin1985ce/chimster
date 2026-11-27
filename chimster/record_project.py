@@ -19,6 +19,7 @@ def export(project,output,masters=(),allocator=None):
     rows=project["records"]
     if not isinstance(rows,list) or not 1<=len(rows)<=50000:raise ValueError("invalid record count")
     b=Bindings(masters,p);a=allocator if allocator is not None else FormIDs(p.name);ids={};sigs={};groups={}
+    a.reserve(r["type"]+"/"+r["id"].casefold() for r in rows)
     for r in rows:
         k=r["id"];sig=r["type"]
         if sig not in KINDS or not check_id(k) or k.casefold() in ids:raise ValueError("invalid or duplicate record ID")

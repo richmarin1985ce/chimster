@@ -12,7 +12,7 @@ class FormIDs:
                 if not KEY.fullmatch(k) or type(v) is not int or not 0x800<=v<=0xffffff or v in self.used:raise ValueError("invalid ledger entry")
                 self.entries[k]=v;self.used.add(v)
             self.next=previous["next"]
-            if type(self.next) is not int or not max([0x7ff,*self.used])<self.next<=0x1000000:raise ValueError("invalid next FormID")
+            if type(self.next) is not int or not max(self.used,default=0x7ff)<self.next<=0x1000000:raise ValueError("invalid next FormID")
     def get(self,key):
         if not isinstance(key,str) or not KEY.fullmatch(key) or key in self.active:raise ValueError("invalid or duplicate stable record key")
         self.active.add(key)
@@ -20,6 +20,15 @@ class FormIDs:
             if self.next>0xffffff:raise ValueError("FormID space exhausted")
             self.entries[key]=self.next;self.next+=1
         return self.entries[key]
+    def reserve(self, keys):
+        """Allocate new identities deterministically before ordered serialization."""
+        keys=list(keys)
+        if any(not isinstance(k,str) or not KEY.fullmatch(k) for k in keys) or len(set(keys))!=len(keys):raise ValueError("invalid or duplicate stable record key")
+        if any(k in self.active for k in keys):raise ValueError("cannot reserve active keys")
+        missing=sorted(set(keys)-self.entries.keys())
+        if self.next+len(missing)>0x1000000:raise ValueError("FormID space exhausted")
+        for k in missing:
+            self.entries[k]=self.next;self.used.add(self.next);self.next+=1
     def snapshot(self):
         return {"schema":1,"plugin":self.plugin,"next":self.next,"entries":dict(sorted(self.entries.items())),"active":sorted(self.active)}
 def load(path):
