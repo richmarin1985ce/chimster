@@ -37,7 +37,7 @@ def validate(c):
             if v is not None and (not isinstance(v,str) or len(v)>256000 or "\0" in v):raise ValueError("invalid text")
         if not isinstance(r["source"],str) or r["status"] not in {"untranslated","suggested","approved"} or (r["target"] is None)!=(r["status"]=="untranslated"):raise ValueError("invalid translation state")
     return c
-def suggest(c,db,src,dst):
+def suggest(c,db,src,dst,reuse_unambiguous=False):
     validate(c)
     if not all(isinstance(v,str) and LANG.fullmatch(v) for v in (src,dst)) or src.casefold()==dst.casefold():raise ValueError("invalid language pair")
     out=deepcopy(c);out["src_lang"]=src;out["dst_lang"]=dst
@@ -47,6 +47,9 @@ def suggest(c,db,src,dst):
         for r in out["entries"]:
             if r["status"]!="untranslated":continue
             t=memory.lookup(src,dst,r["context"],r["source"])
+            if t is None and reuse_unambiguous:
+                rows=memory.db.execute("SELECT DISTINCT target FROM memory WHERE src_lang=? AND dst_lang=? AND source=? LIMIT 2",(src,dst,r["source"])).fetchall()
+                if len(rows)==1:t=rows[0][0]
             if t is not None and audit(r["source"],t)["ok"]:r["target"]=t;r["status"]="suggested"
     finally:memory.close()
     return out
