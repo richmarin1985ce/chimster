@@ -71,6 +71,9 @@ def launch():
   except (OSError,ValueError,KeyError) as e:messagebox.showerror('Record editor',str(e))
  ttk.Button(actions,text='Inspect record',command=read_record).pack(side='left')
  ttk.Button(actions,text='Save staged typed edit',command=edit_record).pack(side='left')
+ f=tab('Native records')
+ from .native_ui import mount as mount_native
+ mount_native(f)
  f=tab('Record projects')
  from .record_project_ui import mount as record_project_mount
  record_project_mount(f)
