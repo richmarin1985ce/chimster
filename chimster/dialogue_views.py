@@ -106,3 +106,52 @@ def move_nodes(root,positions):
     minimum=root.find("./Properties/MinBounds")
     if minimum is not None:minimum.text=fmt([*lo,hi[0]-lo[0],hi[1]-lo[1]])
     inspect(root)
+
+
+def generate(output,nodes,edges):
+    """Generate observed v12 layout subset from explicit native record identities.
+    No runtime dialogue records are created; CK compatibility remains unverified.
+    """
+    q=Path(output)
+    if q.suffix.lower()!=".xml" or not re.fullmatch(r"[0-9A-Fa-f]{8}",q.stem) or not int(q.stem,16):
+        raise ValueError("expected nonzero FormID.xml filename")
+    if q.exists() or q.is_symlink():raise ValueError("new staging XML required")
+    if not isinstance(nodes,list) or not 1<=len(nodes)<=10000 or not isinstance(edges,list) or len(edges)>50000:
+        raise ValueError("invalid diagram size")
+    root=ET.Element("Diagram",Version="12")
+    ns=ET.SubElement(root,"Nodes");ls=ET.SubElement(root,"Links")
+    known={};forms=set()
+    for i,row in enumerate(nodes):
+        key=row["id"];form=row["form_id"];caption=row["caption"]
+        if not isinstance(key,str) or not key or key in known:raise ValueError("duplicate or invalid node key")
+        if not isinstance(form,str) or not re.fullmatch(r"[0-9A-Fa-f]{8}",form) or not int(form,16) or form.upper() in forms:raise ValueError("invalid or duplicate native identity")
+        if not isinstance(caption,str) or len(caption)>4096:raise ValueError("invalid caption")
+        forms.add(form.upper())
+        kind=row.get("kind","topic")
+        if kind not in ("topic","branch"):raise ValueError("unsupported node kind")
+        bounds=row.get("bounds",[float(i%5)*240,float(i//5)*120,200,80])
+        if not isinstance(bounds,(tuple,list)) or len(bounds)!=4 or any(type(x) not in (int,float) or not math.isfinite(x) or abs(x)>1e7 for x in bounds) or min(bounds[2:])<=0:raise ValueError("invalid bounds")
+        e=ET.SubElement(ns,"Node",{"Class":"std:TableNode" if kind=="topic" else "std:ShapeNode","Id":str(i)})
+        ET.SubElement(e,"Bounds").text=fmt(bounds)
+        ET.SubElement(e,"ToolTip").text=form.upper()+" - "+caption
+        ET.SubElement(e,"Caption" if kind=="topic" else "Text").text=caption
+        known[key]=(str(i),bounds)
+    seen=set()
+    for i,pair in enumerate(edges):
+        if not isinstance(pair,(tuple,list)) or len(pair)!=2 or any(not isinstance(k,str) or k not in known for k in pair):raise ValueError("unknown link endpoint")
+        a,b=pair
+        if (a,b) in seen:raise ValueError("duplicate link")
+        seen.add((a,b))
+        aid,x=known[a];bid,y=known[b]
+        start=[x[0]+x[2],x[1]+x[3]/2];end=[y[0],y[1]+y[3]/2]
+        e=ET.SubElement(ls,"Link",Id=str(len(nodes)+i))
+        ET.SubElement(e,"Bounds").text=fmt([min(start[0],end[0]),min(start[1],end[1]),abs(start[0]-end[0]),abs(start[1]-end[1])])
+        ET.SubElement(e,"Origin",Id=aid);ET.SubElement(e,"Destination",Id=bid)
+        points=ET.SubElement(e,"Points")
+        for p in (start,end):ET.SubElement(points,"Point").text=fmt(p)
+    inspect(root)
+    raw=ET.tostring(root,encoding="utf-8")
+    if len(raw)>16*1024*1024:raise ValueError("diagram exceeds size limit")
+    with q.open("xb") as f:f.write(raw)
+    try:return inspect(parse(q))
+    except Exception:q.unlink();raise
