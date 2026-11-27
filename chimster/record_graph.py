@@ -84,10 +84,24 @@ def remap_fields(signature, parts, source, destination):
 
 class Graph:
     def __init__(self, records):
-        self.records=dict(records);self.incoming=defaultdict(list);self.issues=[];self.opaque=set()
+        self.records=dict(records);self.incoming=defaultdict(list);self.issues=[];self.opaque=set();self.indexed=set()
     def add(self, owner, signature, parts, slots):
-        edges,opaque=references(signature,parts,slots)
+        from .schema_reference import inspect
+        parts=list(parts)
+        extracted,opaque=inspect(signature,parts,slots)
+        # Replacing an override must not retain stale diagnostics or edges.
+        for target in list(self.incoming):
+            self.incoming[target]=[edge for edge in self.incoming[target] if edge[0]!=owner]
+            if not self.incoming[target]:del self.incoming[target]
+        self.issues=[issue for issue in self.issues if issue[0]!=owner]
+        self.indexed.add(owner)
+        self.opaque.discard(owner)
         if opaque:self.opaque.add(owner)
+        edges=[]
+        for edge in extracted:
+            spec=FIELDS.get((signature,parts[edge.field][0]))
+            kinds=spec[2] if spec and spec[1]==edge.offset else None
+            edges.append((edge.field,edge.target,kinds))
         for i,target,kinds in edges:
             self.incoming[target].append((owner,i))
             row=self.records.get(target)
@@ -98,4 +112,4 @@ class Graph:
     def deletion_review(self, identity):
         return {"incoming":list(self.incoming.get(identity,())),
                 "opaque_records":sorted(self.opaque),
-                "safe":identity in self.records and not self.incoming.get(identity) and not self.opaque}
+                "safe":identity in self.records and not self.records[identity].get("flags",0)&0x20 and not self.incoming.get(identity) and not self.opaque and not (set(self.records)-self.indexed)}
