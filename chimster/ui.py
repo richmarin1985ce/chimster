@@ -17,7 +17,7 @@ def launch():
   'Narrative':('Quest editor','Dialogue views','Books & notes','Localization'),
   'Assets':('Texture Forge',),
   'Gameplay':('Minigame editor',),
-  'Tools':('Tool registry','Installed tools','OpenMW bridge'),
+  'Tools':('Tool registry','Installed tools','OpenMW bridge','All development tools'),
   'Help':('Local wiki',)}
  menus={}
  for label,names in sections.items():
@@ -209,6 +209,9 @@ def launch():
  f=tab('Localization')
  from .localization_ui import mount as mount_localization
  mount_localization(f)
+ f=tab('All development tools')
+ from .workbench_tools import mount as mount_tools
+ mount_tools(f)
  f=tab('Local wiki')
  ttk.Label(f,text='Bundled documentation — no hosting or internet required.').pack(anchor='w')
  from .wiki import Wiki
