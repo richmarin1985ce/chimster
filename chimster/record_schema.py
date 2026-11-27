@@ -89,12 +89,18 @@ def decode(kind,raw):
     raise ValueError("unknown codec")
 def fields(sig,edid,parts):
     parts=list(parts);result=[]
+    from .record_graph import FIELDS
+    from collections import Counter
+    counts=Counter(k for k,v in parts)
     for k,v in parts:
-        tag=k.decode("ascii");entry={"tag":tag,"bytes":len(v),"hex_preview":v[:64].hex(),"writable":False}
+        tag=k.decode("ascii",errors="replace");entry={"tag":tag,"bytes":len(v),"hex_preview":v[:64].hex(),"writable":False}
         try:
             kind=codec(sig,tag,edid,parts)
             if kind:
-                value=decode(kind,v);entry.update(type=kind,value=value,writable=sum(a==k for a,_ in parts)==1)
+                value=decode(kind,v);entry.update(type=kind,value=value,writable=counts[k]==1)
         except (ValueError,struct.error,UnicodeError):entry["warning"]="unsupported field layout"
+        ref=FIELDS.get((sig,k))
+        if ref and len(v)==ref[0]:
+            entry["reference"]={"raw_formid":struct.unpack_from("<I",v,ref[1])[0],"expected_types":sorted(ref[2]) if ref[2] else None}
         result.append(entry)
     return result

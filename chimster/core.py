@@ -31,6 +31,8 @@ def inspect_plugin(path, game, limit=1000000):
     if seen>limit: raise ValueError('Record limit exceeded')
     if bound-start<hs: raise ValueError('Incomplete header')
     h=read(hs); sig=h[:4].decode('ascii',errors='replace'); size=struct.unpack_from('<I',h,4)[0]
+    if not all(32<=b<=126 for b in h[:4]): raise ValueError('Invalid record signature')
+    if start!=0 and sig==magic: raise ValueError('Unexpected second plugin header')
     if start==0 and sig!=magic: raise ValueError(f'Expected {magic}, got {sig}')
     if sig=='GRUP' and magic=='TES4':
      stop=start+size
@@ -46,13 +48,16 @@ def inspect_plugin(path, game, limit=1000000):
      while pos<len(data):
       if len(data)-pos<sh: raise ValueError('Truncated header subrecord')
       sub=data[pos:pos+4]; n=int.from_bytes(data[pos+4:pos+sh],'little'); pos+=sh
-      if extended is not None: n,extended=extended,None
+      if extended is not None:
+       if sub==b'XXXX': raise ValueError('Consecutive XXXX markers')
+       n,extended=extended,None
       if pos+n>len(data): raise ValueError('Invalid subrecord length')
       if sub==b'XXXX' and magic=='TES4':
        if n!=4: raise ValueError('Invalid XXXX')
        extended=int.from_bytes(data[pos:pos+n],'little')
       if sub==b'MAST': masters.append(data[pos:pos+n].rstrip(b'\0').decode('utf-8',errors='replace'))
       pos+=n
+     if extended is not None: raise ValueError('Dangling XXXX marker')
     else: f.seek(stop)
    if f.tell()!=bound: raise ValueError('Group boundary mismatch')
   if end<hs: raise ValueError('File too short')
