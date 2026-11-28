@@ -22,8 +22,9 @@ PROFILE = {"skyrim":"papyrus", "skyrimse":"papyrus", "skyrimae":"papyrus",
 
 def language_for(game, filename=""):
     suffix = Path(filename).suffix.casefold()
-    if suffix in (".psc", ".lua"):
-        return {".psc":"papyrus", ".lua":"lua"}[suffix]
+    for key, spec in LANGUAGES.items():
+        if suffix.lstrip(".") in spec[1]:
+            return key
     return PROFILE.get(game.casefold(), "papyrus")
 
 def words(items, sensitive):
