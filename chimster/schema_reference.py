@@ -14,6 +14,7 @@ class Reference:
     field: int
     offset: int
     target: Identity
+    expected_types: tuple = ()
 
 def inspect(signature, parts, slots):
     """Return references and coverage; unsupported layouts remain opaque."""
@@ -27,6 +28,7 @@ def inspect(signature, parts, slots):
             pass
         else:
             from .remap_schema import OFFSETS
+            from .record_graph import FIELDS
             edges = []
             perk = None
             for i, (tag, raw) in enumerate(parts):
@@ -39,12 +41,18 @@ def inspect(signature, parts, slots):
                 for offset in offsets:
                     target = slots.decode(struct.unpack_from("<I", raw, offset)[0])
                     if target is not None:
-                        edges.append(Reference(i, offset, target))
+                        spec = FIELDS.get((signature, tag))
+                        kinds = tuple(sorted(spec[2])) if spec and spec[1] == offset and spec[2] else ()
+                        if sig == b"PERK" and tag == b"DATA":
+                            kinds = ("QUST",) if perk == 0 else ("SPEL",)
+                        elif sig == b"ALCH" and tag == b"ENIT":
+                            kinds = ("SPEL",) if offset == 8 else ("SOUN",)
+                        edges.append(Reference(i, offset, target, kinds))
             return edges, ()
     from .record_graph import FIELDS
     edges, opaque = references(signature, parts, slots)
-    return [Reference(i, FIELDS[signature, parts[i][0]][1], target)
-            for i, target, _ in edges], tuple(opaque)
+    return [Reference(i, FIELDS[signature, parts[i][0]][1], target, tuple(sorted(kinds or ())))
+            for i, target, kinds in edges], tuple(opaque)
 
 class ReferenceIndex:
     """In-memory bidirectional index of caller-selected winning records.
