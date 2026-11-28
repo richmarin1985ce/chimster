@@ -8,7 +8,7 @@ from collections import defaultdict
 from .navmesh import num,point,topology
 from .navmesh_collision import generate_collision
 
-VERSION=1
+VERSION=2
 
 def digest(value):
     return hashlib.sha256(json.dumps(value,sort_keys=True,separators=(",",":"),allow_nan=False).encode()).hexdigest()
