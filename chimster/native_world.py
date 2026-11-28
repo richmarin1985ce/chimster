@@ -45,4 +45,8 @@ def spatial(signature, parts):
             result["linked_reference"]=struct.unpack("<I",raw)[0]
         elif signature=="CELL" and tag==b"XCLC" and len(raw) in (8,12):
             result["grid"]=struct.unpack_from("<2i",raw)
+    if signature=="REFR" and any(tag in (b"XPRM",b"XPOD",b"XPTL",b"XRMR",b"XLRM",b"XNDP") for tag,_ in parts):
+        from .fnv_portal_fields import inspect
+        try:result["native_markers"]=inspect(parts)[0]
+        except ValueError as exc:result["native_marker_warning"]=str(exc)
     return result
