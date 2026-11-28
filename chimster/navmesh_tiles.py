@@ -83,16 +83,19 @@ def assemble(tiles,size):
         keys=[tri_key(vs,t) for t in ts]
         if len(set(keys))!=len(keys):raise ValueError("duplicate geometry in halo")
         evidence[key]={tuple(sorted((keys[i],keys[j]))) for i,row in enumerate(report["neighbors"]) for j in row if j>=0}
+        layer_values=m.get("triangle_layers")
+        if layer_values is not None and len(layer_values)!=len(ts):raise ValueError("invalid halo layer metadata")
         for i,t in enumerate(ts):
             k=keys[i]
             if owner(k)!=key:continue
             if k in core:raise ValueError("duplicate core triangle")
-            core[k]=(tuple(coord(vs[v]) for v in t),m.get("triangle_layers",[0]*len(ts))[i])
+            core[k]=(tuple(coord(vs[v]) for v in t),layer_values[i] if layer_values is not None else 0)
         for link in m.get("links",[]):
             a,b=keys[link["from"]],keys[link["to"]]
             pair=tuple(sorted((a,b)));step_evidence[pair].add(key)
             step_rows[pair]=link
     vertices=[];triangles=[];layers=[];owners=[];mapping={};index={}
+    if len(core)>2000000:raise ValueError("assembled triangle limit; partition world")
     for k,(t,layer) in sorted(core.items()):
         row=[]
         for p in t:
