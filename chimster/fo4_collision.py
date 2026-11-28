@@ -27,14 +27,26 @@ def mesh_from_body(shapes,body_id,unit_scale):
         if root and (math.dist(t,(0,0,0))>1e-6 or abs(s-1)>1e-6 or any(abs(r[i][j]-ident[i][j])>1e-6 for i in range(3) for j in range(3))):
             raise ValueError("nonidentity root body transform requires separate placement review")
         return lambda p:tuple(t[i]+s*sum(r[i][j]*p[j] for j in range(3)) for i in range(3))
-    verts=[];tris=[];seen=set();count=0
+    from .collision_obstacles import normalize
+    verts=[];tris=[];solids=[];seen=set();count=0
     def walk(shape,parent,depth):
         nonlocal count
         if depth>32 or id(shape) in seen or count>=4096:raise ValueError("collision graph limit or cycle")
         seen.add(id(shape));count+=1
         transform=matrix(shape.transform,depth==0)
         def apply(p):return parent(transform(p))
-        if shape.shape_type=="compound":
+        def obstacle(a,b,r):
+            if len(solids)>=4096:raise ValueError("solid obstacle limit")
+            r=num(r,1e-8,1e5)*scale*math.dist(apply((0,0,0)),apply((1,0,0)))
+            a,b=[tuple(v*scale for v in apply(point(p))) for p in (a,b)]
+            solids.extend(normalize([{"min":[min(a[i],b[i])-r for i in range(3)],"max":[max(a[i],b[i])+r for i in range(3)]}]))
+        capsule=getattr(shape,"capsule_ends",None)
+        if shape.shape_type=="sphere":
+            obstacle(shape.sphere_center,shape.sphere_center,shape.sphere_radius)
+        elif capsule is not None:
+            if len(capsule)!=2:raise ValueError("invalid capsule endpoints")
+            obstacle(*capsule,shape.convex_radius)
+        elif shape.shape_type=="compound":
             if not shape.children:raise ValueError("empty compound")
             for c in shape.children:walk(c,apply,depth+1)
         elif shape.shape_type in ("polytope","compressed_mesh"):
@@ -49,7 +61,7 @@ def mesh_from_body(shapes,body_id,unit_scale):
         else:raise ValueError("unsupported native collision shape: "+str(shape.shape_type))
         seen.remove(id(shape))
     walk(root,lambda p:p,0)
-    return {"vertices":verts,"triangles":tris}
+    return {"vertices":verts,"triangles":tris,**({"solid_obstacles":solids} if solids else {})}
 
 def extract(path,unit_scale):
     p=Path(path).resolve(strict=True)
