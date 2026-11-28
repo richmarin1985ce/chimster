@@ -80,17 +80,19 @@ def export(browser,world,output,assets):
                 path=far_path(model)
                 try:raw=assets.get(path)
                 except FileNotFoundError:
-                    from .oblivion_lod_nif import read_static,encode,inspect
+                    from .oblivion_lod_nif import read_static_groups,encode_groups,inspect
                     from .world_lod_object_builtin import reduced
                     source=assets.get(model)
-                    mesh,diffuse,cutout=read_static(source)
-                    # Do not simplify transparent silhouettes.
-                    proxy=mesh if cutout else reduced(mesh)
-                    raw=encode(proxy,diffuse,cutout);info=inspect(raw)
-                    if info["triangles"]!=len(proxy.faces):raise ValueError("Far mesh roundtrip mismatch")
+                    groups=read_static_groups(source)
+                    # Do not simplify transparent silhouettes or colored geometry.
+                    proxies=[(mesh if cutout or getattr(mesh,"colors",[]) else reduced(mesh),diffuse,cutout,material) for mesh,diffuse,cutout,material in groups]
+                    raw=encode_groups(proxies);info=inspect(raw)
+                    source_triangles=sum(len(mesh.faces) for mesh,*_ in groups)
+                    lod_triangles=sum(len(mesh.faces) for mesh,*_ in proxies)
+                    if info["triangles"]!=lod_triangles:raise ValueError("Far mesh roundtrip mismatch")
                     if len(generated)>=512 or generated_bytes+len(raw)>64*1024*1024:raise ValueError("Generated far mesh budget")
                     if path.casefold() in generated:raise ValueError("Far mesh path collision")
-                    generated[path.casefold()]=(path,raw,{"source_sha256":sha256(source).hexdigest(),"source_triangles":len(mesh.faces),"lod_triangles":len(proxy.faces),"cutout":cutout})
+                    generated[path.casefold()]=(path,raw,{"source_sha256":sha256(source).hexdigest(),"source_triangles":source_triangles,"lod_triangles":lod_triangles,"cutout":info["cutout"],"material_groups":info["material_groups"],"colored_vertices":info["colored_vertices"]})
                     generated_bytes+=len(raw)
                 if not raw.startswith(b"Gamebryo File Format, Version 20.0.0.5\n"):raise ValueError("Not an Oblivion far mesh")
                 checked[key]=(path,sha256(raw).hexdigest())
