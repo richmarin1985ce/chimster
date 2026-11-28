@@ -29,6 +29,12 @@ class BTD:
         p=Path(path)
         if p.stat().st_size>128*1024*1024:raise ValueError("BTD preview budget exceeded")
         return cls(p.read_bytes())
+    @classmethod
+    def from_sources(cls,sources,name):
+        from .compatibility_asset_lookup import normalize
+        key=normalize(name)
+        if not key.startswith("terrain/") or not key.endswith(".btd"):raise ValueError("Expected terrain/*.btd")
+        return cls(sources.read(key,128*1024*1024))
     def block(self,x,y,l):
         pos,w,h=self.tables[l]
         if not 0<=x<w or not 0<=y<h:raise ValueError("BTD block outside extent")

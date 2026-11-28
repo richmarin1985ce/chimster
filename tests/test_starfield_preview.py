@@ -272,3 +272,18 @@ class StarfieldPreviewTests(unittest.TestCase):
             export_heightfield(path,Heightfield([[1.,2.],[3.,4.]]))
             self.assertEqual(struct.unpack("<4f",path.read_bytes()),(1.,2.,3.,4.))
             with self.assertRaises(FileExistsError):export_heightfield(path,Heightfield([[1.,2.],[3.,4.]]))
+
+    def test_portable_height_edit_and_biome_materials(self):
+        from chimster.starfield_planets import Heightfield,edit_heightfield,save_heightfield,palette_materials,material_at
+        h=Heightfield([[0.]*3 for _ in range(3)])
+        edited=edit_heightfield(h,.5,.5,.4,10)
+        self.assertEqual(edited.rows[1][1],10)
+        self.assertEqual(edited.rows[0][0],0)
+        self.assertEqual(h.rows[1][1],0)
+        colors={"a":(1.,(0.,0.,0.)),"b":(1.,(1.,1.,1.))}
+        mats=palette_materials(colors)
+        self.assertEqual(mats["a~b~2"].tint,(.5,.5,.5))
+        self.assertIn(material_at((1.,0.,0.),0,colors),mats)
+        with tempfile.TemporaryDirectory() as folder:
+            dest=Path(folder)/"height.json";save_heightfield(dest,edited)
+            self.assertEqual(Heightfield.load(dest).rows,edited.rows)

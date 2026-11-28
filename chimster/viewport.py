@@ -491,7 +491,7 @@ def mount(parent):
         except Exception as exc:messagebox.showerror("Starfield preview",str(exc),parent=parent)
     ttk.Button(toolbar,text="Starfield cell preview",command=open_starfield).pack(side="left")
     def open_planets():
-        from .starfield_planets import Planets,globe,terrain,Heightfield,LandingStream,surface_summary,system_preview,export_heightfield
+        from .starfield_planets import Planets,globe,terrain,Heightfield,LandingStream,surface_summary,system_preview,export_heightfield,edit_heightfield,save_heightfield
         from .starfield_preview import label
         paths=filedialog.askopenfilenames(parent=parent,title="Select Starfield full masters in load order",filetypes=[("Starfield plugins","*.esm *.esp")])
         if not paths:return
@@ -530,9 +530,17 @@ def mount(parent):
                             if heightpath:heights=Heightfield.load(heightpath)
                         if heights is None and messagebox.askyesno("Native terrain","Preview a local Starfield .btd terrain file instead of generated relief?",parent=win):
                             from .starfield_btd import BTD
-                            btdpath=filedialog.askopenfilename(parent=win,filetypes=[("Starfield terrain","*.btd")])
-                            if btdpath:
-                                btd=BTD.load(btdpath)
+                            btd=None
+                            if messagebox.askyesno("BTD source","Read terrain from selected BA2 archives or a loose Data directory?",parent=win):
+                                from .starfield_assets import Sources
+                                archives=filedialog.askopenfilenames(parent=win,filetypes=[("BA2 archive","*.ba2")])
+                                loose=filedialog.askdirectory(parent=win,title="Optional loose Data directory")
+                                name=simpledialog.askstring("Terrain asset","Relative terrain/*.btd path",parent=win)
+                                if name and (archives or loose):btd=BTD.from_sources(Sources(archives,loose),name)
+                            else:
+                                btdpath=filedialog.askopenfilename(parent=win,filetypes=[("Starfield terrain","*.btd")])
+                                if btdpath:btd=BTD.load(btdpath)
+                            if btd is not None:
                                 x=simpledialog.askinteger("BTD cell X","Southwest cell X",initialvalue=btd.min_cell[0],minvalue=btd.min_cell[0],maxvalue=btd.min_cell[0]+btd.nx-1,parent=win)
                                 if x is None:return
                                 y=simpledialog.askinteger("BTD cell Y","Southwest cell Y",initialvalue=btd.min_cell[1],minvalue=btd.min_cell[1],maxvalue=btd.min_cell[1]+btd.ny-1,parent=win)
@@ -570,6 +578,24 @@ def mount(parent):
                     if dst:export_heightfield(dst,field);messagebox.showinfo("Portable terrain export",f"{field.n} x {field.n} float32 samples; meters, south-to-north rows. Verify import orientation and scaling.",parent=win)
                 except (OSError,ValueError) as exc:messagebox.showerror("Terrain export",str(exc),parent=win)
             ttk.Button(win,text="Export heightfield R32",command=export_raw).pack(fill="x")
+            def edit_terrain():
+                try:
+                    src=filedialog.askopenfilename(parent=win,filetypes=[("Heightfield JSON","*.json")])
+                    if not src:return
+                    field=Heightfield.load(src)
+                    x=simpledialog.askfloat("Brush center X","Normalized X (0–1)",initialvalue=.5,minvalue=0,maxvalue=1,parent=win)
+                    if x is None:return
+                    y=simpledialog.askfloat("Brush center Y","Normalized Y (0–1)",initialvalue=.5,minvalue=0,maxvalue=1,parent=win)
+                    if y is None:return
+                    radius=simpledialog.askfloat("Brush radius","Normalized radius",initialvalue=.2,minvalue=.001,maxvalue=1,parent=win)
+                    if radius is None:return
+                    delta=simpledialog.askfloat("Raise/lower terrain","Height change in meters (negative lowers)",initialvalue=20,minvalue=-10000,maxvalue=10000,parent=win)
+                    if delta is None:return
+                    field=edit_heightfield(field,x,y,radius,delta)
+                    dst=filedialog.asksaveasfilename(parent=win,defaultextension=".json",filetypes=[("Portable heightfield","*.json")])
+                    if dst:save_heightfield(dst,field)
+                except (OSError,ValueError) as exc:messagebox.showerror("Portable terrain editor",str(exc),parent=win)
+            ttk.Button(win,text="Raise/lower portable heightfield",command=edit_terrain).pack(fill="x")
             ttk.Button(win,text="Landing terrain preview",command=lambda:preview(True)).pack(fill="x")
             ttk.Button(win,text="Inspect native landing sites",command=inspect).pack(fill="x")
             def inspect_surface():

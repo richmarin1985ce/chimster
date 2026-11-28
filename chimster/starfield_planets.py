@@ -131,11 +131,32 @@ def palette(catalog,k):
         if chance>0:out["planet-biome-"+str(i)]=(chance,row.get("surface",row.get("color",(.45,.42,.38))))
     return out or {"planet-biome-0":(1.,(.45,.42,.38))}
 def material_at(p,seed,colors):
-    value=(relief(p,seed+101)+1)*.5*sum(w for w,c in colors.values())
-    for name,(w,c) in colors.items():
-        value-=w
-        if value<=0:return name
-    return next(reversed(colors))
+    value=max(0.,min(1.,(relief(p,seed+101)+1)*.5))
+    weights=list(colors.items());total=sum(w for _,(w,c) in weights)
+    value*=total
+    # Narrow smooth crossfade between weighted preview regions; quantized
+    # material IDs avoid allocating unique materials per terrain triangle.
+    cumulative=0.
+    for i,(name,(w,c)) in enumerate(weights):
+        cumulative+=w
+        if i+1<len(weights):
+            nxt,nv=weights[i+1]
+            width=.18*min(w,nv[0])
+            if width>0 and abs(value-cumulative)<width:
+                f=(value-cumulative+width)/(2*width);f=f*f*(3-2*f)
+                return name+"~"+nxt+"~"+str(max(0,min(4,round(f*4))))
+        if value<=cumulative:return name
+    return weights[-1][0]
+
+def palette_materials(colors):
+    mats={name:Material(tint=col) for name,(w,col) in colors.items()}
+    keys=list(colors)
+    for a,b in zip(keys,keys[1:]):
+        for n in range(5):
+            f=n/4
+            mats[a+"~"+b+"~"+str(n)]=Material(tint=tuple(x*(1-f)+y*f for x,y in zip(colors[a][1],colors[b][1])))
+    return mats
+
 def grid(res,point,mat):
     mesh=Mesh()
     for y in range(res+1):
@@ -165,7 +186,7 @@ def globe(catalog,k,res=16):
         name="planet-face-"+str(i)
         mesh=grid(res,point,lambda x,y:material_at(vector(x,y),seed,colors))
         assets[name]=mesh;instances.append(Instance(name,name))
-    mats={name:Material(tint=col) for name,(w,col) in colors.items()}
+    mats=palette_materials(colors)
     return Scene(assets,instances),report(k,mats,{},6,"globe")
 class Heightfield:
     """Explicit user-supplied square height samples in meters."""
@@ -236,7 +257,7 @@ def terrain(catalog,k,lat,lon,span_km=8.,resolution=32,heightfield=None,center=(
                     if cache is not None:cache[asset]=mesh
                 assets[asset]=mesh
             instances.append(Instance(name,name,cx,cy))
-    mats={name:Material(tint=col) for name,(w,col) in colors.items()}
+    mats=palette_materials(colors)
     fx={}
     if "atmosphere" in p:
         _,density,ray,mie=p["atmosphere"]
@@ -358,3 +379,23 @@ def export_heightfield(path,field):
     if p.suffix.casefold()!=".r32":raise ValueError("Expected .r32 output")
     with p.open("xb") as f:
         for row in field.rows:f.write(struct.pack("<"+"f"*len(row),*row))
+
+def edit_heightfield(field,center_x,center_y,radius,delta):
+    """Return an independent portable heightfield with a smooth raise/lower brush."""
+    if not all(isfinite(x) for x in (center_x,center_y,radius,delta)) or not 0<=center_x<=1 or not 0<=center_y<=1 or not .001<=radius<=1 or abs(delta)>10000:raise ValueError("Invalid heightfield brush")
+    n=field.n
+    rows=[]
+    for y,row in enumerate(field.rows):
+        changed=[]
+        for x,z in enumerate(row):
+            r=sqrt((x/(n-1)-center_x)**2+(y/(n-1)-center_y)**2)/radius
+            f=max(0.,1-r);f=f*f*(3-2*f)
+            changed.append(z+delta*f)
+        rows.append(changed)
+    return Heightfield(rows)
+
+def save_heightfield(path,field):
+    import json
+    from pathlib import Path
+    with Path(path).open("x",encoding="utf-8") as f:
+        json.dump({"version":1,"units":"meters","heights":field.rows},f,separators=(",",":"),allow_nan=False)
