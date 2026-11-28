@@ -1,7 +1,4 @@
-"""Oblivion distant-landscape preparation; native TES4 NIF layout not yet verified.
-Generates authoring intermediates and load-order-dependent target inventory only.
-Never relabels a modern NIF as a TES4 native mesh.
-"""
+"""Oblivion distant-landscape candidate generation using native stream-11 NIFs."""
 from pathlib import Path
 from hashlib import sha256
 import json,shutil
@@ -26,24 +23,31 @@ def plan(browser,world):
                       "diffuse_target":f"textures/landscapelod/generated/{stem}.dds",
                       "normal_target":f"textures/landscapelod/generated/{stem}_fn.dds"})
     return {"world":name,"formid":fid,"load_order":list(order),"bounds":world_bounds(grids),"tiles":tiles,
-            "native_runtime_assets":False,"external_tools":False,"scope":"Oblivion load-order-specific terrain targets; native TES4 mesh encoding pending"},grids
+            "native_runtime_assets":False,"external_tools":False,"scope":"Oblivion native terrain mesh and texture candidates; runtime unverified"},grids
 
-def export(browser,world,output,size=128):
+def export(browser,world,output,size=128,intermediates=False):
     if size not in (64,128,256):raise ValueError("Unsupported texture dimensions")
     report,grids=plan(browser,world)
     out=Path(output);out.mkdir(exist_ok=False)
     try:
         for tile in report["tiles"]:
             x,y=tile["grid"];mesh=macro_mesh(grids,x,y,32,skirts=256,stitch=True)
-            obj=out/"intermediate"/(tile["stem"]+".obj");obj.parent.mkdir(exist_ok=True)
-            write_obj(mesh,obj)
+            from .oblivion_lod_nif import encode,inspect
+            raw=encode(mesh,tile["diffuse_target"])
+            info=inspect(raw)
+            if info["triangles"]!=len(mesh.faces):raise ValueError("TES4 geometry mismatch")
+            dest=out/tile["native_mesh_target"];dest.parent.mkdir(parents=True,exist_ok=True);dest.write_bytes(raw)
+            written=[dest]
+            if intermediates:
+                obj=out/"intermediate"/(tile["stem"]+".obj");obj.parent.mkdir(exist_ok=True)
+                write_obj(mesh,obj);written.append(obj)
+                tile["intermediate_mesh"]=str(obj.relative_to(out))
             a,b=textures(grids,x,y,32,size)
             paths=(tile["diffuse_target"],tile["normal_target"])
             for rel,data,normal in zip(paths,(a,b),(False,True)):
                 p=out/rel;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(mip_dds(size,size,data,normal=normal))
-            tile["intermediate_mesh"]=str(obj.relative_to(out))
             tile["triangles"]=len(mesh.faces)
-            tile["files"]={str(p.relative_to(out)):sha256(p.read_bytes()).hexdigest() for p in (obj,*(out/r for r in paths))}
+            tile["files"]={str(p.relative_to(out)):sha256(p.read_bytes()).hexdigest() for p in (*written,*(out/r for r in paths))}
         (out/"manifest.json").write_text(json.dumps(report,indent=2),encoding="utf-8")
     except Exception:shutil.rmtree(out);raise
     return report
