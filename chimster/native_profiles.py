@@ -32,6 +32,26 @@ PROFILES = {
     )
 }
 
+# Legacy desktop/tool identifiers and explicit SE/AE edition aliases.
+PROFILE_ALIASES = {
+    "newvegas": "new-vegas", "skyrimse": "skyrim-se",
+    "skyrimae": "skyrim-se", "skyrim-ae": "skyrim-se",
+    "skyrimvr": "skyrim-vr", "fallout4vr": "fallout4-vr",
+    "oblivionremastered": "oblivion-remastered",
+}
+
+def canonical_profile(value):
+    if not isinstance(value, str):
+        raise ValueError("invalid game profile")
+    key = value.strip().casefold()
+    key = PROFILE_ALIASES.get(key, key)
+    if key not in PROFILES:
+        raise ValueError("unknown game profile: " + value)
+    return key
+
+def active_profiles():
+    return tuple(p for p in PROFILES if p != "oblivion-remastered")
+
 @dataclass(frozen=True, order=True)
 class Tes3Key:
     """Logical named TES3 key, not a universal identity for placed objects."""
@@ -47,6 +67,9 @@ class Tes3Key:
 class RuntimeSlots:
     """Explicit full and light runtime tables; never use for on-disk decoding."""
     def __init__(self, profile, full=(), light=()):
+        profile = canonical_profile(profile)
+        if profile not in active_profiles():
+            raise ValueError("runtime slots unavailable for deferred profile")
         self.profile = PROFILES[profile]
         if self.profile.experimental:raise ValueError("Runtime slot conventions not verified for this profile")
         if self.profile.family == "TES3":
@@ -94,7 +117,7 @@ def inspect_profile(profile, signature, parts, slots):
     """Fail closed rather than inherit FNV field offsets into another game."""
     from .schema_reference import inspect
     parts = list(parts)
-    if PROFILES[profile].schema_revision != "fnv-generated-v1":
+    if PROFILES[canonical_profile(profile)].schema_revision != "fnv-generated-v1":
         return [], tuple(range(len(parts)))
     return inspect(signature, parts, slots)
 
