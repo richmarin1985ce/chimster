@@ -2,12 +2,13 @@
 import re,struct,math
 from .fnv_records import text
 from .fnv_patch import sub
+from .fnv_portal_fields import inspect as inspect_markers, rewrite as rewrite_markers, TAGS as MARKER_TAGS
 
 PATTERNS={
     b"WRLD":r"EDIDFULLPNAMDNAMONAMDATANAM0NAM9NNAMXNAM",
     b"CELL":r"(?:DATAXCLC|EDIDFULLDATA)",
     b"LAND":r"DATAVNMLVHGTVCLR(?:BTXT)*(?:ATXTVTXT)*",
-    b"REFR":r"NAME(?:XTEL)?(?:XLKR)?XSCLDATA",
+    b"REFR":r"(?:NAME(?:XTEL)?(?:XLKR)?(?:XNDP)?XSCLDATA|NAMEXPRM(?:XTRI)?(?:XPODXPTL|XRMR(?:XLRM)*)XSCLDATA)",
     b"DOOR":r"EDIDOBNDFULLMODLFNAM",
     b"TXST":r"EDIDOBNDTX00TX01DNAM",
     b"LTEX":r"EDIDICONMICOTNAMHNAMSNAM",
@@ -37,11 +38,15 @@ def rewrite_world(signature,parts,remap):
         values=dict(parts)
         if values[b"DATA"]!=(b"\x01" if tags=="EDIDFULLDATA" else b"\0"):
             raise ValueError("unsupported cell flags")
-    output=[];changed=0
+    parts=list(parts)
+    changed=0
+    if signature==b"REFR":parts,changed=rewrite_markers(parts,remap)
+    output=[]
     for tag,raw in parts:
         length=LENGTHS[signature].get(tag)
         if length is not None:
             if len(raw)!=length:raise ValueError("invalid world field size")
+        elif signature==b"REFR" and tag in MARKER_TAGS:pass # validated by marker codec
         elif tag==b"VTXT" and signature==b"LAND":
             if len(raw)%8:raise ValueError("invalid VTXT size")
         elif tag in STRINGS:
@@ -69,5 +74,7 @@ def fields(signature,parts):
     """Expose the exact same validated references to the graph/editor."""
     parts=list(parts)
     rewrite_world(signature,parts,lambda raw,kinds:raw)
-    return [(i,0,LINKS[signature][tag]) for i,(tag,raw) in enumerate(parts)
+    links=[(i,0,LINKS[signature][tag]) for i,(tag,raw) in enumerate(parts)
             if tag in LINKS.get(signature,{})]
+    if signature==b"REFR":links.extend(inspect_markers(parts)[1])
+    return sorted(links)
