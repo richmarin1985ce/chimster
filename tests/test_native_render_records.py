@@ -31,3 +31,16 @@ class NativeRenderTests(unittest.TestCase):
         self.assertEqual(len(select_lights(r["lights"]*6,(0,0,0))),4)
         self.assertEqual(sum(l.shadows for l in select_lights(r["lights"]*6,(0,0,0))),1)
         self.assertEqual(water_data([(b"DNAM",b"short")]),{})
+
+    def test_fallout3_fade_and_world_inheritance(self):
+        from chimster.native_render_records import fo3_world_values
+        slots=Slots("fo3.esp",[])
+        raw=struct.pack("<iI4BIffIf",0,256,255,255,255,0,0,1.,45.,0,0.)
+        result=decode("LIGH",[(b"DATA",raw),(b"FNAM",struct.pack("<f",3.))],slots,"fallout3")
+        self.assertEqual(result["native_light"]["fade"],3.)
+        parent=Identity("fo3.esp",0x800);child=Identity("fo3.esp",0x801)
+        root=decode("WRLD",[(b"DNAM",struct.pack("<2f",0.,512.)),(b"NAM2",struct.pack("<I",0x802))],slots,"fallout3")
+        inherited=decode("WRLD",[(b"WNAM",struct.pack("<I",0x800)),(b"PNAM",b"\x09\x00")],slots,"fallout3")
+        browser=SimpleNamespace(profile="fallout3",active={parent:root,child:inherited})
+        self.assertEqual(fo3_world_values(browser,child),{"heights":(0.,512.),"water":("fo3.esp",0x802)})
+        self.assertEqual(decode("LIGH",[(b"DATA",raw)],slots,"skyrim"),{})

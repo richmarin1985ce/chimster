@@ -1,6 +1,6 @@
-"""Read-only New Vegas LIGH, CELL/LGTM and WATR preview adapters.
+"""Read-only Fallout 3/New Vegas LIGH, CELL/LGTM and WATR preview adapters.
 
-Documented FNV layouts only; no native record writes. Units are converted
+Documented Fallout 3 and FNV layouts only; no native record writes. Units are converted
 from game units to the viewport's 128-unit scale.
 """
 import struct
@@ -15,11 +15,11 @@ def one(parts,tag,size):
 def rgba(raw):
     return tuple(v/255 for v in raw[:3])
 
-def light_data(parts):
+def light_data(parts,profile="new-vegas"):
     raw=one(parts,b"DATA",32)
     if raw is None:return None
     _,radius,r,g,b,_,flags,falloff,fov,_,_=struct.unpack("<iI4BIffIf",raw)
-    fade=one(parts,b"FMAM",4)
+    fade=one(parts,b"FNAM" if profile=="fallout3" else b"FMAM",4)
     fade=struct.unpack("<f",fade)[0] if fade is not None else 1.
     if not radius or not all(isfinite(v) for v in (fade,falloff,fov)):return None
     return dict(radius=radius,color=(r/255,g/255,b/255),flags=flags,fade=fade,falloff=falloff,fov=fov)
@@ -47,9 +47,24 @@ def water_data(parts):
             result["underwater_density"]=max(0.,min(1.,2.3*max(0.,amount)*128/max(1.,far-near)))
     return result
 
-def decode(signature,parts,slots):
+def decode(signature,parts,slots,profile="new-vegas"):
+    if profile not in ("new-vegas","fallout3"):return {}
+    if signature=="WRLD" and profile=="fallout3":
+        values={}
+        heights=one(parts,b"DNAM",8)
+        if heights:
+            pair=struct.unpack("<2f",heights)
+            if all(isfinite(x) for x in pair):values["heights"]=pair
+        for name,tag in (("water",b"NAM2"),("parent",b"WNAM")):
+            raw=one(parts,tag,4)
+            if raw:
+                key=slots.decode(struct.unpack("<I",raw)[0])
+                if key is not None:values[name]=(key.origin,key.local)
+        flags=one(parts,b"PNAM",2)
+        values["inherit"]=flags[0] if flags else 0
+        return {"native_world_render":values}
     if signature=="LIGH":
-        data=light_data(parts);return {"native_light":data} if data else {}
+        data=light_data(parts,profile);return {"native_light":data} if data else {}
     if signature=="WATR":return {"native_water":water_data(parts)}
     if signature=="LGTM":return {"native_lighting":lighting(one(parts,b"DATA",40))}
     if signature!="CELL":return {}
@@ -69,8 +84,16 @@ def identity(pair):
     from .record_graph import Identity
     return Identity(*pair) if pair else None
 
+def fo3_world_values(browser,key):
+    def resolve(k,field,bit,seen):
+        if k is None or k in seen or len(seen)>=64:return None
+        row=browser.active.get(k,{}).get("native_world_render",{})
+        if row.get("inherit",0)&bit:return resolve(identity(row.get("parent")),field,bit,seen|{k})
+        return row.get(field)
+    return {field:resolve(key,field,bit,set()) for field,bit in (("heights",1),("water",8))}
+
 def report(browser,cell,refs,origin,units,environment):
-    if browser.profile!="new-vegas":return {}
+    if browser.profile not in ("new-vegas","fallout3"):return {}
     cellfx=cell.get("native_cell_render",{})
     light=cellfx.get("lighting",{}).copy()
     template=browser.active.get(identity(cellfx.get("template")),{}).get("native_lighting",{})
@@ -85,7 +108,7 @@ def report(browser,cell,refs,origin,units,environment):
     if light.get("fog_far",0)>max(0.,light.get("fog_near",0)):
         values["fog_density"]=min(1.,2.3*units/max(1.,light["fog_far"]-light.get("fog_near",0)))
     if "sun_fade" in light:values["sun_intensity"]=max(0.,min(4.,light["sun_fade"]))
-    world=environment.get("values",{})
+    world=fo3_world_values(browser,cell.get("world")) if browser.profile=="fallout3" else environment.get("values",{})
     water_key=cellfx.get("water") or world.get("water")
     height=cellfx.get("water_height")
     if height is None and world.get("heights"):height=world["heights"][1]
@@ -112,7 +135,7 @@ def report(browser,cell,refs,origin,units,environment):
             direction=(sin(y)*sin(x)*cos(z)-cos(x)*sin(z),sin(y)*sin(x)*sin(z)+cos(x)*cos(z),cos(y)*sin(x))
         local=LocalLight(position=position,color=raw["color"],intensity=max(0.,min(8.,raw["fade"])),radius=radius,direction=direction,cone=max(5.,min(120.,raw["fov"])) if direction else 45.,shadows=bool(direction and raw["flags"]&0x400))
         lights.append(asdict(local.validate()))
-    return dict(effects=values,lights=lights,water_level=water_level,scope="FNV native read-only approximate preview; one selected-cell water plane")
+    return dict(effects=values,lights=lights,water_level=water_level,scope=browser.profile+" native read-only approximate preview; one selected-cell water plane")
 
 def select_lights(rows,position,limit=4):
     ranked=sorted((LocalLight(**row).validate() for row in rows),key=lambda light:-(max(0.,1-dist(light.position,position)/light.radius)**2*light.intensity))
