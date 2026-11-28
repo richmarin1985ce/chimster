@@ -258,7 +258,10 @@ def validate(paths,max_records=2000000,max_issues=10000,quest_links=False,navmes
                     issue("navmesh-external-reciprocity",name,off,str((source,edge,target,dest)),"warning")
             for target,tri in r.get("navmesh_doors",[]):
                 other=live(target)
-                if other and not any(t==identity and role=="marker-xndp" for t,_,role in other["links"]):issue("navmesh-door-backlink",name,off,str(target),"warning")
+                if other:
+                    backlink=other.get("marker",{}).get("navigation_door",{})
+                    if not any(t==identity and role=="marker-xndp" for t,_,role in other["links"]) or backlink.get("triangle")!=tri:
+                        issue("navmesh-door-backlink",name,off,f"{target}: expected triangle {tri}","warning")
             for target,tri in r.get("navmesh_external",[]):
                 other=live(target)
                 if other and "navmesh" in other and tri>=other["navmesh"]["triangles"]:issue("navmesh-external-triangle",name,off,str(target))
@@ -278,6 +281,9 @@ def validate(paths,max_records=2000000,max_issues=10000,quest_links=False,navmes
                 if role=="marker-xndp":
                     other=live(target)
                     if other and other["owner"]!=r["owner"]:issue("nav-door-owner",name,off,"Navigation mesh is in another cell","warning")
+                    if navmesh and other and "navmesh" in other:
+                        tri=r["marker"]["navigation_door"]["triangle"]
+                        if not 0<=tri<other["navmesh"]["triangles"] or (identity,tri) not in other.get("navmesh_doors",[]):issue("nav-door-triangle",name,off,str((identity,tri)),"warning")
         if "teleport" in r:
             target=r["teleport"];other=live(target);base=live(r.get("base"))
             if not base or base["kind"]!="DOOR":issue("teleport-base",name,off,"Teleport source is not a door")
