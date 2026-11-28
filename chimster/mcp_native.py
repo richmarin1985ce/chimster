@@ -69,7 +69,6 @@ class NativeProposals:
             target.write_bytes(raw)
             m=self.project.add(key,"plugin",target,revision,replace=True)
         self.recovery.pending=None
-        self.recovery.undo=(revision,m["revision"])
-        self.recovery.redo=None
+        self.recovery.record_commit(revision,m["revision"])
         return {"id":key,"revision":m["revision"],"artifact":m["artifacts"][key],
                 "undo_target_revision":revision,"requires_game_testing":True}
