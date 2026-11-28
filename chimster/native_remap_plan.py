@@ -1,24 +1,27 @@
 """Plan reference remaps without guessing opaque field contents."""
-from .native_catalog import CATALOGS
+from .native_catalog import references
 import struct
 
 def plan(profile,signature,parts,source,destination):
     changes=[]
     blockers=[]
-    for i,(tag,raw) in enumerate(parts):
-        spec=CATALOGS[profile].get((signature,tag))
-        if spec is None or len(raw)!=spec.length:
-            if source.names!=destination.names:
-                blockers.append((i,tag,"opaque"))
-            continue
-        old=struct.unpack_from("<I",raw,spec.offset)[0]
+    parts=list(parts)
+    try:
+        edges,opaque=references(profile,signature,parts,source)
+    except (ValueError, KeyError, struct.error) as exc:
+        return {"changes":[],"blockers":[(-1,b"",str(exc))],"applicable":False}
+    if source.names!=destination.names:
+        blockers.extend((i,parts[i][0],"opaque") for i in opaque)
+    for i,offset,target,_ in edges:
+        tag,raw=parts[i]
+        old=struct.unpack_from("<I",raw,offset)[0]
         try:
-            new=destination.encode(source.decode(old))
+            new=destination.encode(target)
         except ValueError as exc:
             blockers.append((i,tag,str(exc)))
             continue
         if old!=new:
-            changes.append((i,spec.offset,old,new))
+            changes.append((i,offset,old,new))
     return {"changes":changes,"blockers":blockers,"applicable":not blockers}
 
 def apply(parts,proposal):
