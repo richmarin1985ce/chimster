@@ -175,6 +175,14 @@ def mount(parent):
         x,y,z=camera.center
         camera=replace(camera,center=(x+cos(a)*right+sin(a)*forward,y-sin(a)*right+cos(a)*forward,z))
         draw()
+    def apply_world_environment(report):
+        # Native water level is a geometry height, not a material/engine simulation.
+        env=report.get("environment",{}).get("values",{})
+        heights=env.get("heights")
+        if report.get("grid") is not None and heights is not None:
+            water_height.set(str(heights[1]/128))
+            water_enabled.set("water" in env)
+        else:water_enabled.set(False)
     def pan_end(e):
         nonlocal pan_drag,camera,scene,materials,selected,preview_origin,preview_cell
         pan_drag=None
@@ -187,6 +195,7 @@ def mount(parent):
         candidate,report=result
         scene=candidate;materials={};preview_origin=report["origin_game_units"];preview_cell=report["cell"]
         camera=replace(camera,center=tuple((absolute[i]-preview_origin[i])/128 for i in range(3)))
+        apply_world_environment(report)
         if not any(i.id==selected for i in scene.instances):selected=None
         source.set(f"Read-only cell {report['cell']} | {report['cells']} cells | {report['land_tiles']} LAND tiles | {report.get('model_references',0)} models")
         sync()
@@ -319,6 +328,7 @@ def mount(parent):
         scene=candidate;materials={};native_preview=True;selection_callback=on_select;stream_callback=on_stream;preview_origin=report["origin_game_units"];preview_cell=report["cell"]
         selected=focus if any(i.id==focus for i in scene.instances) else None
         camera=Camera()
+        apply_world_environment(report)
         source.set(f"Read-only cell {report['cell']} | {report['cells']} cells | {report['land_tiles']} LAND tiles | {report.get('model_references',0)} models | {report['proxy_references']} reference markers | {report['skipped_references']} skipped")
         sync();parent.after_idle(fit)
         return True
