@@ -126,6 +126,9 @@ Added opt-in interior NAVM ESP staging, XXXX framing, stable mesh IDs, native NV
 ### Pending native AutoNav continuation
 Added ordinary non-island interior NVMI/NVCI generation, counted connection reference decoding, candidate master-NAVI extension ESP copy (exactly FalloutNV.esm, new interior cells, preserve all base registrations), reciprocal seam/door checks and NVCI graph review. Added obstruction-only sphere/capsule/cylinder/multisphere conservative bounds to Nifly and optional FO4 sphere/capsule adapter; raster/stair filtering and incremental tile fingerprint integration. Referenced compressed chunks remain unsupported; new native chunk inventory command aids fixture research. Five isolated Python codec/bounds tests passed; full repository and native bridge tests unexecuted due GitHub DNS. Exterior/island/preferred navigation, master topology edits, independent native fixtures and game-runtime certification remain open. No score change.
 
+### NAVI variant review pass
+Added explicit exterior NVMI payload candidates with reference-calibrated signed XY/YX grid order, preferred neighbor partition and explicit preferred value, bounded read-only island payload decoding, roundtrip registration/door/connection checks, CLI inspection and strict NVCI review. Five isolated codec unit tests passed; integrated repository and retail/GECK tests not run. Exterior and preferred output remains payload-only, island emission and existing-master topology modification remain gated. Direct ESP writer remains new-interior-only. Milestone estimates unchanged.
+
 ## Critical path
 1. Stable project FormID allocation, typed native record schema and dependency-safe edits.
 2. Integrated native interior cells, architectural assets, room/portal/trigger volumes, placed references and collision.
