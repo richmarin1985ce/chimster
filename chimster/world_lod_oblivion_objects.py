@@ -1,6 +1,6 @@
 """Original TES4 DistantLOD placement and CMP cell-index codecs.
 
-Only explicitly eligible, existing _far.nif models are referenced. The base
+Explicitly eligible existing or internally generated _far.nif models are referenced. The base
 FormID depends on load order. No source assets are modified or deleted.
 """
 import struct,json,shutil
@@ -65,7 +65,7 @@ def export(browser,world,output,assets):
     sources=getattr(browser,"source_paths",None)
     if not sources or len(sources)>254:raise ValueError("Explicit full-plugin load order required")
     order={p.name.casefold():i for i,p in enumerate(sources)}
-    cells=defaultdict(lambda:defaultdict(list));skipped=[];checked={}
+    cells=defaultdict(lambda:defaultdict(list));skipped=[];checked={};generated={};generated_bytes=0
     for ref in sorted(browser.active.values(),key=lambda r:r["key"]):
         if ref["signature"]!="REFR" or "position" not in ref:continue
         cell=browser.active.get(ref.get("cell"),{})
@@ -77,7 +77,21 @@ def export(browser,world,output,assets):
         model=base["model"];key=model.casefold()
         if key not in checked:
             try:
-                path=far_path(model);raw=assets.get(path)
+                path=far_path(model)
+                try:raw=assets.get(path)
+                except FileNotFoundError:
+                    from .oblivion_lod_nif import read_static,encode,inspect
+                    from .world_lod_object_builtin import reduced
+                    source=assets.get(model)
+                    mesh,diffuse,cutout=read_static(source)
+                    # Do not simplify transparent silhouettes.
+                    proxy=mesh if cutout else reduced(mesh)
+                    raw=encode(proxy,diffuse,cutout);info=inspect(raw)
+                    if info["triangles"]!=len(proxy.faces):raise ValueError("Far mesh roundtrip mismatch")
+                    if len(generated)>=512 or generated_bytes+len(raw)>64*1024*1024:raise ValueError("Generated far mesh budget")
+                    if path.casefold() in generated:raise ValueError("Far mesh path collision")
+                    generated[path.casefold()]=(path,raw,{"source_sha256":sha256(source).hexdigest(),"source_triangles":len(mesh.faces),"lod_triangles":len(proxy.faces),"cutout":cutout})
+                    generated_bytes+=len(raw)
                 if not raw.startswith(b"Gamebryo File Format, Version 20.0.0.5\n"):raise ValueError("Not an Oblivion far mesh")
                 checked[key]=(path,sha256(raw).hexdigest())
             except (ValueError,OSError) as exc:checked[key]=str(exc)
@@ -91,9 +105,14 @@ def export(browser,world,output,assets):
         x,y=(floor((round(v)+.5)/4096) for v in pos[:2])
         cells[x,y][fid].append((pos,rot,scale))
         if sum(map(len,cells[x,y].values()))>100000:raise ValueError("Cell placement budget")
-    if not cells:raise ValueError("No supported VWD references with existing far meshes")
+    if not cells:raise ValueError("No supported VWD references with usable far meshes")
     out=Path(output);out.mkdir(exist_ok=False);files={}
     try:
+        generated_report=[]
+        for path,raw,info in generated.values():
+            p=out/path;p.parent.mkdir(parents=True,exist_ok=True)
+            with p.open("xb") as f:f.write(raw)
+            files[path]=sha256(raw).hexdigest();generated_report.append({"path":path,**info,"sha256":files[path]})
         folder=out/"DistantLOD";folder.mkdir()
         for (x,y),groups in sorted(cells.items()):
             raw=encode_cell(groups);decoded=decode_cell(raw)
@@ -105,7 +124,7 @@ def export(browser,world,output,assets):
         report={"world":name,"load_order":list(order),"cells":len(cells),
                 "references":sum(len(refs) for groups in cells.values() for refs in groups.values()),
                 "far_meshes":{k:v for k,v in checked.items() if not isinstance(v,str)},"skipped":skipped,
-                "files":files,"external_tools":False,"runtime_verified":False}
+                "generated_far_meshes":generated_report,"files":files,"external_tools":False,"runtime_verified":False}
         (out/"manifest.json").write_text(json.dumps(report,indent=2),encoding="utf-8")
     except Exception:shutil.rmtree(out);raise
     return report
