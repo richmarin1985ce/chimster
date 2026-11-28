@@ -45,6 +45,8 @@ def mount(parent):
     for label,fn in (("Inspect FUZ",inspect),("Pack FUZ",pack),("Extract FUZ",extract)):
         ttk.Button(parent,text=label,command=guard(fn)).pack(anchor="w")
 
+    from .audio_edit_ui import launch as launch_editor
+    ttk.Button(parent,text="Open waveform and lip-sync editor",command=lambda:launch_editor(parent)).pack(anchor="w")
     ttk.Separator(parent).pack(fill="x", pady=8)
     mount_voice_manager(parent)
 
