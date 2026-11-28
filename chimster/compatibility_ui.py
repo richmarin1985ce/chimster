@@ -10,8 +10,14 @@ from .compatibility_archives import inspect as archive
 from .compatibility_nif import inspect as nif
 from .compatibility_strings import parse
 
-def mount(parent):
+def mount(parent,game=None):
     profile=tk.StringVar(value="new-vegas")
+    aliases={"newvegas":"new-vegas","skyrimse":"skyrim-se","skyrimvr":"skyrim-vr","fallout4vr":"fallout4-vr"}
+    def sync(*_):
+        if game is not None:
+            target=aliases.get(game.get(),game.get())
+            if target in GAMES:profile.set(target)
+    if game is not None:game.trace_add("write",sync);sync()
     bar=ttk.Frame(parent);bar.pack(fill="x")
     ttk.Label(bar,text="Target game").pack(side="left")
     ttk.Combobox(bar,textvariable=profile,values=list(GAMES),state="readonly").pack(side="left")
@@ -42,9 +48,23 @@ def mount(parent):
     def dependencies():
         paths=filedialog.askopenfilenames(title="Select plugins in load order; review displayed order")
         if paths:return validate(profile.get(),[(Path(p).name,Path(p).read_bytes()) for p in paths])
+    def assets():
+        from .compatibility_asset_lookup import index,resolve
+        from tkinter import simpledialog
+        layers=[]
+        while True:
+            folder=filedialog.askdirectory(title="Add loose asset layer (lowest precedence first; Cancel to finish)")
+            if not folder:break
+            root=Path(folder)
+            layers.append((str(root),[(p.relative_to(root).as_posix(),str(p)) for p in root.rglob("*") if p.is_file() and not p.is_symlink()]))
+        if not layers:return None
+        catalog=index(layers)
+        query=simpledialog.askstring("Asset lookup","Relative asset path")
+        if query:return resolve(catalog,query)
+        return {"indexed_paths":len(catalog),"layers":[name for name,_ in layers]}
     actions=ttk.Frame(parent);actions.pack(fill="x")
     for label,fn in [
-        ("Installation",root),("Capabilities",lambda:capabilities(profile.get())),
+        ("Asset lookup",assets),("Installation",root),("Capabilities",lambda:capabilities(profile.get())),
         ("Plugin",lambda:choose(lambda p,d:audit(profile.get(),d))),
         ("Dependencies",dependencies),("Archive header",lambda:choose(lambda p,d:archive(d),36)),
         ("NIF header",lambda:choose(lambda p,d:nif(d),256)),
