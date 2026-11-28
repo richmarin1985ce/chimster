@@ -215,3 +215,37 @@ def revision_diff(project, target, offset=0, limit=50):
            "before":old.get(k),"after":new.get(k)} for k in keys[offset:offset+limit]]
     return {"from_revision":target,"to_revision":current["revision"],"changes":rows,
             "total":len(keys),"next_offset":offset+limit if offset+limit<len(keys) else None}
+
+def inspect_asset(project, id, operation):
+    m,a,p=artifact_input(project,id,16*1024*1024)
+    ext=Path(a["filename"]).suffix.lower()
+    if operation=="audio":
+        from .audio import wav_info,xwma_info,unpack_fuz
+        raw=p.read_bytes()
+        if ext==".wav": result={"format":"wav",**wav_info(raw)}
+        elif ext==".xwm": result={"format":"xwm",**xwma_info(raw)}
+        elif ext==".fuz":
+            lip,xwm=unpack_fuz(raw)
+            result={"format":"fuz","lip_bytes":len(lip),**xwma_info(xwm)}
+        else: raise ValueError("unsupported audio")
+    elif operation=="font":
+        if ext!=".ttf":raise ValueError("TrueType only")
+        from .font_forge import inspect
+        result=inspect(p)
+    elif operation=="mesh":
+        if ext!=".obj":raise ValueError("triangulated OBJ only")
+        from .scene import load_obj
+        from .asset_forge import checked
+        from .lod import bounds
+        mesh=checked(load_obj(p))
+        result={"vertices":len(mesh.vertices),"triangles":len(mesh.faces),
+                "bounds":bounds(mesh),"materials":sorted({mat for _,mat in mesh.faces})}
+    elif operation=="scene":
+        if ext!=".json":raise ValueError("portable scene JSON only")
+        from .scene import Scene
+        scene=Scene.load(p)
+        result={"assets":len(scene.assets),"instances":len(scene.instances),
+                "unique_triangles":sum(len(mesh.faces) for mesh in scene.assets.values()),
+                "instanced_triangles":sum(len(scene.assets[i.asset].faces) for i in scene.instances)}
+    else:raise ValueError("unknown asset inspection")
+    return {"id":id,"revision":m["revision"],"operation":operation,"result":result}
