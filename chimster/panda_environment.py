@@ -26,4 +26,10 @@ def environment(color,strength):
     tex=Texture("chimster-procedural-sky")
     tex.setup_cube_map(16,Texture.T_unsigned_byte,Texture.F_rgba8)
     tex.set_ram_image_as(sky_bytes(16,color,strength),"RGBA")
-    return EnvMap(tex,prefiltered_size=16,prefiltered_samples=8,blocking_prepare=True)
+    env=EnvMap(tex,prefiltered_size=16,prefiltered_samples=8,blocking_prepare=True)
+    # Upstream completes the CPU preparation synchronously but its notification
+    # callback is dispatched by Panda's task system. Verify actual prepared data,
+    # not a notification that may await a ShowBase loop we deliberately lack.
+    if env.filtered_env_map.get_x_size()!=16 or not env.filtered_env_map.has_ram_image():
+        raise RuntimeError("Environment prefilter did not produce a cubemap")
+    return env

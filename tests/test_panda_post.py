@@ -132,4 +132,25 @@ class PostTests(unittest.TestCase):
         if not os.environ.get("CHIMSTER_TEST_PANDA_GL"):return
         from chimster.panda_environment import environment
         env=environment((.3,.4,.5),.6)
-        self.assertTrue(env.is_prepared.done())
+        self.assertEqual(env.filtered_env_map.get_x_size(),16)
+        self.assertTrue(env.filtered_env_map.has_ram_image())
+        self.assertGreater(env.sh_coefficients[0].length(),0)
+        self.assertIs(env,environment((.3,.4,.5),.6))
+
+    def test_environment_framebuffer(self):
+        import os
+        if not os.environ.get("CHIMSTER_TEST_PANDA_GL"):self.skipTest("Optional framebuffer test")
+        from panda3d.core import load_prc_file_data
+        load_prc_file_data("chimster-test","load-display p3headlessgl\naudio-library-name null")
+        from chimster.panda_viewport import Preview
+        from chimster.gpu_viewport import make_demo
+        from chimster.scene import Camera
+        from chimster.render_effects import Effects
+        scene,materials=make_demo();preview=Preview("pbr")
+        try:
+            cam=Camera(zoom=4)
+            a=preview.render(scene,cam,96,72,materials,effects=Effects())
+            b=preview.render(scene,cam,96,72,materials,effects=Effects(environment_strength=.6))
+            self.assertIsNone(preview.post_error)
+            self.assertNotEqual(a,b)
+        finally:preview.close()
