@@ -39,6 +39,11 @@ class EditorCommandTests(unittest.TestCase):
             with patch("chimster.editor_commands.time.time",return_value=time.time()+TTL+1):
                 consume(p,presence.id,callback,runtime)
             self.assertEqual(len(calls),1)
+            submit(p,presence.id,"viewport-fit",1,root=runtime)
+            consume(p,presence.id,callback,runtime)
+            self.assertEqual(calls[-1],("viewport-fit",None))
+            with self.assertRaises(ValueError):
+                submit(p,presence.id,"viewport-delete",1,root=runtime)
             self.assertNotIn("editor_request",Bridge(p).registry)
             self.assertIn("editor_request",Bridge(p,allow_ui=True).registry)
             self.assertEqual(p.read()["revision"],1)
