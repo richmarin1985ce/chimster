@@ -41,10 +41,12 @@ def mount(parent):
         layers=mesh.get("triangle_layers")
         layer_select.configure(values=("All",)+tuple(str(i) for i in sorted(set(layers or []))))
         if elevation.get() not in layer_select["values"]:elevation.set("All")
+        labels=mesh.get("triangle_areas",["ground"]*len(ts))
+        colors={"ground":"#426b58","ramp":"#536da1","steep":"#927a48","stair":"#9268a2"}
         for i,t in enumerate(ts):
             if layers is not None and elevation.get()!="All" and layers[i]!=int(elevation.get()):continue
             coords=[v for j in t for v in xy(vs[j])]
-            canvas.create_polygon(*coords,fill="#eab65b" if i in selected else "#48a7c2" if i in corridor else "#426b58",outline="#233a34",tags=(f"tri:{i}",))
+            canvas.create_polygon(*coords,fill="#eab65b" if i in selected else "#48a7c2" if i in corridor else colors.get(labels[i],"#65727e"),outline="#233a34",tags=(f"tri:{i}",))
         for link in mesh.get("links",[]):
             def center(i):return [sum(vs[j][k] for j in ts[i])/3 for k in range(3)]
             canvas.create_line(*xy(center(link["from"])),*xy(center(link["to"])),fill="#f49b68" if link["id"] in closed else "#d8e6fb",width=2,dash=(4,3))
@@ -77,6 +79,12 @@ def mount(parent):
         report=route(mesh,*selected,mesh.get("links",[]),closed)
         corridor.clear();corridor.update(report["triangles"]);draw()
         status.set("Route found: "+str(len(corridor))+" triangles" if report["reachable"] else "No route")
+    def areas():
+        nonlocal mesh
+        if mesh is None:raise ValueError("generate first")
+        from .navmesh_areas import classify
+        updated=classify(mesh);past.append(mesh);past[:]=past[-5:]
+        mesh=updated;selected.clear();corridor.clear();draw();status.set(str(mesh["area_report"]))
     def simplify_mesh():
         nonlocal mesh
         if mesh is None:raise ValueError("generate first")
@@ -119,7 +127,7 @@ def mount(parent):
         if p:
             with Path(p).open("x",encoding="utf-8") as f:json.dump(mesh,f)
     buttons=ttk.Frame(parent);buttons.pack(fill="x")
-    for label,fn in (("Load source",load),("Auto generate",auto),("Route",path),("Portal states",links),("Simplify",simplify_mesh),("Exclude selected",exclude),("Undo",undo),("Quality",review),("Save mesh",save)):
+    for label,fn in (("Load source",load),("Auto generate",auto),("Route",path),("Portal states",links),("Classify areas",areas),("Simplify",simplify_mesh),("Exclude selected",exclude),("Undo",undo),("Quality",review),("Save mesh",save)):
         ttk.Button(buttons,text=label,command=lambda fn=fn:guard(fn)).pack(side="left")
     layer_select.bind("<<ComboboxSelected>>",draw)
     canvas.bind("<Button-1>",pick);canvas.bind("<Configure>",draw)
