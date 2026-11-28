@@ -5,7 +5,9 @@ import zlib
 from .native_parser import parse, subrecords
 from .native_profiles import PROFILES
 
-def replace(profile,data,path,tag,occurrence,expected,replacement,revision):
+def replace(profile,data,path,tag,occurrence,expected,replacement,revision,*,operation="replace",insert_tag=None):
+    if operation not in ("replace","remove","before","after"):raise ValueError("Invalid operation")
+    if insert_tag is not None and (operation not in ("before","after") or not isinstance(insert_tag,bytes) or len(insert_tag)!=4 or insert_tag==b"XXXX"):raise ValueError("Invalid insertion tag")
     if hashlib.sha256(data).hexdigest()!=revision:raise ValueError("Stale plugin revision")
     if not path or any(type(i)!=int or i<0 for i in path):raise ValueError("Invalid record path")
     if type(occurrence)!=int or occurrence<0 or len(tag)!=4 or tag==b"XXXX":raise ValueError("Invalid subrecord selector")
@@ -41,8 +43,13 @@ def replace(profile,data,path,tag,occurrence,expected,replacement,revision):
                         if seen==occurrence:
                             if raw[pos:end]!=expected:raise ValueError("Stale subrecord value")
                             n=len(replacement)
-                            prefix=struct.pack("<4sI",tag,n) if tes3 else (struct.pack("<4sH",tag,n) if n<=65535 else struct.pack("<4sHI4sH",b"XXXX",4,n,tag,0))
-                            raw=raw[:start]+prefix+replacement+raw[end:];break
+                            output_tag=insert_tag if insert_tag is not None else tag
+                            prefix=struct.pack("<4sI",output_tag,n) if tes3 else (struct.pack("<4sH",output_tag,n) if n<=65535 else struct.pack("<4sHI4sH",b"XXXX",4,n,output_tag,0))
+                            encoded=prefix+replacement
+                            if operation=="remove":encoded=b""
+                            elif operation=="before":encoded+=raw[start:end]
+                            elif operation=="after":encoded=raw[start:end]+encoded
+                            raw=raw[:start]+encoded+raw[end:];break
                         seen+=1
                     pos=end
                 else:raise ValueError("Subrecord not found")
@@ -54,3 +61,11 @@ def replace(profile,data,path,tag,occurrence,expected,replacement,revision):
     result=patch(parse(profile,data),0)
     parse(profile,result)
     return result
+
+def remove(profile,data,path,tag,occurrence,expected,revision):
+    return replace(profile,data,path,tag,occurrence,expected,b"",revision,operation="remove")
+
+def insert_adjacent(profile,data,path,tag,occurrence,expected,new_tag,value,revision,*,after=True):
+    """Insert a field beside an existing anchor, retaining its exact encoding."""
+    if not isinstance(new_tag,bytes) or len(new_tag)!=4 or new_tag==b"XXXX":raise ValueError("Invalid new tag")
+    return replace(profile,data,path,tag,occurrence,expected,value,revision,operation="after" if after else "before",insert_tag=new_tag)
