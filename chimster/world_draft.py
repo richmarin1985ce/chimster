@@ -139,7 +139,7 @@ class Draft:
     def create_world(self,name,title,origin=(0,0),size=(1,1),environment=None):
         """Create a bounded initial exterior grid and its single persistent owner."""
         name=self.unique_name(name)
-        from .world_environment import normalize
+        from .world_environment import normalize, validate_parent
         if not isinstance(title,str) or "\0" in title or len(title.encode("cp1252"))>255:
             raise ValueError("Invalid worldspace title")
         if len(origin)!=2 or len(size)!=2 or any(type(v)!=int for v in (*origin,*size)) or min(size)<1 or size[0]*size[1]>256:
@@ -147,9 +147,10 @@ class Draft:
         if any(not -32768<=origin[i]<=origin[i]+size[i]-1<=32767 for i in range(2)):
             raise ValueError("Invalid grid bounds")
         index=self.index()
-        settings=normalize({"heights":(14000,10500),"lod_height":(10500,),
+        settings=normalize({"inheritance":(0,),"heights":(14000,10500),"lod_height":(10500,),
                             "flags":(0x10,),"map_offset":(1,0,0),**(environment or {})},index)
         if any(settings.get(k) is None for k in settings):settings={k:v for k,v in settings.items() if v is not None}
+        validate_parent(index,Identity(self.name,self.cursor),settings)
         from .fnv_world import encode_height
         steps=round(settings["heights"][0]/8)
         height_raw=encode_height([[steps]*33 for _ in range(33)])
@@ -173,18 +174,19 @@ class Draft:
         return world
 
     def set_environment(self,key,values):
-        from .world_environment import normalize
+        from .world_environment import normalize, validate_parent
         index=self.index()
         row=index.worlds.get(key)
         if row is None:raise ValueError("Select a live worldspace")
         values=normalize(values,index)
-        self.checkpoint()
         env=dict(row.get("environment",{}))
         changes=dict(row.get("environment_changes",{}))
         for name,value in values.items():
             if value is None:env.pop(name,None)
             else:env[name]=value
             changes[name]=value
+        validate_parent(index,key,env)
+        self.checkpoint()
         self.rows[key]={**row,"plugin":self.name,"environment":env,"environment_changes":changes}
         self.operations.append({"action":"world_environment","key":key_json(key),"values":values})
 
