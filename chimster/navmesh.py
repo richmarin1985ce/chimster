@@ -29,8 +29,9 @@ def topology(vertices,triangles):
         if (u,v)!=(y,x):raise ValueError("inconsistent winding")
         neighbors[a][ea]=b;neighbors[b][eb]=a
     groups=[];remaining=set(range(len(triangles)))
-    while remaining:
-        root=min(remaining);remaining.remove(root);q=deque([root]);group=[]
+    for root in range(len(triangles)):
+        if root not in remaining:continue
+        remaining.remove(root);q=deque([root]);group=[]
         while q:
             i=q.popleft();group.append(i)
             for j in neighbors[i]:
@@ -91,8 +92,9 @@ def generate(spec):
     minimum=spec.get("min_region_cells",1)
     if type(minimum) is not int or not 1<=minimum<=250000:raise ValueError("invalid region threshold")
     remaining=set(valid);kept=set()
-    while remaining:
-        root=min(remaining);remaining.remove(root);q=deque([root]);region={root}
+    for root in sorted(valid):
+        if root not in remaining:continue
+        remaining.remove(root);q=deque([root]);region={root}
         while q:
             x,y=q.popleft()
             for k in ((x+1,y),(x-1,y),(x,y+1),(x,y-1)):
@@ -141,3 +143,35 @@ def route(mesh,start,end,links=(),closed=()):
             nd=d+math.dist(centers[i],centers[j])
             if nd<cost.get(j,math.inf):cost[j]=nd;prev[j]=(i,name);heapq.heappush(q,(nd,j))
     return {"reachable":False,"triangles":[],"transitions":[],"cost":None}
+
+def quality(mesh):
+    """Geometry statistics and disconnected-island review; no game certification."""
+    vertices=mesh["vertices"];triangles=mesh["triangles"];report=topology(vertices,triangles)
+    areas=[];skinny=[]
+    for i,t in enumerate(triangles):
+        a,b,c=[vertices[j] for j in t]
+        sides=[math.dist(a,b),math.dist(b,c),math.dist(c,a)]
+        u=tuple(b[j]-a[j] for j in range(3));v=tuple(c[j]-a[j] for j in range(3))
+        area=.5*math.sqrt(sum(x*x for x in (u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0])))
+        areas.append(area)
+        if 4*math.sqrt(3)*area/sum(x*x for x in sides)<.2:skinny.append(i)
+    island_sizes=sorted((len(r) for r in report["regions"]),reverse=True)
+    return {"vertices":len(vertices),"triangles":len(triangles),"surface_area":sum(areas),
+            "boundary_edges":len(report["boundary"]),"island_sizes":island_sizes,"skinny_triangles":skinny,
+            "rejected":mesh.get("rejected",{}),"issues":mesh.get("issues",[]),"empty":not triangles}
+
+def remove_triangles(mesh,selected):
+    """Explicit manual exclusion with index remapping; reject loss of linked endpoints."""
+    selected=set(selected);triangles=mesh["triangles"]
+    if any(type(i) is not int or not 0<=i<len(triangles) for i in selected):raise ValueError("invalid selected triangles")
+    keep=[i for i in range(len(triangles)) if i not in selected];mapping={old:new for new,old in enumerate(keep)}
+    links=[]
+    for link in mesh.get("links",[]):
+        if link["from"] not in mapping or link["to"] not in mapping:raise ValueError("remove or rebind affected transition first")
+        links.append({**link,"from":mapping[link["from"]],"to":mapping[link["to"]]})
+    # Keep vertex IDs stable; do not silently weld or reindex.
+    new=[triangles[i] for i in keep]
+    result={**mesh,"triangles":new,**topology(mesh["vertices"],new),"links":links}
+    if "triangle_rooms" in mesh:result["triangle_rooms"]=[mesh["triangle_rooms"][i] for i in keep]
+    result["manual_exclusions"]=mesh.get("manual_exclusions",0)+len(selected)
+    return result
