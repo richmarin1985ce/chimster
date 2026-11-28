@@ -31,3 +31,33 @@ def continuation(path,ledger,parents):
     if set(ledger.entries.values()) & set(report["occupied"]):
         raise ValueError("native IDs overlap ledger; explicit identity reconciliation required")
     return reserve_hierarchy(ledger,parents,AllocationPolicy(),report["cursor"],report["occupied"])
+
+
+def token(profile,key):
+    """Serialize logical identity without load-order or tree-position dependence."""
+    import json
+    from .native_profiles import PROFILES, Tes3Key
+    from .record_graph import Identity
+    if PROFILES[profile].family=="TES3" and isinstance(key,Tes3Key):
+        fields=["named",key.signature,key.editor_id]
+    elif PROFILES[profile].family!="TES3" and isinstance(key,Identity):
+        fields=["form",key.origin,key.local]
+    else:raise ValueError("identity incompatible with profile")
+    return json.dumps([1,profile,*fields],ensure_ascii=True,separators=(",",":"))
+
+def parse_token(value,profile=None):
+    import json
+    from .native_profiles import PROFILES, Tes3Key
+    from .record_graph import Identity
+    fields=json.loads(value)
+    if not isinstance(fields,list) or len(fields)!=5 or type(fields[0]) is not int or fields[0]!=1:
+        raise ValueError("unsupported identity token")
+    _,game,kind,a,b=fields
+    if not isinstance(game,str) or game not in PROFILES or (profile is not None and game!=profile):
+        raise ValueError("identity profile mismatch")
+    if kind=="named" and PROFILES[game].family=="TES3" and isinstance(a,str) and isinstance(b,str):
+        key=Tes3Key(a,b)
+    elif kind=="form" and PROFILES[game].family!="TES3":
+        key=Identity(a,b)
+    else:raise ValueError("identity kind mismatch")
+    return game,key
