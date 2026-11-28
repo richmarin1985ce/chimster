@@ -157,7 +157,6 @@ class Production:
                 changes.append({"op":"add","id":key,"kind":kind,"source":str(p),"replace":False})
             after=self.project.batch(changes,revision)
         self.recovery.pending=None
-        self.recovery.undo=(revision,after["revision"])
-        self.recovery.redo=None
+        self.recovery.record_commit(revision,after["revision"])
         return {"revision":after["revision"],"outputs":[{"id":k,**after["artifacts"][k]} for k,_,_,_ in outputs],
                 "undo_target_revision":revision}
