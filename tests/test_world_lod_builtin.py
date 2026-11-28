@@ -290,3 +290,33 @@ class BuiltinLODTests(unittest.TestCase):
         self.assertEqual(report["colored_vertices"],4)
         self.assertEqual(report["material_groups"],2)
         with self.assertRaises(ValueError):read_static_groups(raw[:-1])
+
+    def test_cross_profile_vertex_color_preservation(self):
+        from chimster.fnv_lod_nif import encode_groups as classic_encode,read_static_groups as classic_read
+        from chimster.modern_lod_codec import encode_groups as modern_encode,read_static_groups as modern_read,inspect
+        from chimster.lod_assets import simplify
+        mesh=terrain_grid([[0.,1.],[2.,3.]])
+        mesh.colors=[(1.,0.,0.,1.),(0.,1.,0.,1.),(0.,0.,1.,1.),(1.,1.,1.,1.)]
+        group=(mesh,"textures/a.dds","textures/a_n.dds",False)
+        raw=classic_encode([group],"companion")
+        decoded=classic_read(raw,include_cutout=True)[0][0]
+        self.assertEqual(decoded.colors,mesh.colors)
+        for profile in ("skyrim","skyrim-se","fallout4"):
+            raw=modern_encode([group],profile,"companion")
+            self.assertEqual(inspect(raw,profile)["triangles"],2)
+            decoded=modern_read(raw,profile)[0][0]
+            self.assertEqual(decoded.colors,mesh.colors)
+        result=simplify(mesh,.01)
+        self.assertEqual(set(result.colors),set(mesh.colors))
+
+    def test_paired_atlas_keeps_vertex_colors(self):
+        from chimster.world_lod_atlas import build
+        from chimster.lod_assets import dds_rgba
+        a=terrain_grid([[0.,0.],[0.,0.]])
+        b=terrain_grid([[0.,0.],[0.,0.]])
+        b.colors=[(1.,0.,0.,1.)]*len(b.vertices)
+        class Assets:
+            def get(self,path):return dds_rgba(4,4,bytes((128,128,255,255))*16)
+        result,remaining,issues=build([(a,"textures/a.dds","textures/a_n.dds"),(b,"textures/b.dds","textures/b_n.dds")],Assets(),size=32,maximum=256)
+        self.assertEqual(result["mesh"].colors,[(1.,)*4]*len(a.vertices)+b.colors)
+        self.assertFalse(remaining)
