@@ -45,6 +45,10 @@ def package_directory(source,destination,*,compress=True,limit=256*1024*1024,for
                 raw=stream.read(limit-total+path.stat().st_size+1)
             if len(raw)!=path.stat().st_size:raise ValueError("Asset changed during read")
             yield name,raw
+    if format=='pair':
+        from .ba2_split import package_pair
+        target=Path(destination)
+        return package_pair(target.parent,target.name,assets(),version=ba2_version,compress=compress,limit=limit)
     if format=='tes3':return package_tes3(destination,assets(),limit=limit)
     if format in ('103','104','105'):return package_classic(destination,assets(),version=int(format),compress=compress,limit=limit)
     if format=='dx10':return package_textures(destination,assets(),compress=compress,limit=limit,version=ba2_version)
