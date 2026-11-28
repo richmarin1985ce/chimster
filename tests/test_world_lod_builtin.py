@@ -45,3 +45,34 @@ class BuiltinLODTests(unittest.TestCase):
             self.assertEqual(len(manifest["tiles"]),1)
             self.assertTrue((output/"LODSettings/LODDemo.dlodsettings").exists())
             for path in manifest["tiles"][0]["files"]:self.assertTrue((output/path).is_file())
+
+    def test_dds_source_decode_and_alpha(self):
+        from chimster.lod_dds import decode
+        from chimster.lod_assets import dds_rgba
+        from chimster.texture_processing import dds
+        from chimster.world_lod_materials import alpha
+        raw=bytes((255,0,0,255))*16
+        self.assertEqual(decode(dds_rgba(4,4,raw)),(4,4,raw))
+        for kind in ("BC1","BC3"):
+            w,h,pixels=decode(dds(4,4,raw,kind=kind,mips=False))
+            self.assertEqual((w,h),(4,4))
+            self.assertTrue(all(pixels[i]>240 for i in range(0,len(pixels),4)))
+        self.assertAlmostEqual(alpha({0:1,1:0,17:0,18:0},.5,.5),.25)
+
+    def test_skirts_and_incremental(self):
+        grid=[[float(x) for x in range(33)] for _ in range(33)]
+        flat=macro_mesh({(0,0):grid},0,0,4)
+        skirt=macro_mesh({(0,0):grid},0,0,4,256)
+        self.assertGreater(len(skirt.faces),len(flat.faces))
+        self.assertEqual(skirt.vertices[:len(flat.vertices)],flat.vertices)
+        draft=Draft(Browser.open([]))
+        world=draft.create_world("CacheWorld","Cache World",(0,0),(1,1))
+        with tempfile.TemporaryDirectory() as d:
+            a,b,c=(Path(d)/p for p in ("first","second","third"))
+            initial=export(draft.index(),world,a,levels=(4,),size=64)
+            repeat=export(draft.index(),world,b,levels=(4,),size=64,previous=a)
+            self.assertEqual(repeat["reused_tiles"],1)
+            self.assertEqual(repeat["rebuilt_tiles"],0)
+            (a/next(iter(initial["tiles"][0]["files"]))).write_bytes(b"damaged")
+            repaired=export(draft.index(),world,c,levels=(4,),size=64,previous=a)
+            self.assertEqual(repaired["rebuilt_tiles"],1)
