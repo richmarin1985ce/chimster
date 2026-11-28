@@ -22,3 +22,16 @@ def misc(profile,data,revision,*,editor_id,name,value,weight,bounds,model=None):
         parts.append((b"MODL",string(path)))
     parts.append((b"DATA",struct.pack("<if",value,weight)))
     return insert(profile,data,b"MISC",parts,revision)
+
+def static(profile,data,revision,*,editor_id,bounds,model,passthrough_sound=None):
+    """FNV STAT: public fopdoc STAT layout; no game assets bundled."""
+    if profile!="new-vegas":raise ValueError("Unverified template profile")
+    bounds=tuple(bounds)
+    if len(bounds)!=6 or any(type(v)!=int or not -32768<=v<=32767 for v in bounds) or any(bounds[i]>bounds[i+3] for i in range(3)):raise ValueError("Invalid bounds")
+    path=model.replace("/","\\")
+    if ":" in path or path.startswith("\\") or ".." in path.split("\\") or not path.lower().endswith(".nif"):raise ValueError("Invalid relative model path")
+    parts=[(b"EDID",string(editor_id)),(b"OBND",struct.pack("<6h",*bounds)),(b"MODL",string(path))]
+    if passthrough_sound is not None:
+        if type(passthrough_sound)!=int or not -1<=passthrough_sound<=9:raise ValueError("Invalid passthrough sound")
+        parts.append((b"BRUS",struct.pack("<b",passthrough_sound)))
+    return insert(profile,data,b"STAT",parts,revision)
