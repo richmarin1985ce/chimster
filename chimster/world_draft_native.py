@@ -146,6 +146,11 @@ def export_esp(draft, output):
         from .world_climate import encode
         body+=g(0,b"CLMT",b"".join(encode(r,slots) for r in sorted(climates,key=lambda r:r["key"])))
         records+=len(climates)
+    regions=[r for r in draft.rows.values() if r["signature"]=="REGN"]
+    if regions:
+        from .world_regions import encode
+        body+=g(0,b"REGN",b"".join(encode(r,slots) for r in sorted(regions,key=lambda r:r["key"])))
+        records+=len(regions)
     if interior:
         body+=g(0,b"CELL",b"".join(g(2,b,b"".join(g(3,s,b"".join(rs)) for s,rs in sorted(ss.items()))) for b,ss in sorted(interior.items())))
     if worlds:
@@ -180,6 +185,8 @@ def export_esp(draft, output):
             actual=merged.active.get(key)
             if actual is None or any(actual.get(f)!=row.get(f) for f in ("signature","world","cell","grid","editor_id","base","name")):
                 raise ValueError("Native world edit roundtrip mismatch")
+            if row["signature"]=="REGN" and actual.get("region_spec")!=row.get("region_spec"):
+                raise ValueError("Region roundtrip mismatch")
             if row["signature"]=="CLMT" and actual.get("climate_spec")!=row.get("climate_spec"):
                 raise ValueError("Climate roundtrip mismatch")
             if row["signature"]=="LAND" and actual.get("height_raw")!=row.get("height_raw"):
