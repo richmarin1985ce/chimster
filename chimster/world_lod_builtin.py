@@ -156,7 +156,7 @@ def export(browser,world,output,levels=LEVELS,size=128,assets=None,previous=None
                 normal=f"textures/{base}/normal/{name}.n.level{level}.x{x}.y{y}.dds"
                 # Include neighbor cells for edge normal/transition changes; input hashes are canonical.
                 area=[((cx,cy),cell_hashes[cx,cy]) for cx in range(x-1,x+level+1) for cy in range(y-1,y+level+1) if (cx,cy) in cell_hashes]
-                digest=sha256(json.dumps(["lod-v4",level,x,y,size,skirts,stitch,area,texture_dependencies],sort_keys=True,separators=(",",":"),allow_nan=False).encode()).hexdigest()
+                digest=sha256(json.dumps(["lod-v5",level,x,y,size,skirts,stitch,area,texture_dependencies],sort_keys=True,separators=(",",":"),allow_nan=False).encode()).hexdigest()
                 cached=old.get((level,x,y),{})
                 paths=(mesh_path,diffuse,normal)
                 if cached.get("input_sha256")==digest and set(cached.get("files",{}))==set(paths):
