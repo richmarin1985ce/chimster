@@ -14,6 +14,11 @@ def apply(profile,data,operations,expected_revision,validate=None):
         args=dict(operation)
         kind=args.pop("kind")
         fn={"replace":replace,"remove":remove,"insert":insert_adjacent,"typed":edit}.get(kind)
+        if kind=="ai_packages":
+            if profile!="morrowind":raise ValueError("Unsupported AI package profile")
+            from .tes3_ai_packages import manage
+            candidate=manage(candidate,**args,revision=revision(candidate))
+            continue
         if kind in ("create","duplicate"):
             if profile!="morrowind":raise ValueError("Unsupported creation profile")
             from .tes3_create import create
