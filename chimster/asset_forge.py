@@ -20,17 +20,22 @@ class Session:
     def __init__(self,mesh):
         self.mesh=deepcopy(checked(mesh))
         self.materials={}
-        self.past=[]
+        self.past=[];self.future=[]
     def groups(self):
         return sorted({m for _,m in self.mesh.faces})
     def commit(self,mesh,materials):
         checked(mesh)
         self.past.append((self.mesh,self.materials))
-        self.past=self.past[-5:]
+        self.past=self.past[-5:];self.future.clear()
         self.mesh,self.materials=mesh,materials
     def undo(self):
         if self.past:
+            self.future.append((self.mesh,self.materials))
             self.mesh,self.materials=self.past.pop()
+    def redo(self):
+        if self.future:
+            self.past.append((self.mesh,self.materials))
+            self.mesh,self.materials=self.future.pop()
     def transform(self,scale=1,yaw=0,ground=False):
         if not all(isfinite(v) for v in (scale,yaw)) or not 0<scale<=100000:
             raise ValueError("Invalid transform")
@@ -100,6 +105,28 @@ class Session:
         if group not in self.groups():raise ValueError("Unknown material group")
         m=deepcopy(self.mesh);m.faces=[(t,group if i in ids else mat) for i,(t,mat) in enumerate(m.faces)]
         self.commit(m,{k:v for k,v in self.materials.items() if k in {mat for _,mat in m.faces}})
+    def extrude_faces(self,indices,delta):
+        from .asset_topology import extrude
+        ids=set(indices);self.selection_vertices("face",ids)
+        mesh,new_faces=extrude(self.mesh,ids,delta)
+        self.commit(mesh,deepcopy(self.materials))
+        return new_faces
+    def weld_vertices(self,indices,tolerance):
+        from .asset_topology import weld
+        ids=self.selection_vertices("vertex",indices)
+        mesh=weld(self.mesh,ids,tolerance)
+        self.commit(mesh,{k:v for k,v in self.materials.items() if k in {mat for _,mat in mesh.faces}})
+    def project_uv(self,indices,plane):
+        from .asset_topology import planar_uv
+        ids=set(indices);self.selection_vertices("face",ids)
+        self.commit(planar_uv(self.mesh,ids,plane),deepcopy(self.materials))
+    def transform_uv(self,mode,indices,scale,offset):
+        ids=self.selection_vertices(mode,indices)
+        if len(scale)!=2 or len(offset)!=2 or not all(isfinite(v) for v in (*scale,*offset)) or 0 in scale:
+            raise ValueError("Invalid UV transform")
+        m=deepcopy(self.mesh)
+        for i in ids:m.uv[i]=tuple(m.uv[i][k]*scale[k]+offset[k] for k in range(2))
+        self.commit(m,deepcopy(self.materials))
     def report(self):
         return {**self.mesh.stats(),"bounds":bounds(self.mesh),"materials":self.groups(),
                 "bindings":deepcopy(self.materials)}
