@@ -326,6 +326,29 @@ def mount(parent, game, open_preview=None, viewport_drop=None):
                 x,y,w,h=map(int,raw.split(","))
                 world=draft.create_world(name,title,(x,y),(w,h))
                 state["world"]=world;key=None
+            elif action=="region":
+                world=state["world"]
+                if world is None:raise ValueError("Select an exterior worldspace")
+                import json
+                name=simpledialog.askstring("New region","Editor ID",parent=parent)
+                if not name:return
+                x,y=state["center"];x*=4096;y*=4096
+                spec={"areas":[{"points":[[x,y],[x+4096,y],[x+4096,y+4096],[x,y+4096]],"falloff":0}],"weather":[],"music":None,"priority":0,"map_name":name}
+                win=tk.Toplevel(parent);win.title("New region");win.transient(parent)
+                ttk.Label(win,text="Polygon vertices in game units; weather entries: [[plugin, local ID], chance, global or null].").pack(anchor="w")
+                editor=tk.Text(win,width=72,height=18);editor.pack(fill="both",expand=True)
+                editor.insert("1.0",json.dumps(spec,indent=2))
+                def save_region():
+                    try:
+                        if state["index"] is not index or state["draft"] is not draft:raise ValueError("Draft changed; reopen dialog")
+                        values=json.loads(editor.get("1.0","end"));values["world"]=(world.origin,world.local)
+                        draft.create_region(name,values)
+                        state["index"]=draft.index();refresh_cells()
+                        status.set("Region staged; export ESP to publish.")
+                        win.destroy()
+                    except (ValueError,TypeError,KeyError,OverflowError) as exc:messagebox.showerror("Region",str(exc),parent=win)
+                ttk.Button(win,text="Stage region",command=save_region).pack(pady=6)
+                return
             elif action=="climate":
                 name=simpledialog.askstring("New climate","Editor ID",parent=parent)
                 if not name:return
@@ -501,7 +524,7 @@ def mount(parent, game, open_preview=None, viewport_drop=None):
             messagebox.showerror("World edit draft",str(exc),parent=parent)
     editbar=ttk.Frame(parent)
     editbar.pack(fill="x",before=pane)
-    for title,action in (("New world","new_world"),("World properties","world"),("Environment","environment"),("New climate","climate"),("New cell","new"),("Rename","rename"),("Duplicate","duplicate"),("Place static","place"),("Transform","transform"),("Undo","undo"),("Redo","redo"),("Export draft","export"),("Export ESP","esp")):
+    for title,action in (("New world","new_world"),("World properties","world"),("Environment","environment"),("New climate","climate"),("New region","region"),("New cell","new"),("Rename","rename"),("Duplicate","duplicate"),("Place static","place"),("Transform","transform"),("Undo","undo"),("Redo","redo"),("Export draft","export"),("Export ESP","esp")):
         ttk.Button(editbar,text=title,command=lambda a=action:edit_draft(a)).pack(side="left")
     def object_palette():
         if state["index"] is None:return
@@ -576,6 +599,18 @@ def mount(parent, game, open_preview=None, viewport_drop=None):
         search.trace_add("write",populate)
         populate()
     ttk.Button(editbar,text="Object Window",command=object_palette).pack(side="left")
+    def export_world_lod():
+        index=state["index"];world=state["world"]
+        if index is None or world is None:return
+        folder=filedialog.askdirectory(title="Choose parent directory for portable LOD package")
+        if not folder:return
+        try:
+            from .world_lod import export
+            out=Path(folder)/("lod_"+world.origin.replace(".","_")+"_"+format(world.local,"06x"))
+            show(export(index,world,out))
+            status.set("Portable multi-resolution terrain LOD exported; not engine-native tiles.")
+        except (ValueError,OSError,TypeError,KeyError) as exc:messagebox.showerror("World LOD",str(exc),parent=parent)
+    ttk.Button(nav,text="Generate LOD",command=export_world_lod).pack(side="left")
     def profile_changed(*_):
         # Preserve staged work; changing the game selector must not discard it.
         if state.get('draft') and state['draft'].operations:
