@@ -9,6 +9,7 @@ from .mcp_jobs import Jobs
 from .mcp_events import Subscriptions
 from .mcp_native import NativeProposals
 from .mcp_extended import native_profile, native_browse, MeshProposals
+from .mcp_production import Production
 
 VERSIONS = ("2024-11-05", "2025-03-26", "2025-06-18", "2025-11-25")
 MAX_LINE = 1024 * 1024
@@ -26,6 +27,7 @@ class Bridge:
             raise ValueError("native edits require explicit FNV project and edit permission")
         self.native=NativeProposals(project,self.creation,allow_native) if project is not None else None
         self.mesh=MeshProposals(project,self.creation,allow_create) if project is not None else None
+        self.production=Production(project,self.creation,allow_create) if project is not None else None
         self.jobs = Jobs(project) if project is not None else None
         self.initialized = False
         self.ready = False
@@ -89,6 +91,20 @@ class Bridge:
                     continue
                 self.register("asset_inspect_"+op, "Inspect a selected project "+op+" artifact using existing Chimster tooling.",
                               schema({"id":key},["id"]),lambda id,op=op:inspect_asset(project,id,op))
+            operations=["navmesh","fuz","mesh-lod","mesh-preview"]
+            if project.read()["game"]=="newvegas":operations.append("native-build")
+            if importlib.util.find_spec("fontTools") is not None:operations.append("font")
+            if importlib.util.find_spec("PIL") is not None:operations.append("texture-material")
+            self.production_operations=tuple(operations)
+            self.register("production_preview","Stage a new derived artifact or atomic bundle without writing the project. Available operations: "+", ".join(operations),
+                          schema({"operation":{"type":"string","maxLength":32},"id":key,"output_id":key,"revision":{"type":"integer","minimum":0},
+                                  "master_ids":{"type":"array","minItems":0,"maxItems":4,"items":key},"aux_id":key},
+                                 ["operation","id","output_id","revision"]),self.production_preview)
+            if allow_create:
+                self.register("production_apply","Publish exactly the staged new artifacts in one project revision; never overwrite.",
+                              schema({"token":{"type":"string","maxLength":80}},["token"]),self.production.apply,write=True)
+            self.register("production_discard","Discard pending production bytes and token.",
+                          schema(),self.production_discard,write=True)
             jobkey={"type":"string","maxLength":32}
             self.register("diagnostic_start","Queue a bounded read-only diagnostic for a project artifact.",
                           schema({"operation":{"type":"string","maxLength":32},"id":key},["operation","id"]),self.start_job)
@@ -118,6 +134,12 @@ class Bridge:
                     self.register("project_"+direction,"Recover the latest session edit only; refuse intervening revisions.",
                                   schema({"revision":{"type":"integer","minimum":0}},["revision"]),
                                   lambda revision,direction=direction:self.creation.recover(direction,revision),write=True,destructive=True)
+    def production_preview(self,operation,**args):
+        if operation not in self.production_operations:raise ValueError("production operation unavailable")
+        return self.production.preview(operation,**args)
+    def production_discard(self):
+        self.production.pending=None
+        return {"discarded":True}
     def start_job(self, operation, id):
         identifier(id)
         if operation in ("quest","interior","papyrus","legacy-script","navmesh-registration"):
@@ -141,7 +163,7 @@ class Bridge:
     def capabilities(self):
         return {"application": "Chimster", "api_version": 1, "transport": self.transport,
                 "access": ("create-and-edit" if self.creation.enabled else "edit-only") if self.creation and self.creation.allow_edit else "create-only" if self.creation and self.creation.enabled else "read-only", "project_selected": self.project is not None,
-                "tools": sorted(self.registry), "native_write_granted": bool(self.native and self.native.enabled), "live_ui": self.allow_ui, "dashboard_context": self.project is not None}
+                "tools": sorted(self.registry), "production_operations":list(getattr(self,"production_operations",())), "native_write_granted": bool(self.native and self.native.enabled), "live_ui": self.allow_ui, "dashboard_context": self.project is not None}
     def editor_request(self,instance,action,revision,artifact=None):
         from .editor_commands import submit
         if not self.allow_ui or self.transport!="stdio":raise ValueError("local UI permission required")
