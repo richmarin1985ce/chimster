@@ -77,5 +77,33 @@ class WorldBrowserTests(unittest.TestCase):
         self.assertTrue(browser.cell_rows(None)[0]["interior"])
 
 
+    def test_preview_origin_and_persistent_markers(self):
+        from chimster.world_preview import preview
+        header = record(b"TES4",0,sub(b"MAST",b"Base.esm\0"))
+        persistent_cell = record(b"CELL",0x01000800,edid("Persistent"))
+        persistent = record(b"REFR",0x01000801,
+            sub(b"NAME",struct.pack("<I",0x803)),
+            sub(b"DATA",struct.pack("<6f",-7000,13000,128,0,0,0)),flags=0x400)
+        land = record(b"LAND",0x01000802,sub(b"VHGT",struct.pack("<f",2)+bytes(1092)))
+        neighbor = record(b"CELL",0x01000803,sub(b"XCLC",struct.pack("<ii",-1,3)))
+        self.patch.write_bytes(header+group(1,0x800,persistent_cell,
+            group(6,0x01000800,group(8,0x01000800,persistent)),
+            group(6,0x801,group(9,0x801,land)),neighbor))
+        browser = Browser.open([self.base,self.patch])
+        scene, report = preview(browser,self.cell,1)
+        self.assertEqual(report["cells"],2)
+        self.assertEqual(report["land_tiles"],1)
+        self.assertEqual(report["proxy_references"],2)
+        self.assertEqual(report["origin_game_units"],(-8192,12288,0))
+        marker = next(i for i in scene.instances if i.id=="patch.esp:000801")
+        self.assertAlmostEqual(marker.x,1192/128)
+        self.assertAlmostEqual(marker.z,1)
+        terrain = next(i for i in scene.instances if i.id.startswith("land:"))
+        self.assertAlmostEqual(scene.assets[terrain.asset].vertices[0][2],16/128)
+        with self.assertRaises(ValueError):
+            preview(browser,self.cell,3)
+
+
+
 if __name__ == "__main__":
     unittest.main()
