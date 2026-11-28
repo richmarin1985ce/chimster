@@ -7,11 +7,12 @@ from .scene import Scene,Instance,Camera,frame,demo_scene,load_obj
 
 def mount(parent):
     from .gpu_viewport import Renderer, Settings, make_demo, load_materials
-    from .render_effects import preset
+    from .render_effects import preset,LocalLight,FogVolume
     scene,materials=make_demo();camera=Camera();selected=None;drag=None
     effect_name=tk.StringVar(value="Off");water_enabled=tk.BooleanVar(value=False)
     point_enabled=tk.BooleanVar(value=False);spot_enabled=tk.BooleanVar(value=False)
     water_height=tk.StringVar(value="0");light_pos=tk.StringVar(value="2,2,5")
+    custom_fx={};local_fx={};extra_volumes=()
     renderer=None;panda=None;photo=None;render_size=(1,1);settings=Settings();failure=''
     backend=tk.StringVar(value='Panda3D');lod_text=tk.StringVar(value='22,45,90')
     toolbar=ttk.Frame(parent);toolbar.pack(fill="x")
@@ -27,11 +28,10 @@ def mount(parent):
     def draw():
         nonlocal renderer,panda,photo,render_size,failure
         canvas.delete("mesh");canvas.delete("gl")
-        from .render_effects import LocalLight
         try:
             pos=tuple(float(x) for x in light_pos.get().split(","))
-            lights=(LocalLight(position=pos,direction=(0,0,-1) if spot_enabled.get() else None,shadows=spot_enabled.get()),) if point_enabled.get() else ()
-            effects=replace(preset(effect_name.get()),water_level=float(water_height.get()) if water_enabled.get() else None,lights=lights).validate()
+            lights=(LocalLight(position=pos,direction=local_fx.get("direction",(0,0,-1)) if spot_enabled.get() else None,shadows=spot_enabled.get(),**{k:v for k,v in local_fx.items() if k!="direction"}),) if point_enabled.get() else ()
+            effects=replace(preset(effect_name.get()),water_level=float(water_height.get()) if water_enabled.get() else None,lights=lights,fog_volumes=extra_volumes,**custom_fx).validate()
         except ValueError as exc:
             status.set("Effects: "+str(exc));return
         if backend.get()=="Panda3D" and canvas.winfo_width()>4 and canvas.winfo_height()>4:
@@ -207,13 +207,54 @@ def mount(parent):
     fxchoice=ttk.Combobox(fxbar,textvariable=effect_name,values=("Off","Low","Medium","High"),state="readonly",width=9)
     fxchoice.pack(side="left");fxchoice.bind("<<ComboboxSelected>>",lambda e:draw())
     ttk.Checkbutton(fxbar,text="Preview water (Panda)",variable=water_enabled,command=draw).pack(side="left")
-    ttk.Checkbutton(fxbar,text="Point light (Panda)",variable=point_enabled,command=draw).pack(side="left")
+    ttk.Checkbutton(fxbar,text="Local light",variable=point_enabled,command=draw).pack(side="left")
     ttk.Label(fxbar,text="Water Z").pack(side="left")
     ttk.Entry(fxbar,textvariable=water_height,width=6).pack(side="left")
     ttk.Checkbutton(fxbar,text="Spot",variable=spot_enabled,command=draw).pack(side="left")
     ttk.Label(fxbar,text="Light XYZ").pack(side="left")
     ttk.Entry(fxbar,textvariable=light_pos,width=12).pack(side="left")
     ttk.Button(fxbar,text="Apply",command=draw).pack(side="left")
+    def advanced_lighting():
+        nonlocal custom_fx,local_fx,extra_volumes,settings
+        import json
+        win=tk.Toplevel(parent);win.title("Lighting and atmospheric controls")
+        ttk.Label(win,text="ModernGL: nested shadow maps and volumetric lighting. Panda: native lights, shadows, distance fog.").pack(padx=8,pady=6)
+        base=preset(effect_name.get())
+        keys=("ambient","sun_intensity","sun_color","shadow_size","shadow_extent","shadow_cascades","shadow_bias","fog_density","fog_color","fog_height","fog_falloff","scatter_strength","scatter_anisotropy","volume_steps","volume_distance")
+        fields={k:tk.StringVar(value=json.dumps(custom_fx.get(k,getattr(base,k)))) for k in keys}
+        fields["sun_direction"]=tk.StringVar(value=json.dumps(settings.light))
+        light=LocalLight()
+        for k in ("color","intensity","radius","cone","direction"):
+            fields["local_"+k]=tk.StringVar(value=json.dumps(local_fx.get(k,getattr(light,k) if k!="direction" else (0,0,-1))))
+        from dataclasses import asdict
+        fields["fog_volumes"]=tk.StringVar(value=json.dumps([asdict(v) for v in extra_volumes]))
+        body=ttk.Frame(win,padding=8);body.pack(fill="both",expand=True)
+        for i,(k,v) in enumerate(fields.items()):
+            c=(i//12)*2;r=i%12
+            ttk.Label(body,text=k.replace("_"," ")).grid(row=r,column=c,sticky="w",padx=4,pady=2)
+            ttk.Entry(body,textvariable=v,width=26).grid(row=r,column=c+1,sticky="ew",padx=4)
+        ttk.Label(win,text='Vectors: [x,y,z]. Fog volumes: [{"center":[0,0,0],"radius":8,"density":0.08}]').pack(padx=8)
+        def apply_fx():
+            nonlocal custom_fx,local_fx,extra_volumes,settings
+            try:
+                raw={k:json.loads(v.get()) for k,v in fields.items()}
+                custom={k:tuple(raw[k]) if k in ("sun_color","fog_color") else raw[k] for k in keys}
+                local={k:tuple(raw["local_"+k]) if k in ("color","direction") else raw["local_"+k] for k in ("color","intensity","radius","cone","direction")}
+                volumes=tuple(FogVolume(center=tuple(v["center"]),radius=v["radius"],density=v["density"]) for v in raw["fog_volumes"])
+                LocalLight(**local).validate()
+                replace(base,**custom,fog_volumes=volumes).validate()
+                next_settings=replace(settings,light=tuple(raw["sun_direction"])).validate()
+            except (ValueError,TypeError,KeyError,AttributeError) as exc:
+                messagebox.showerror("Lighting",str(exc),parent=win);return
+            custom_fx=custom;local_fx=local;extra_volumes=volumes;settings=next_settings
+            win.destroy();draw()
+        def reset_fx():
+            nonlocal custom_fx,local_fx,extra_volumes
+            custom_fx={};local_fx={};extra_volumes=();win.destroy();draw()
+        buttons=ttk.Frame(win);buttons.pack(fill="x",padx=8,pady=8)
+        ttk.Button(buttons,text="Apply overrides",command=apply_fx).pack(side="left")
+        ttk.Button(buttons,text="Reset to preset",command=reset_fx).pack(side="left")
+    ttk.Button(fxbar,text="Advanced lighting",command=advanced_lighting).pack(side="left")
     def tick_water():
         if parent.winfo_exists():
             if water_enabled.get() and backend.get()=="Panda3D":draw()
