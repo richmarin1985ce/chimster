@@ -55,3 +55,23 @@ def export_book(b,output,model=None,skill=-1,untakeable=False):
     except Exception:
         p.unlink();raise
     return {"output":str(p),"signature":sig.decode(),"form_id":2048,"status":"self-reader verified; engine validation pending"}
+
+
+def read_books(path):
+    """Read uncompressed FNV BOOK/NOTE text without modifying the plugin."""
+    result=[]
+    with Path(path).open("rb") as f:
+        for row in scan(path)["records"]:
+            if row["signature"] not in ("BOOK","NOTE"):continue
+            f.seek(row["offset"])
+            header=f.read(24)
+            _,size,flags,*_=HEADER.unpack(header)
+            if flags & 0x40000:continue
+            if size>4*1024*1024:raise ValueError("Oversized book record")
+            fields=dict(subs(f.read(size)))
+            key=b"DESC" if row["signature"]=="BOOK" else b"TNAM"
+            if key not in fields:continue
+            def decode(k):
+                return fields.get(k,b"").rstrip(b"\0").decode("cp1252",errors="strict")
+            result.append({"form_id":row["local_id"],"kind":row["signature"],"editor_id":decode(b"EDID"),"title":decode(b"FULL"),"body":decode(key),"model":decode(b"MODL")})
+    return result
