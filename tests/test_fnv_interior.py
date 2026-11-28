@@ -51,3 +51,36 @@ class InteriorNativeTests(unittest.TestCase):
             spec["cells"][0]["placements"].reverse()
             revised=FormIDs(b.name,ids.snapshot());export(spec,b,allocator=revised)
             self.assertEqual(ids.snapshot()["entries"],revised.snapshot()["entries"])
+
+    def test_door_links_portals_and_remap(self):
+        from chimster.record_project import export as records
+        from chimster.interior_runtime import door_visibility
+        layout={"schema":1,"rooms":[{"id":"L","min":[0,0,0],"max":[4,4,4]},
+                    {"id":"R","min":[4,0,0],"max":[8,4,4]}],
+                "portals":[{"id":"Pass","rooms":["L","R"],"corners":[[4,1,0],[4,3,0],[4,3,3],[4,1,3]]}]}
+        door={"id":"DoorBase","title":"Door","bounds":[-1,-1,0,1,1,3],"model":"meshes/door.nif"}
+        spec={"schema":1,"doors":[door],"cells":[
+            {"id":"A","title":"A","layout":layout,"portal_doors":{"Pass":"Swing"},
+             "placements":[{"id":"Swing","base":"DoorBase","position":[4,2,1]},
+                {"id":"Exit","base":"DoorBase","position":[1,1,0],"persistent":True,
+                 "linked_ref":"A/Swing","teleport":{"target":"B/Entry","arrival":[1,2,0],"yaw":180}}]},
+            {"id":"B","title":"B","placements":[{"id":"Entry","base":"DoorBase","position":[1,1,0],
+                "persistent":True,"teleport":{"target":"A/Exit","arrival":[2,1,0],"yaw":0}}]}]}
+        with TemporaryDirectory() as d:
+            root=Path(d);source=root/"Doors.esp";report=export(spec,source)
+            bindings=report["portal_bindings"];local=bindings[0]["local_id"]
+            self.assertEqual(door_visibility(layout,"A",bindings,{local:False},"L",[2,2,1])["visible_candidates"],["L"])
+            self.assertEqual(door_visibility(layout,"A",bindings,{local:True},"L",[2,2,1])["visible_candidates"],["L","R"])
+            self.assertEqual(validate([source])["teleport_references"],2)
+            master=root/"Extra.esp"
+            records({"schema":1,"records":[{"id":"G","type":"GLOB","fields":{"kind":"f","value":1.}}]},master)
+            stage=root/"stage";stage.mkdir();dest=stage/source.name
+            reorder(source,dest,[master],allow_set_change=True)
+            def links(path):
+                slots=Slots(path.name,scan(path)["masters"])
+                return [(r["key"],r["edges"]) for r in world_records("new-vegas",path.read_bytes(),slots)]
+            self.assertEqual(links(source),links(dest))
+            self.assertTrue(validate([master,dest])["valid"])
+            spec["cells"][1]["placements"][0].pop("teleport")
+            with self.assertRaisesRegex(ValueError,"reciprocal"):
+                export(spec,root/"Broken.esp")
