@@ -29,3 +29,20 @@ class ScriptSymbolTests(unittest.TestCase):
     def test_limit(self):
         self.assertEqual(len(complete("skyrim","papyrus","","",limit=2)),2)
         with self.assertRaises(ValueError):complete("skyrim","papyrus","","",limit=0)
+
+    def test_local_library(self):
+        from tempfile import TemporaryDirectory
+        from pathlib import Path
+        from chimster.script_symbols import index_papyrus_library
+        with TemporaryDirectory() as d:
+            root=Path(d)
+            (root/"Custom.psc").write_text("Scriptname Custom\nInt Function Example()\nEndFunction")
+            (root/"Ignore.txt").write_text("not a script")
+            result=index_papyrus_library(root)
+            self.assertEqual(result["files"],1)
+            symbols=lookup("skyrim","papyrus","","Example",library=result["symbols"])
+            self.assertEqual(symbols[0].origin,"library")
+            self.assertEqual(symbols[0].owner,"Custom")
+            self.assertTrue(symbols[0].path.endswith("Custom.psc"))
+            (root/"Second.psc").write_text("Scriptname Second")
+            with self.assertRaises(ValueError):index_papyrus_library(root,max_files=1)
