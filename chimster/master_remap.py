@@ -6,6 +6,8 @@ from .fnv_patch import sub
 from .fnv_bindings import Bindings
 from .loadorder import plugin_name
 from .remap_schema import PATTERNS,rewrite
+from .schema_reference import inspect as inspect_references
+from .record_graph import Slots
 SCHEMAS={
  b"GMST":(b"EDID",b"DATA"),
  b"GLOB":(b"EDID",b"FNAM",b"FLTV"),
@@ -30,6 +32,18 @@ def reorder(source,output,masters,*,allow_set_change=False):
             master=b.records.get(origin)
             if row["origin"] not in b.names or master is None or master["flags"]&0x20 or master["signature"]!=row["signature"]:
                 raise ValueError("missing or incompatible override origin: "+str(origin))
+    source_slots=Slots(p.name,old)
+    local_types={(x["origin"],x["local_id"]):x["signature"] for x in report["records"]}
+    def validate_types(signature,parts):
+        edges,_=inspect_references(signature,parts,source_slots)
+        for edge in edges:
+            key=(edge.target.origin,edge.target.local)
+            actual=local_types.get(key)
+            if actual is None:
+                rec=b.records.get(key)
+                if rec is not None and not rec["flags"]&0x20:actual=rec["signature"]
+            if edge.expected_types and actual not in edge.expected_types:
+                raise ValueError("unresolved or wrong-type reference: "+str(key))
     def remap(v):
         if v==0:return 0
         if v>>24>=len(slots) or not v&0xffffff:raise ValueError("invalid FormID")
@@ -79,6 +93,7 @@ def reorder(source,output,masters,*,allow_set_change=False):
                     new.append(sub(tag,v))
                 payload=b"".join(new)
             elif k in PATTERNS:
+                validate_types(k.decode("ascii"),parts)
                 payload,nchanged=rewrite(k,parts,remap_link);links+=nchanged
             elif tags!=SCHEMAS[k]:raise ValueError("unknown fields; remapping refused")
             else:
