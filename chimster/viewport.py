@@ -156,12 +156,19 @@ def mount(parent):
     def import_mesh(dropped=None):
         nonlocal selected
         if native_preview:return
-        p=dropped if dropped is not None else filedialog.askopenfilename(filetypes=[("Triangulated OBJ","*.obj")])
+        p=dropped if dropped is not None else filedialog.askopenfilename(filetypes=[("Static mesh","*.obj *.mesh"),("Triangulated OBJ","*.obj"),("Starfield external mesh","*.mesh")])
         if p:
             try:
-                m=load_obj(p);n=1
+                lods=[]
+                if Path(p).suffix.casefold()==".mesh":
+                    from .starfield_mesh import load
+                    m,lods,_=load(p)
+                else:m=load_obj(p)
+                n=1
                 while f"import-{n}" in scene.assets:n+=1
-                key=f"import-{n}";scene.assets[key]=m;scene.add(Instance(key,key));selected=key;sync()
+                key=f"import-{n}";scene.assets[key]=m
+                for i,lod in enumerate(lods,1):scene.assets[key+"@lod"+str(i)]=lod
+                scene.add(Instance(key,key));selected=key;sync()
             except (OSError,ValueError) as e:messagebox.showerror("Mesh",str(e))
     def start(e):
         nonlocal drag
@@ -387,7 +394,7 @@ def mount(parent):
             if water_enabled.get() and backend.get().startswith("Panda3D"):draw()
             parent.after(150,tick_water)
     parent.after(150,tick_water)
-    for label,cmd in [("Open scene",open_scene),("Save scene",save_scene),("Import OBJ",import_mesh),("Fit",fit),("Add tree",add),("Delete",delete),("Undo",lambda:(scene.undo(),sync())),("Redo",lambda:(scene.redo(),sync()))]:
+    for label,cmd in [("Open scene",open_scene),("Save scene",save_scene),("Import mesh",import_mesh),("Fit",fit),("Add tree",add),("Delete",delete),("Undo",lambda:(scene.undo(),sync())),("Redo",lambda:(scene.redo(),sync()))]:
         ttk.Button(toolbar,text=label,command=cmd).pack(side="left")
     ttk.Button(side,text="Apply transform",command=apply).pack(fill="x")
     objects.bind("<<ListboxSelect>>",select);canvas.bind("<Button-1>",pick);canvas.bind("<Button-3>",start);canvas.bind("<B3-Motion>",orbit)
@@ -439,9 +446,14 @@ def mount(parent):
                 units=simpledialog.askfloat("Preview scale","Game units per preview unit",initialvalue=1.,minvalue=.001,maxvalue=10000,parent=win)
                 if units is None:return
                 try:
-                    scene,report=catalog.preview(choices[ids[0]][0],units)
+                    from .starfield_mesh import MappedMeshes
+                    mapped=None
+                    if messagebox.askyesno("Starfield geometry","Use an optional NIF-to-.mesh manifest for native static geometry?",parent=win):
+                        manifest=filedialog.askopenfilename(parent=win,filetypes=[("Mesh manifest","*.json")])
+                        if manifest:mapped=MappedMeshes(manifest,units)
+                    scene,report=catalog.preview(choices[ids[0]][0],units,mapped)
                     if load_cell_preview(scene,report):
-                        source.set("Starfield experimental | "+report["cell"]+" | "+str(report["light_records"])+" lights | proxy geometry only")
+                        source.set("Starfield experimental | "+report["cell"]+" | "+str(report["light_records"])+" lights | "+str(report["model_references"])+" mapped models | "+str(report["proxy_references"])+" proxies")
                         win.destroy()
                 except Exception as exc:messagebox.showerror("Starfield preview",str(exc),parent=win)
             ttk.Button(win,text="Open read-only preview",command=choose).pack()
@@ -454,5 +466,5 @@ def mount(parent):
         if choice is True:open_scene(path)
         elif choice is False:import_materials(path)
     from .drop_import import editor_drop
-    editor_drop(parent,[((".json",),drop_json,False),((".obj",),import_mesh,False)],target=canvas)
+    editor_drop(parent,[((".json",),drop_json,False),((".obj",".mesh"),import_mesh,False)],target=canvas)
     return load_cell_preview

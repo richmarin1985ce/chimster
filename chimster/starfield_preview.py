@@ -72,7 +72,7 @@ def light(items):
     return dict(radius=radius,flags=flags,color=rgb(raw,8),fov=fov,kind=kind,kelvin=kelvin,lumen=lumen)
 
 def cell_lighting(raw,units):
-    if raw is None or len(raw) not in (108,108+0):return {}
+    if raw is None or len(raw)!=108:return {}
     return lighting_prefix(raw,units)
 
 def lighting_prefix(raw,units):
@@ -164,7 +164,8 @@ class Catalog:
         for p in self.plugins:
             for key,sig,flags,world,cell,fields,owner in p.scan(lambda sig,*_:sig==b"CELL"):
                 if flags&0x20:self.cells.pop(key,None);continue
-                self.cells[key]=(world,fields,owner)
+                keep={b"EDID",b"FULL",b"DATA",b"XCLL",b"XCLW",b"XCWT",b"LTMP"}
+                self.cells[key]=(world,[(tag,raw) for tag,raw in fields if tag in keep and len(raw)<=4096],owner)
                 if len(self.cells)>MAX_CELLS:raise ValueError("Cell index budget exceeded")
     def choices(self,query="",limit=100):
         q=query.casefold()
@@ -173,7 +174,7 @@ class Catalog:
             name=string(one(fields,b"EDID")) or (string(one(fields,b"FULL")) if not p.localized else "")
             if q in (label(key)+" "+name).casefold():out.append((key,name))
         return sorted(out,key=lambda x:(x[1].casefold(),x[0]))[:limit]
-    def preview(self,key,units=1.):
+    def preview(self,key,units=1.,meshes=None):
         if not isfinite(units) or not .001<=units<=10000:raise ValueError("Invalid game units per preview unit")
         world,fields,owner=self.cells[key]
         # Track moved/deleted overrides by resolving reference IDs in every cell,
@@ -219,7 +220,7 @@ class Catalog:
         level=height[0]/units if wet and height and abs(height[0]/units)<1e7 else None
         if level is not None and waterkey in records and records[waterkey][0]==b"WATR":fx.update(water(records[waterkey][1],units))
         assets={"proxy":box_mesh((-.18,-.18,0),(.18,.18,.65),"proxy")}
-        placed=[];lights=[];models=set();skipped=0;light_count=0
+        placed=[];lights=[];models=set();skipped=0;light_count=0;model_count=0;issues=[];failed=set()
         for rid,(flags,items,p) in sorted(refs.items()):
             transform=floats(one(items,b"DATA",24),6)
             scale=floats(one(items,b"XSCL",4),1)
@@ -240,12 +241,25 @@ class Catalog:
                 intensity=min(8.,max(.05,spec["lumen"]/1000.)) if spec["lumen"] else 1.
                 lights.append(asdict(LocalLight(position=xyz,color=spec["color"],radius=radius,intensity=intensity,direction=direction,cone=max(5.,min(120.,spec["fov"])) if direction else 45.,shadows=spec["kind"]==1).validate()))
                 continue
+            asset="proxy"
             if base:
                 model=string(one(base[1],b"MODL"))
-                if model:models.add(model)
-            placed.append(Instance(label(rid),"proxy",*xyz,degrees(transform[5]),scale))
+                if model:
+                    models.add(model)
+                    if meshes is not None and model not in failed:
+                        candidate="sf:"+model.replace("\\","/").casefold()
+                        try:
+                            if candidate not in assets:
+                                imported=meshes(model)
+                                if imported:
+                                    m,lods=imported;assets[candidate]=m
+                                    for i,lod in enumerate(lods,1):assets[candidate+"@lod"+str(i)]=lod
+                            if candidate in assets:asset=candidate;model_count+=1
+                        except (ValueError,OSError) as exc:
+                            failed.add(model);issues.append(model+": "+str(exc)[:120])
+            placed.append(Instance(label(rid),asset,*xyz,degrees(transform[5]),scale))
         # Include light positions as selection markers only where no geometry exists.
         if not placed and lights:
             placed=[Instance("light-"+str(i),"proxy",*row["position"],scale=.5) for i,row in enumerate(lights[:MAX_REFS])]
         scene=Scene(assets,placed)
-        return scene,dict(cell=label(key),cells=1,grid=None,land_tiles=0,proxy_references=len(placed),model_references=0,skipped_references=skipped,origin_game_units=(0,0,0),units_per_preview_unit=units,environment={},render_preview=dict(effects=fx,lights=lights,water_level=level),starfield=True,model_paths=sorted(models),light_records=light_count,issues=["Starfield experimental: proxy geometry; no native planet terrain or external .mesh loader"])
+        return scene,dict(cell=label(key),cells=1,grid=None,land_tiles=0,proxy_references=len(placed)-model_count,model_references=model_count,skipped_references=skipped,origin_game_units=(0,0,0),units_per_preview_unit=units,environment={},render_preview=dict(effects=fx,lights=lights,water_level=level),starfield=True,model_paths=sorted(models),light_records=light_count,issues=issues+["Starfield experimental: explicit mesh mapping only; no native NIF or planet terrain decoder"])

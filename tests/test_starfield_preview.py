@@ -50,3 +50,19 @@ class StarfieldPreviewTests(unittest.TestCase):
         import zlib
         raw=sub(b"XXXX",struct.pack("<I",3))+sub(b"DATA",b"abc")
         self.assertEqual(parts(struct.pack("<I",len(raw))+zlib.compress(raw),0x40000),[(b"DATA",b"abc")])
+
+    def test_static_mesh_and_lod(self):
+        from chimster.starfield_mesh import decode
+        data=struct.pack("<II3HfII",1,3,0,1,2,2.,0,3)
+        data+=struct.pack("<9h",0,0,0,32767,0,0,0,32767,0)
+        data+=struct.pack("<I6e",3,0,0,1,0,0,1)
+        data+=struct.pack("<5I",0,0,0,0,0)
+        data+=struct.pack("<II3H",1,3,0,1,2)
+        m,lods,report=decode(data)
+        self.assertEqual(m.vertices[1],(2.,0.,0.))
+        self.assertEqual(m.uv[2],(0.,0.))
+        self.assertEqual(len(lods),1)
+        self.assertEqual(report["version"],1)
+        with self.assertRaises(ValueError):decode(data[:-1])
+        broken=bytearray(data);struct.pack_into("<H",broken,8,99)
+        with self.assertRaises(ValueError):decode(broken)
