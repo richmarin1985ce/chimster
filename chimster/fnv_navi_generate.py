@@ -207,7 +207,7 @@ def candidate(project):
     come with independently established XCLC coordinates. Do not trust arbitrary
     user-supplied ordering or overwrite a plugin.
     """
-    from .fnv_navi_variants import infer_grid_order
+    from .fnv_navi_variants import infer_grid_order,decode
     from .fnv_navmesh_review import fields
     from .fnv_navmesh import inspect
     if set(project)-{"base","meshes","registrations","grid_references"}:
@@ -233,6 +233,19 @@ def candidate(project):
         if len(report["grid_candidates"])!=1:raise ValueError("native NAVM grid framing requires review")
         meshes.append((form(row["form_id"]),report))
     output=extend(base,meshes,registrations=metadata,grid_order=order)
+    new_ids={fid for fid,_ in meshes};new_maps={};new_connections={}
+    for tag,raw in output:
+        if tag==b"NVMI" and struct.unpack_from("<I",raw,4)[0] in new_ids:
+            row=decode(raw,grid_order=order or "xy");new_maps[row["mesh"]]=row
+        elif tag==b"NVCI":
+            row=connection(raw)
+            if row["mesh"] in new_ids:new_connections[row["mesh"]]=row
+    if set(new_maps)!=new_ids or set(new_connections)!=new_ids:raise ValueError("missing generated registration")
+    for fid,report in meshes:
+        meta=metadata.get(fid,{});row=new_maps[fid];links=new_connections[fid]
+        if row["location"]!=meta.get("world",report["raw_cell"]) or tuple(row["grid"])!=tuple(meta.get("grid",(0,0))):raise ValueError("generated registration location mismatch")
+        if set(links["standard"])|set(links["preferred"])!={e["raw_target"] for e in report["external"]}:raise ValueError("generated connection mismatch")
+        if set(links["doors"])!={d["raw_target"] for d in report["doors"]}:raise ValueError("generated door connection mismatch")
     return {"fields":[[k.decode("ascii"),v.hex()] for k,v in output],
             "grid_order":order,"new_registrations":len(meshes),"preserved_base_fields":len(base),
             "status":"experimental NAVI payload; verify worldspace, XCLC, preferred convention, GECK and engine behavior"}
