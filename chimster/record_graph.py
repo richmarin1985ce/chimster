@@ -108,6 +108,8 @@ class Graph:
             elif kinds is not None and row["signature"] not in kinds:
                 self.issues.append((owner,i,target,"wrong-type"))
     def deletion_review(self, identity):
+        unindexed=sorted(set(self.records)-self.indexed)
         return {"incoming":list(self.incoming.get(identity,())),
                 "opaque_records":sorted(self.opaque),
-                "safe":identity in self.records and not self.records[identity].get("flags",0)&0x20 and not self.incoming.get(identity) and not self.opaque and not (set(self.records)-self.indexed)}
+                "unindexed_records":unindexed,
+                "safe":identity in self.records and not self.records[identity].get("flags",0)&0x20 and not self.incoming.get(identity) and not self.opaque and not unindexed}
