@@ -81,6 +81,17 @@ def references(profile, signature, parts, slots):
         target = slots.decode(struct.unpack_from("<I",raw,spec.offset)[0])
         if target is not None:
             edges.append((i,spec.offset,target,spec.targets))
+    if profile == "new-vegas":
+        from .schema_reference import inspect
+        from .record_graph import FIELDS
+        extracted, unknown = inspect(signature, parts, slots)
+        known = {(i,offset): (i,offset,target,kinds) for i,offset,target,kinds in edges}
+        for edge in extracted:
+            spec = FIELDS.get((signature,parts[edge.field][0]))
+            kinds = tuple(sorted(spec[2])) if spec and spec[1]==edge.offset and spec[2] else ()
+            known[(edge.field,edge.offset)] = (edge.field,edge.offset,edge.target,kinds)
+        edges = list(known.values())
+        opaque = sorted(set(opaque) & set(unknown))
     return edges,opaque
 
 def inspect_node(profile, node, slots=None):
