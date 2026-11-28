@@ -94,7 +94,7 @@ def build_parser():
  a=s.add_parser('navmesh-navi-candidate'); a.add_argument('project'); a.add_argument('output')
  a=s.add_parser('navmesh-navi-reference'); a.add_argument('master'); a.add_argument('output'); a.add_argument('--mesh',type=lambda x:int(x,0),action='append',required=True)
  a=s.add_parser('navmesh-navi-inspect'); a.add_argument('fields'); a.add_argument('--grid-order',choices=('xy','yx'),required=True)
- a=s.add_parser('navmesh-navi-stage'); a.add_argument('stage'); a.add_argument('master'); a.add_argument('output')
+ a=s.add_parser('navmesh-navi-stage'); a.add_argument('stage'); a.add_argument('master'); a.add_argument('output'); a.add_argument('--reference-mesh',type=lambda x:int(x,0),action='append',default=[])
  a=s.add_parser('navmesh-registration'); a.add_argument('project')
  a=s.add_parser('navmesh-finalize'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--cell',type=lambda x:int(x,0),required=True); a.add_argument('--version',type=int,required=True); a.add_argument('--divisor',type=int,required=True); a.add_argument('--count-width',type=int,choices=(2,4),required=True); a.add_argument('--bindings')
  a=s.add_parser('navmesh-grid-compare'); a.add_argument('fields'); a.add_argument('--count-width',type=int,choices=(2,4),required=True)
@@ -546,7 +546,7 @@ def main(argv=None):
    result={"grid_order":n.grid_order,"entries":decoded,"unparsed":unparsed,"connections":index["connections"],"scope":"candidate native NAVI variant inspection; caller-selected coordinate convention"}
   elif n.cmd=='navmesh-navi-stage':
    from .fnv_navi_generate import stage_override
-   result=stage_override(n.stage,n.master,n.output)
+   result=stage_override(n.stage,n.master,n.output,reference_meshes=n.reference_mesh)
   elif n.cmd=='navmesh-registration':
    from .navmesh_tiles import load
    from .fnv_navmesh_review import registration_manifest
