@@ -13,10 +13,10 @@ import struct
 class Reference:
     field: int
     offset: int
-    target: Identity
+    target: Identity | None
     expected_types: tuple = ()
 
-def inspect(signature, parts, slots):
+def inspect(signature, parts, slots, include_null=False):
     """Return references and coverage; unsupported layouts remain opaque."""
     parts = list(parts)
     sig = signature.encode("ascii")
@@ -40,7 +40,7 @@ def inspect(signature, parts, slots):
                         offsets = (0,)
                 for offset in offsets:
                     target = slots.decode(struct.unpack_from("<I", raw, offset)[0])
-                    if target is not None:
+                    if target is not None or include_null:
                         spec = FIELDS.get((signature, tag))
                         kinds = tuple(sorted(spec[2])) if spec and spec[1] == offset and spec[2] else ()
                         if sig == b"PERK" and tag == b"DATA":
@@ -51,8 +51,14 @@ def inspect(signature, parts, slots):
             return edges, ()
     from .record_graph import FIELDS
     edges, opaque = references(signature, parts, slots)
-    return [Reference(i, FIELDS[signature, parts[i][0]][1], target, tuple(sorted(kinds or ())))
-            for i, target, kinds in edges], tuple(opaque)
+    result = [Reference(i, FIELDS[signature, parts[i][0]][1], target, tuple(sorted(kinds or ())))
+              for i, target, kinds in edges]
+    if include_null:
+        for i, (tag, raw) in enumerate(parts):
+            spec = FIELDS.get((signature, tag))
+            if spec and len(raw) == spec[0] and struct.unpack_from("<I", raw, spec[1])[0] == 0:
+                result.append(Reference(i, spec[1], None, tuple(sorted(spec[2] or ()))))
+    return result, tuple(opaque)
 
 class ReferenceIndex:
     """In-memory bidirectional index of caller-selected winning records.
