@@ -1,6 +1,14 @@
 name: MCP interoperability tests
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'chimster/mcp_*.py'
+      - 'chimster/editor_*.py'
+      - 'chimster/project*.py'
+      - 'tests/test_mcp*.py'
+      - '.github/workflows/mcp-tests.yml'
   pull_request:
     paths:
       - 'chimster/mcp_*.py'
