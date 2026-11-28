@@ -28,7 +28,10 @@ def mount(parent, game, open_preview=None):
     toolbar.pack(fill="x")
     plugins = tk.Listbox(parent, height=3, exportselection=False)
     plugins.pack(fill="x")
+    def allow_reset():
+        return not (state.get('draft') and state['draft'].operations) or messagebox.askyesno('Discard draft?','Changing the load order or rebuilding discards the in-memory draft. Export first if needed. Continue?',parent=parent)
     def add():
+        if not allow_reset():return
         for p in filedialog.askopenfilenames(filetypes=[("New Vegas plugins", "*.esm *.esp")]):
             if p not in state["paths"]:
                 state["paths"].append(p)
@@ -50,15 +53,16 @@ def mount(parent, game, open_preview=None):
             return
         i = plugins.curselection()[0]
         j = i + delta
-        if 0 <= j < len(state["paths"]):
+        if 0 <= j < len(state["paths"]) and allow_reset():
             state["paths"][i], state["paths"][j] = state["paths"][j], state["paths"][i]
             update_paths()
             plugins.selection_set(j)
     def remove():
-        if plugins.curselection():
+        if plugins.curselection() and allow_reset():
             state["paths"].pop(plugins.curselection()[0])
             update_paths()
     def load():
+        if not allow_reset():return
         try:
             if canonical_profile(game.get()) != "new-vegas":
                 raise ValueError("Select New Vegas in the main game selector.")
@@ -237,6 +241,8 @@ def mount(parent, game, open_preview=None):
                 if size>=19:
                     canvas.create_text(x+size/2,y+size/2,text=f"{grid[0]}\n{grid[1]}",fill="white",font=("TkDefaultFont",7),tags=(tag,))
     def render_cell(focus=None):
+        if canonical_profile(game.get())!='new-vegas':
+            status.set('Select New Vegas to load this preview.');return
         if state['index'] is None or state['cell'] is None or open_preview is None:
             status.set('Select a cell first.');return
         try:
@@ -312,6 +318,10 @@ def mount(parent, game, open_preview=None):
     for title,action in (("New cell","new"),("Rename","rename"),("Place static","place"),("Undo","undo"),("Redo","redo"),("Export draft","export")):
         ttk.Button(editbar,text=title,command=lambda a=action:edit_draft(a)).pack(side="left")
     def profile_changed(*_):
+        # Preserve staged work; changing the game selector must not discard it.
+        if state.get('draft') and state['draft'].operations:
+            status.set('Existing New Vegas draft retained. Export before rebuilding for another profile.')
+            return
         update_paths()
     worlds.bind("<<ComboboxSelected>>", select_world)
     cells.bind("<<TreeviewSelect>>", select_cell)
