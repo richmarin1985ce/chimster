@@ -87,3 +87,21 @@ class StarfieldPreviewTests(unittest.TestCase):
             dds=read(p,name.decode())
             self.assertTrue(dds.startswith(b"DDS "))
             self.assertEqual(dds[148:],raw)
+
+    def test_external_nif_graph(self):
+        from chimster.starfield_nif import geometry,AutoMeshes
+        def sized(s):return struct.pack("<I",len(s))+s
+        def av(x):return struct.pack("<IIiI13fi",0xffffffff,0,-1,0,x,0,0,1,0,0,0,1,0,0,0,1,1,-1)
+        shape=av(2)+bytes(40)+struct.pack("<3i",-1,-1,-1)+b"\x01"+struct.pack("<3I",3,3,0)+sized(b"test")+bytes(3)
+        node=av(3)+struct.pack("<Ii",1,1)
+        raw=b"Gamebryo File Format, Version 20.2.0.7\n"+struct.pack("<IBIII",0x14020007,1,12,2,172)+b"\x00"+bytes(4)+bytes(2)
+        raw+=struct.pack("<H",2)+sized(b"NiNode")+sized(b"BSGeometry")+struct.pack("<2H2I3I",0,1,len(node),len(shape),0,0,0)+node+shape+struct.pack("<Ii",1,0)
+        rows=geometry(raw);self.assertEqual(rows[0][1][0][0],"geometries/test.mesh")
+        data=struct.pack("<II3HfII",0,3,0,1,2,2.,0,3)+struct.pack("<9h",0,0,0,32767,0,0,0,32767,0)+struct.pack("<6I",0,0,0,0,0,0)
+        class Source:
+            def read(self,path):return {"meshes/test.nif":raw,"geometries/test.mesh":data}[path]
+        m,lods=AutoMeshes(Source())("test.nif")
+        self.assertEqual(m.vertices[0],(5.,0.,0.))
+        self.assertEqual(m.vertices[1],(7.,0.,0.))
+        self.assertEqual(lods,[])
+        with self.assertRaises(ValueError):geometry(raw[:-1])

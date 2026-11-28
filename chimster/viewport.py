@@ -448,7 +448,13 @@ def mount(parent):
                 try:
                     from .starfield_mesh import MappedMeshes
                     mapped=None
-                    if messagebox.askyesno("Starfield geometry","Use an optional NIF-to-.mesh manifest for native static geometry?",parent=win):
+                    if messagebox.askyesno("Starfield native geometry","Load NIF and external mesh geometry directly from BA2 archives or loose Data?",parent=win):
+                        from .starfield_assets import Sources
+                        from .starfield_nif import AutoMeshes
+                        archives=filedialog.askopenfilenames(parent=win,title="Select BA2 archives in low-to-high priority",filetypes=[("BA2 archives","*.ba2")])
+                        loose=filedialog.askdirectory(parent=win,title="Optional loose Data directory")
+                        if archives or loose:mapped=AutoMeshes(Sources(archives,loose),units)
+                    elif messagebox.askyesno("Starfield geometry","Use an optional NIF-to-.mesh manifest for native static geometry?",parent=win):
                         manifest=filedialog.askopenfilename(parent=win,filetypes=[("Mesh manifest","*.json")])
                         if manifest:
                             from .starfield_assets import Sources
