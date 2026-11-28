@@ -31,3 +31,22 @@ def visible(layout,room,planes,closed=()):
         for n in graph[q.popleft()]:
             if n not in found:found.add(n);q.append(n)
     return {"visible_candidates":sorted(found),"culled":sorted(set(graph)-found),"outside_frustum_portals":sorted(rejected),"scope":"conservative frustum-plane portal rejection; no recursive aperture clipping or renderer integration"}
+
+def door_visibility(layout,cell,bindings,door_states,room,eye,planes=(),budget=4096):
+    """Preview visibility with explicitly known open/closed native door identities.
+    Missing state is treated as open for conservative rendering. IDs are plugin-local.
+    """
+    known={p["id"] for p in layout.get("portals",[])}
+    mapping={}
+    for entry in bindings:
+        if entry["cell"]!=cell:continue
+        pid=entry["portal"];local=entry["local_id"]
+        if pid not in known or pid in mapping or type(local) is not int or not 0<local<=0xffffff:
+            raise ValueError("invalid portal binding")
+        mapping[pid]=local
+    if any(type(state) is not bool for state in door_states.values()):
+        raise ValueError("door states must be boolean open flags")
+    blocked=[pid for pid,local in mapping.items() if door_states.get(local) is False]
+    from .portal_clip import visible
+    return {**visible(layout,room,eye,planes,blocked,budget),"closed_portals":sorted(blocked),
+            "scope":"portable visibility preview, not live game door state"}
