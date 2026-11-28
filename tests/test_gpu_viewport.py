@@ -109,3 +109,20 @@ class ViewportTests(unittest.TestCase):
             restored,_=r.render(s,cam,96,72,m)
             self.assertEqual(restored,baseline)
         finally:r.close()
+
+    @unittest.skipUnless(os.environ.get("CHIMSTER_TEST_GL"),"optional GL context")
+    def test_reflective_material_target_and_picking(self):
+        from dataclasses import replace
+        from chimster.render_effects import Effects
+        s,m=make_demo();r=Renderer(backend="egl")
+        try:
+            cam=Camera(zoom=4)
+            a,_=r.render(s,cam,96,72,m)
+            pick=r.pick(48,36)
+            m={k:replace(v,reflectivity=.8) for k,v in m.items()}
+            b,_=r.render(s,cam,96,72,m,effects=Effects(ssr_strength=.7,ssr_steps=16))
+            self.assertEqual(len(a),len(b))
+            self.assertEqual(r.pick(48,36),pick)
+            self.assertIn(204,r.targets[2].read(alignment=1)[3::4])
+            with self.assertRaises(ValueError):Material(reflectivity=2).validate()
+        finally:r.close()

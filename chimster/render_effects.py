@@ -64,6 +64,9 @@ class Effects:
     water_extent:float=32.
     water_color:tuple=(.05,.25,.31)
     reflection_size:int=0
+    ssr_strength:float=0.
+    ssr_steps:int=16
+    ssr_distance:float=30.
     refraction:bool=False
     water_absorption:float=.18
     water_foam:float=.65
@@ -78,6 +81,7 @@ class Effects:
             raise ValueError("Invalid scattering parameters")
         for value,lo,hi in ((self.water_absorption,0,4),(self.water_foam,0,1),(self.underwater_density,0,1)):
             if not isfinite(value) or not lo<=value<=hi:raise ValueError("Invalid water optics")
+        if self.ssr_steps not in (8,16,24,32) or not isfinite(self.ssr_strength) or not 0<=self.ssr_strength<=1 or not isfinite(self.ssr_distance) or not 1<=self.ssr_distance<=100:raise ValueError("Invalid SSR settings")
         if self.reflection_size not in (0,128,256,512):
             raise ValueError("Invalid reflection resolution")
         if self.refraction and not self.reflection_size:raise ValueError("Refraction requires water buffers")
@@ -102,5 +106,5 @@ def preset(name):
     if name=="Off":return Effects()
     if name=="Low":return Effects(fog_density=.012,ao_strength=.3)
     if name=="Medium":return Effects(shadow_size=512,environment_strength=.35,reflection_size=256,fog_density=.018,ao_strength=.45,scatter_strength=.35,volume_steps=8,fog_falloff=.015)
-    if name=="High":return Effects(shadow_size=1024,shadow_cascades=2,environment_strength=.6,reflection_size=512,refraction=True,fog_density=.022,ao_strength=.65,scatter_strength=.65,volume_steps=16,fog_falloff=.02)
+    if name=="High":return Effects(shadow_size=1024,shadow_cascades=2,environment_strength=.6,ssr_strength=.6,ssr_steps=24,reflection_size=512,refraction=True,fog_density=.022,ao_strength=.65,scatter_strength=.65,volume_steps=16,fog_falloff=.02)
     raise ValueError("Unknown effects preset")
