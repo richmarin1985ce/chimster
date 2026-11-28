@@ -129,6 +129,9 @@ Added ordinary non-island interior NVMI/NVCI generation, counted connection refe
 ### NAVI variant review pass
 Added explicit exterior NVMI payload candidates with reference-calibrated signed XY/YX grid order, preferred neighbor partition and explicit preferred value, bounded read-only island payload decoding, roundtrip registration/door/connection checks, CLI inspection and strict NVCI review. Five isolated codec unit tests passed; integrated repository and retail/GECK tests not run. Exterior and preferred output remains payload-only, island emission and existing-master topology modification remain gated. Direct ESP writer remains new-interior-only. Milestone estimates unchanged.
 
+### NAVI reference-backed island continuation
+Reviewed 87 intervening main-branch commits; no conflicting NAVI source changes. Added explicit island candidate serialization gated by byte-exact reproduction from an existing native NVMI/NAVM pair, plus read-only master reference extraction using CELL/WRLD ancestry and XCLC coordinates. Nine isolated codec tests passed (five existing and four new). Integration and retail/native runtime tests remain outstanding; exterior ESP integration and existing master topology changes gated. Milestone scores unchanged.
+
 ## Critical path
 1. Stable project FormID allocation, typed native record schema and dependency-safe edits.
 2. Integrated native interior cells, architectural assets, room/portal/trigger volumes, placed references and collision.
