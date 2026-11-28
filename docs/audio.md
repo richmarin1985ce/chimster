@@ -71,3 +71,9 @@ python -m chimster.voice_takes select Takes TAKE_ID StagedVoiceSource
 ````
 
 Takes are copied, hash-checked, assigned a unique ID, and include explicit performer and rights metadata. Selection creates a new staged WAV without overwriting other takes. Rights metadata is a user declaration, not independent proof. Automatic native INFO extraction is still pending: the current verified writer covers FNV's generated TRDT/NAM1 layout, while this voice manifest currently covers Skyrim/FO4 and requires exact stems rather than guessed native names. Test execution remains deferred.
+
+## Native FNV dialogue extraction and microphone recording
+
+`python -m chimster.dialogue_audio Quest.esp --output lines.json` extracts supported 24-byte TRDT / NAM1 INFO response pairs from a local FNV plugin, using origin/local FormID identity and response number. Compressed payloads use the existing bounded decoder. Invalid records are reported rather than guessed. Optional `--mapping exact-paths.json` joins each line ID to explicit voice stems. This is not automatic filename resolution, a winning-load-order audit or a Skyrim/FO4 FUZ manifest.
+
+Open Assets > Voice containers > Record and manage takes. Install the optional `recording` extra and platform PortAudio if needed. Select a microphone, specify performer and rights, and confirm a bounded recording (0.1–300 seconds). Cancellation discards capture before registration where possible; import WAV, preview and stage a selected take are also supported. The CLI is `python -m chimster.voice_record devices` or `python -m chimster.voice_record record new.wav --device 0 --seconds 10`. The desktop FUZ tools now use the same strict XWMA validator as batch processing and extract .xwm rather than .bin. Native capture and game compatibility remain untested in this environment.
