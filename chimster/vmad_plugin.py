@@ -2,7 +2,7 @@
 from pathlib import Path
 import struct
 import hashlib
-from .vmad import parse, edit, GAMES, MAX
+from .vmad import parse, edit, mutate, GAMES, MAX
 from .core import inspect_plugin
 
 LIMIT=128*1024*1024
@@ -19,7 +19,7 @@ def load(path,game):
     if p.read_bytes()!=raw:raise ValueError("plugin changed during inspection")
     return raw
 
-def locate(raw,form):
+def find_record(raw,form):
     found=[]
     def walk(a,b,groups=()):
         if len(groups)>64:raise ValueError("group nesting limit")
@@ -35,8 +35,13 @@ def locate(raw,form):
     walk(0,len(raw))
     if len(found)!=1:raise ValueError("missing or duplicate disk FormID")
     a,end,sig,flags,groups=found[0]
+    return a,end,sig,flags,groups
+
+def locate(raw,form,allow_missing=False):
+    a,end,sig,flags,groups=find_record(raw,form)
     if flags&0x40000:raise ValueError("compressed target not supported")
     start=a+24
+    insertion=start
     fields=[]
     while start<end:
         if start+6>end:raise ValueError("truncated subrecord")
@@ -50,16 +55,21 @@ def locate(raw,form):
             if k==b"XXXX":raise ValueError("nested XXXX")
             start+=10
         if start+n>end:raise ValueError("invalid subrecord")
+        if k==b"EDID" and header==a+24:insertion=start+n
         if k==b"VMAD":fields.append((header,start,start+n))
         start+=n
+    if not fields and allow_missing:return a,end,sig,groups,(insertion,insertion,insertion)
     if len(fields)!=1:raise ValueError("expected one existing VMAD")
     return a,end,sig,groups,fields[0]
 
 def inspect(path,game,form):
     raw=load(path,game)
-    a,end,sig,groups,(_,start,stop)=locate(raw,form)
+    a,end,sig,groups,(_,start,stop)=locate(raw,form,allow_missing=True)
+    if start==stop:
+        return {"plugin_sha256":hashlib.sha256(raw).hexdigest(),"disk_form_id":form,
+                "signature":sig.decode("ascii"),"sha256":hashlib.sha256(b"").hexdigest(),"scripts":[],"vmad_present":False}
     return {"plugin_sha256":hashlib.sha256(raw).hexdigest(),"disk_form_id":form,
-            "signature":sig.decode("ascii"),**parse(raw[start:stop],game)}
+            "signature":sig.decode("ascii"),"vmad_present":True,**parse(raw[start:stop],game)}
 
 def stage(path,output,game,form,script,prop,value,expected_plugin_sha256,expected_vmad_sha256):
     p=Path(path);q=Path(output)
@@ -70,6 +80,9 @@ def stage(path,output,game,form,script,prop,value,expected_plugin_sha256,expecte
     a,end,sig,groups,(header,start,stop)=locate(raw,form)
     if sig not in EDITABLE:raise ValueError("record family not enabled for VMAD edits")
     data=edit(raw[start:stop],game,script,prop,value,expected_vmad_sha256)
+    return publish(p,q,raw,a,sig,groups,header,stop,data,game,form)
+
+def publish(p,q,raw,a,sig,groups,header,stop,data,game,form):
     if len(data)>MAX:raise ValueError("edited VMAD too large")
     # Preserve all other subrecords, flags, group labels, and record identities.
     sub=b"VMAD"+struct.pack("<H",len(data))+data if len(data)<=65535 else (
@@ -87,3 +100,40 @@ def stage(path,output,game,form,script,prop,value,expected_plugin_sha256,expecte
     except Exception:
         q.unlink();raise
     return {"output":str(q),**result}
+
+
+def stage_mutation(path,output,game,form,action,script,expected_plugin_sha256,expected_vmad_sha256,
+                   *,property_name=None,type_id=None,value=None,pex=None):
+    p,q=Path(path),Path(output)
+    if p.name!=q.name or p.resolve()==q.resolve() or q.exists() or q.is_symlink():
+        raise ValueError("new same-name plugin in separate staging directory required")
+    raw=load(p,game)
+    if hashlib.sha256(raw).hexdigest()!=expected_plugin_sha256:raise ValueError("stale plugin snapshot")
+    a,end,sig,groups,(header,start,stop)=locate(raw,form,allow_missing=True)
+    if sig not in EDITABLE:raise ValueError("record family not enabled")
+    before=raw[start:stop]
+    if hashlib.sha256(before).hexdigest()!=expected_vmad_sha256:raise ValueError("stale VMAD snapshot")
+    if not before:
+        if action!="attach" or header!=a+24 and raw[a+24:a+28]!=b"EDID":
+            raise ValueError("no supported VMAD attachment location")
+        # Restrict creation to plain base records with leading EDID; no
+        # placed-reference or actor fragment layouts until native verification.
+        if sig in (b"REFR",b"ACHR") or raw[a+24:a+28]!=b"EDID":
+            raise ValueError("new VMAD requires a supported base record with EDID")
+        before=struct.pack("<HHH",5,2,0)
+    if action=="attach":
+        from .papyrus_build import inspect_pex
+        if not pex or Path(pex).stem.casefold()!=script.casefold():
+            raise ValueError("matching compiled PEX required")
+        artifact=inspect_pex(pex,game)
+        if artifact["source"] and Path(artifact["source"].replace("\\","/")).stem.casefold()!=script.casefold():
+            raise ValueError("PEX source name differs")
+    elif pex:raise ValueError("PEX only applicable to attach")
+    def validate_form(fid):
+        try:
+            _,_,sig,flags,_=find_record(raw,fid)
+            return sig!=b"TES4" and not flags&0x20
+        except ValueError:return False
+    data=mutate(before,game,action,script,hashlib.sha256(before).hexdigest(),
+                property_name=property_name,type_id=type_id,value=value,validate_form=validate_form)
+    return publish(p,q,raw,a,sig,groups,header,stop,data,game,form)
