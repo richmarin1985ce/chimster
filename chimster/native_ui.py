@@ -173,6 +173,99 @@ def mount(parent, game=None):
             dialog.destroy();restore_selection(path)
         ttk.Button(dialog,text="Apply selected property",command=guard(apply_property)).pack(anchor="e")
         grid.bind("<Double-1>",lambda event:guard(apply_property)())
+
+    def remember(old):
+        s=state["session"]
+        if s.data!=old:
+            state["undo"].append(old);state["undo"]=state["undo"][-8:];state["redo"].clear()
+    def duplicate_record():
+        path=selected();s=state["session"]
+        new=simpledialog.askstring("Duplicate record","New Editor ID:",parent=parent)
+        if new is None:return
+        old=s.data
+        if s.profile=="morrowind":
+            if len(path)!=1:raise ValueError("Select a named TES3 record")
+            identity=s.create_or_duplicate(s.revision,"duplicate",index=path[0],new_id=new)
+        else:
+            identity=s.create_or_duplicate(s.revision,"native_duplicate",path=path,new_id=new)
+        remember(old);restore_selection(s.resolve_identity(identity))
+    def create_record():
+        s=state["session"]
+        if s is None:raise ValueError("Open a plugin first")
+        if s.profile not in ("morrowind","new-vegas","fallout3"):
+            raise ValueError("Creation templates for this profile are not yet verified")
+        editor_id=simpledialog.askstring("Create miscellaneous item","Editor ID:",parent=parent)
+        if editor_id is None:return
+        name=simpledialog.askstring("Create miscellaneous item","Display name:",parent=parent)
+        if name is None:return
+        model=simpledialog.askstring("Create miscellaneous item","Relative NIF model path:",parent=parent)
+        if model is None:return
+        value=simpledialog.askinteger("Create miscellaneous item","Value:",minvalue=0,maxvalue=2147483647,parent=parent)
+        if value is None:return
+        weight=simpledialog.askfloat("Create miscellaneous item","Weight:",minvalue=0,maxvalue=1000000,parent=parent)
+        if weight is None:return
+        old=s.data
+        if s.profile=="morrowind":
+            identity=s.create_or_duplicate(s.revision,"create",signature="MISC",new_id=editor_id,name=name,model=model,properties={"value":value,"weight":weight})
+        else:
+            identity=s.create_or_duplicate(s.revision,"native_misc",editor_id=editor_id,name=name,model=model,value=value,weight=weight,bounds=[0]*6)
+        remember(old);restore_selection(s.resolve_identity(identity))
+    def retarget():
+        path=selected();s=state["session"];revision=s.revision
+        fields=s.reference_fields(path)
+        if not fields:raise ValueError("No supported references in selected record")
+        dialog=tk.Toplevel(parent);dialog.title("Native reference selector");dialog.geometry("700x480")
+        labels=[f'{f["tag"]} #{f["index"]} +{f["offset"]}: {f["target"]}' for f in fields]
+        choice=ttk.Combobox(dialog,values=labels,state="readonly");choice.pack(fill="x");choice.current(0)
+        query=tk.StringVar()
+        ttk.Entry(dialog,textvariable=query).pack(fill="x")
+        ttk.Label(dialog,text="Filter by plugin, local ID, record type or Editor ID (first 200 matches).").pack(anchor="w")
+        grid=ttk.Treeview(dialog,columns=("origin","id","type","editor"),show="headings")
+        for col,label,width in (("origin","Origin plugin",175),("id","Local ID",85),("type","Type",70),("editor","Editor ID",220)):
+            grid.heading(col,text=label);grid.column(col,width=width)
+        grid.pack(fill="both",expand=True);entries={}
+        def populate(*_):
+            grid.delete(*grid.get_children());entries.clear()
+            f=fields[choice.current()]
+            for row in s.reference_targets(path,f["index"],f["offset"],query.get()):
+                item=grid.insert("","end",values=(row["origin"],f'{row["local_id"]:06X}',row["signature"],row["editor_id"]))
+                entries[item]=row["identity"]
+        def apply_target():
+            if state["session"] is not s or s.revision!=revision:raise ValueError("Reference selector is stale")
+            if not grid.selection():raise ValueError("Select a target")
+            from .native_identity import parse_token
+            _,target=parse_token(entries[grid.selection()[0]],s.profile)
+            f=fields[choice.current()];old=s.data
+            s.apply(revision,[(path,f["index"],f["target"],target,f["offset"])])
+            remember(old);dialog.destroy();restore_selection(path)
+        choice.bind("<<ComboboxSelected>>",populate);query.trace_add("write",populate)
+        ttk.Button(dialog,text="Retarget selected reference",command=guard(apply_target)).pack(anchor="e")
+        populate()
+    def compare_record():
+        path=selected();s=state["session"]
+        key=s.rows.get(path,{}).get("key")
+        if key is None:raise ValueError("Select an identified record")
+        name=filedialog.askopenfilename(filetypes=[("Plugins","*.esp *.esm *.esl")])
+        if not name:return
+        p=Path(name);data=p.read_bytes();nodes=parse(s.profile,data)
+        masters=[raw.rstrip(bytes(1)).decode("cp1252") for tag,raw in subrecords(s.profile,nodes[0]) if tag==b"MAST"]
+        other=NativeSession(s.profile,data,None if s.slots is None else Slots(p.name,masters))
+        matches=other.paths.get(key,())
+        if len(matches)!=1:raise ValueError("Same persistent record identity not uniquely found")
+        from .native_compare import semantic_compare
+        report=semantic_compare(s.profile,s.data,path,s.slots,data,matches[0],other.slots)
+        dialog=tk.Toplevel(parent);dialog.title("Record conflict comparison");dialog.geometry("800x480")
+        ttk.Label(dialog,text=str(key)+" | "+report["semantic_coverage"]).pack(anchor="w")
+        grid=ttk.Treeview(dialog,columns=("status","left","right"),show="tree headings")
+        grid.heading("#0",text="Field / occurrence");grid.column("#0",width=130)
+        for col in ("status","left","right"):grid.heading(col,text=col.title());grid.column(col,width=175)
+        for row in report["fields"]:
+            def value(side):
+                item=row[side]
+                return "" if item is None else item["preview"]
+            grid.insert("","end",text=f'{row["tag"]} #{row["occurrence"]+1}',values=(row.get("semantic_status",row["status"]),value("left"),value("right")))
+        grid.pack(fill="both",expand=True)
+        ttk.Label(dialog,text="Opaque fields are not safe to merge automatically.").pack(anchor="w")
     def history(reverse):
         s=state["session"]
         if s is None:raise ValueError("Open a plugin first")
@@ -198,6 +291,10 @@ def mount(parent, game=None):
     ttk.Button(bar,text="Load masters",command=guard(load_masters)).pack(side="left")
     ttk.Button(bar,text="Validate",command=guard(validate)).pack(side="left")
     ttk.Button(bar,text="Edit typed field",command=guard(edit_field)).pack(side="left")
+    ttk.Button(bar,text="New item",command=guard(create_record)).pack(side="left")
+    ttk.Button(bar,text="Duplicate",command=guard(duplicate_record)).pack(side="left")
+    ttk.Button(bar,text="Retarget",command=guard(retarget)).pack(side="left")
+    ttk.Button(bar,text="Compare",command=guard(compare_record)).pack(side="left")
     ttk.Button(bar,text="Undo",command=guard(lambda:history(False))).pack(side="left")
     ttk.Button(bar,text="Redo",command=guard(lambda:history(True))).pack(side="left")
     ttk.Button(bar,text="Export staged copy",command=guard(export)).pack(side="left")
