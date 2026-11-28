@@ -28,6 +28,7 @@ def mount(parent):
     source=tk.StringVar(value="Portable scene");ttk.Label(parent,textvariable=source).pack(fill="x")
     native_preview=False
     selection_callback=None
+    stream_callback=None;preview_origin=(0,0,0);pan_drag=None
     def draw():
         nonlocal renderer,panda,photo,render_size,failure
         canvas.delete("mesh");canvas.delete("gl")
@@ -159,6 +160,36 @@ def mount(parent):
         if drag:
             dx,dy=e.x-drag[0],e.y-drag[1];drag=(e.x,e.y)
             camera=replace(camera,yaw=camera.yaw+dx*.5,pitch=max(-85,min(85,camera.pitch+dy*.5)));draw()
+    def pan_start(e):
+        nonlocal pan_drag
+        pan_drag=(e.x,e.y)
+    def pan_move(e):
+        nonlocal pan_drag,camera
+        if pan_drag is None:return
+        from math import radians,cos,sin
+        dx,dy=e.x-pan_drag[0],e.y-pan_drag[1]
+        pan_drag=(e.x,e.y)
+        a=radians(camera.yaw);b=radians(camera.pitch)
+        right=-dx/camera.zoom
+        forward=-dy/(camera.zoom*max(.15,abs(sin(b))))
+        x,y,z=camera.center
+        camera=replace(camera,center=(x+cos(a)*right+sin(a)*forward,y-sin(a)*right+cos(a)*forward,z))
+        draw()
+    def pan_end(e):
+        nonlocal pan_drag,camera,scene,materials,selected,preview_origin
+        pan_drag=None
+        if not native_preview or stream_callback is None:return
+        absolute=tuple(camera.center[i]*128+preview_origin[i] for i in range(3))
+        try:result=stream_callback(absolute[0],absolute[1])
+        except (OSError,ValueError,TypeError,KeyError) as exc:
+            status.set("Cell streaming: "+str(exc));return
+        if result is None:return
+        candidate,report=result
+        scene=candidate;materials={};preview_origin=report["origin_game_units"]
+        camera=replace(camera,center=tuple((absolute[i]-preview_origin[i])/128 for i in range(3)))
+        if not any(i.id==selected for i in scene.instances):selected=None
+        source.set(f"Read-only cell {report['cell']} | {report['cells']} cells | {report['land_tiles']} LAND tiles | {report.get('model_references',0)} models")
+        sync()
     def zoom(delta):
         nonlocal camera
         camera=replace(camera,zoom=max(.05,min(2000,camera.zoom*(1.15 if delta>0 else 1/1.15))));draw()
@@ -279,12 +310,13 @@ def mount(parent):
     ttk.Button(side,text="Apply transform",command=apply).pack(fill="x")
     objects.bind("<<ListboxSelect>>",select);canvas.bind("<Button-1>",pick);canvas.bind("<Button-3>",start);canvas.bind("<B3-Motion>",orbit)
     canvas.bind("<MouseWheel>",lambda e:zoom(e.delta));canvas.bind("<Button-4>",lambda e:zoom(1));canvas.bind("<Button-5>",lambda e:zoom(-1))
+    canvas.bind("<Button-2>",pan_start);canvas.bind("<B2-Motion>",pan_move);canvas.bind("<ButtonRelease-2>",pan_end)
     canvas.bind("<Configure>",lambda e:draw());sync()
-    def load_cell_preview(candidate, report, focus=None, on_select=None):
-        nonlocal scene,materials,camera,selected,native_preview,selection_callback
+    def load_cell_preview(candidate, report, focus=None, on_select=None, on_stream=None):
+        nonlocal scene,materials,camera,selected,native_preview,selection_callback,stream_callback,preview_origin
         if not native_preview and not messagebox.askyesno("Cell preview", "Replace the current portable viewport scene? Save any edits first.",parent=parent):
             return False
-        scene=candidate;materials={};native_preview=True;selection_callback=on_select
+        scene=candidate;materials={};native_preview=True;selection_callback=on_select;stream_callback=on_stream;preview_origin=report["origin_game_units"]
         selected=focus if any(i.id==focus for i in scene.instances) else None
         camera=Camera()
         source.set(f"Read-only cell {report['cell']} | {report['cells']} cells | {report['land_tiles']} LAND tiles | {report.get('model_references',0)} models | {report['proxy_references']} reference markers | {report['skipped_references']} skipped")
