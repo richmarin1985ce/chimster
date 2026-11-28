@@ -55,7 +55,8 @@ def geometry(mesh):
         ts.append(t);bs.append(tuple(sign*v for v in b))
     body=pack("iHBBB",0,n,0,0,1)+b"".join(pack("3f",*v) for v in verts)
     body+=pack("HB",0x1001,1)+b"".join(pack("3f",*v) for v in ns+ts+bs)
-    body+=pack("4fB",*center,radius,0)+b"".join(pack("2f",u,1-v) for u,v in mesh.uv)
+    colors=getattr(mesh,"colors",[])
+    body+=pack("4fB",*center,radius,bool(colors))+b"".join(pack("4f",*rgba) for rgba in colors)+b"".join(pack("2f",u,1-v) for u,v in mesh.uv)
     body+=pack("HiHIB",0x4000,-1,t,t*3,1)+b"".join(pack("3H",*f) for f,_ in mesh.faces)+pack("H",0)
     return body,center,tuple((b-a)/2 for a,b in zip(lo,hi))
 
@@ -77,7 +78,7 @@ def encode_groups(groups,kind="terrain",tile_extent=None):
                 center=tuple(sum(mesh.vertices[v][a] for v in f)/3 for a in range(2))
                 x,y=(min(3,max(0,int(v/tile_extent*4))) for v in center)
                 buckets[y*4+x].append((f,m))
-            copied=Mesh();copied.vertices=list(mesh.vertices);copied.uv=list(mesh.uv)
+            copied=Mesh();copied.vertices=list(mesh.vertices);copied.uv=list(mesh.uv);copied.colors=list(mesh.colors)
             copied.faces=[face for bucket in buckets for face in bucket];mesh=copied
             segments=[];offset=0
             for bucket in buckets:
@@ -91,7 +92,7 @@ def encode_groups(groups,kind="terrain",tile_extent=None):
             shape_type="BSSegmentedTriShape"
             shape+=pack("I",len(segments))+b"".join(pack("BII",*s) for s in segments)
         flag={"terrain":2,"object":4,"companion":0}[kind]
-        shader=net()+pack("HIIIfIififf",1,1,0x80000100 if cutout else 0x80000000,1|flag,1.,0,i+3,0.,0,4.,1.)
+        shader=net()+pack("HIIIfIififf",1,1,0x80000100 if cutout else 0x80000000,1|flag|(32 if mesh.colors else 0),1.,0,i+3,0.,0,4.,1.)
         textures=pack("I",6)+b"".join(string(p.replace("/","\\")) for p in (diffuse,normal,"","","",""))
         blocks.extend([(shape_type,shape),("NiTriShapeData",data),("BSShaderPPLightingProperty",shader),("BSShaderTextureSet",textures)])
         if cutout:
@@ -157,13 +158,13 @@ def decode_geometry(raw):
     if has:r.take(n*12)
     if has and flags&0x1000:r.take(n*24)
     r.take(16)
-    if r.get("B")[0]:r.take(n*16)
+    colors=[r.get("4f") for _ in range(n)] if r.get("B")[0] else []
     uv=[(u,1-v) for u,v in (r.get("2f") for _ in range(n))] if flags&1 else [(0,0)]*n
     consistency,additional,t,points,has=r.get("HiHIB")
     if not has or points!=3*t or additional!=-1:raise ValueError("Unsupported geometry layout")
     triangles=[r.get("3H") for _ in range(t)]
     if r.get("H")[0]!=0 or r.i!=len(raw):raise ValueError("Unsupported matching normal groups")
-    mesh=Mesh();mesh.vertices=vertices;mesh.uv=uv;mesh.faces=[(tri,"lod") for tri in triangles]
+    mesh=Mesh();mesh.vertices=vertices;mesh.uv=uv;mesh.colors=colors;mesh.faces=[(tri,"lod") for tri in triangles]
     validate_mesh(mesh);return mesh
 
 def check(raw,expected):
@@ -244,7 +245,7 @@ def read_static_groups(raw,include_cutout=False):
         _,n,controller=shader.get("iIi")
         if n or controller!=-1:raise ValueError("Animated shader unsupported")
         shade,shader_type,f1,f2,env,clamp,tex=shader.get("HIIIfIi")
-        if shader_type!=1 or f1 & ~(0x82000001| (0x100 if cutout else 0)) or f2 & ~0x17:raise ValueError("Unsupported material flags")
+        if shader_type!=1 or f1 & ~(0x82000001| (0x100 if cutout else 0)) or f2 & ~0x37:raise ValueError("Unsupported material flags")
         tr=Reader(ref(tex,{"BSShaderTextureSet"})[1]);n,=tr.get("I")
         if n!=6:raise ValueError("Unsupported texture set")
         paths=[tr.string().decode("ascii").replace("\\","/") for _ in range(n)]
@@ -256,6 +257,9 @@ def read_static_groups(raw,include_cutout=False):
             for t in chain:
                 vertex=tuple(t[i]+t[12]*sum(t[3+i*3+j]*vertex[j] for j in range(3)) for i in range(3))
             mesh.vertices.append(vertex)
+        if g.colors or mesh.colors:
+            if not mesh.colors:mesh.colors=[(1.,)*4]*offset
+            mesh.colors.extend(g.colors or [(1.,)*4]*len(g.vertices))
         mesh.uv.extend(g.uv)
         mesh.faces.extend((tuple(i+offset for i in f),"lod") for f,_ in g.faces)
     visit(0)
