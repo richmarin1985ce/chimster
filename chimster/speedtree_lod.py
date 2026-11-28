@@ -48,3 +48,29 @@ def write_textures(output,files):
         else:
             with p.open("xb") as f:f.write(raw)
     return {p:sha256(raw).hexdigest() for p,raw in files.items()}
+
+
+def export(profile,assets,model,dimensions,output,views=2):
+    import json,shutil
+    if profile not in ("oblivion","fallout3","new-vegas"):raise ValueError("Legacy SpeedTree profile required")
+    group,textures,report=prepare(assets,model,dimensions,views)
+    mesh,diffuse,normal,_=group
+    if profile=="oblivion":
+        from .oblivion_lod_nif import encode,inspect
+        raw=encode(mesh,diffuse,True);validation=inspect(raw)
+    else:
+        from .fnv_lod_nif import encode,check
+        raw=encode(mesh,diffuse,normal,"companion",cutout=True);validation=check(raw,len(mesh.faces))
+    if validation["triangles"]!=len(mesh.faces):raise ValueError("Native billboard geometry mismatch")
+    out=Path(output);out.mkdir(exist_ok=False)
+    try:
+        files=write_textures(out,textures)
+        suffix="_far" if profile=="oblivion" else "_lod"
+        rel="meshes/chimster/speedtree/"+report["billboard_sha256"][:24]+suffix+".nif"
+        p=out/rel;p.parent.mkdir(parents=True,exist_ok=True)
+        with p.open("xb") as f:f.write(raw)
+        files[rel]=sha256(raw).hexdigest()
+        report.update(profile=profile,files=files,mesh=rel,native_spt_generated=False)
+        (out/"manifest.json").write_text(json.dumps(report,indent=2),encoding="utf-8")
+    except Exception:shutil.rmtree(out);raise
+    return report
