@@ -19,9 +19,9 @@ def apply(profile,data,operations,expected_revision,validate=None):
             from .tes3_ai_packages import manage
             candidate=manage(candidate,**args,revision=revision(candidate))
             continue
-        if kind=="native_misc":
-            from .native_templates import misc
-            candidate=misc(profile,candidate,revision(candidate),**args)
+        if kind in ("native_misc","native_static"):
+            from .native_templates import misc,static
+            candidate=(misc if kind=="native_misc" else static)(profile,candidate,revision(candidate),**args)
             continue
         if kind in ("native_create","native_duplicate"):
             from .native_create import insert,duplicate
