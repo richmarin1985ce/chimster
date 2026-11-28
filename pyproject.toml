@@ -9,6 +9,7 @@ requires-python = ">=3.10"
 license = "MIT"
 license-files = ["LICENSE"]
 [project.optional-dependencies]
+archives = ["lz4>=4.3,<5"]
 textures = ["Pillow>=10,<13"]
 viewport = ["moderngl>=5.12,<6", "Pillow>=10,<13"]
 advanced-viewport = ["panda3d==1.10.16", "Pillow>=10,<13"]
