@@ -63,3 +63,23 @@ def configured_build(profile,source,output,*,project=False,execute=False,reuse=N
     if project:return batch(*args,execute=execute,timeout=timeout,options=cfg["options"],reuse=reuse)
     if reuse:raise ValueError("reuse is project-only")
     return build(*args,execute=execute,timeout=timeout,options=cfg["options"])
+
+
+def smoke(profile,output,*,execute=False,timeout=120):
+    """Compile a minimal original script via the pinned real toolchain."""
+    from pathlib import Path
+    import tempfile
+    from .integrations import fresh
+    cfg=load(profile)
+    out=fresh(output)
+    name="ChimsterCompilerSmoke"
+    source="Scriptname "+name+"\n\nInt Function SmokeValue() Global\n    Return 42\nEndFunction\n"
+    result={"game":cfg["game"],"backend":cfg["backend"],"profile":str(profile),
+            "source":source,"output":str(out),"scope":"minimal compiler smoke test; not game execution"}
+    if not execute:return result
+    with tempfile.TemporaryDirectory(prefix=".chimster-smoke-",dir=out.parent) as t:
+        src=Path(t)/(name+".psc")
+        src.write_text(source,encoding="utf-8")
+        built=configured_build(profile,src,out,execute=True,timeout=timeout)
+        return {**result,"status":"compiler-smoke-passed" if built.get("status")=="header-checked" else "compiler-smoke-failed",
+                "build":built,"diagnostics":built.get("diagnostics",[])}
