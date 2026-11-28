@@ -130,8 +130,9 @@ class Bridge:
                 self.register("project_apply_replace","Apply the exact staged text replacement.",
                               schema({"token":{"type":"string","maxLength":80}},["token"]),
                               lambda token:self.apply_proposal(token,True),write=True,destructive=True)
+                self.register("project_history_status","Inspect available session undo/redo steps.",schema(),self.creation.history_status)
                 for direction in ("undo","redo"):
-                    self.register("project_"+direction,"Recover the latest session edit only; refuse intervening revisions.",
+                    self.register("project_"+direction,"Recover session edits, up to twenty steps; refuse intervening external revisions.",
                                   schema({"revision":{"type":"integer","minimum":0}},["revision"]),
                                   lambda revision,direction=direction:self.creation.recover(direction,revision),write=True,destructive=True)
     def production_preview(self,operation,**args):
