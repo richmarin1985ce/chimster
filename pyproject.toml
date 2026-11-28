@@ -8,6 +8,7 @@ description = "Local-first Bethesda modding workbench prototype"
 requires-python = ">=3.10"
 license = "MIT"
 license-files = ["LICENSE"]
+dependencies = ["fonttools>=4.50,<5", "Pillow>=10,<13", "tkinterdnd2>=0.4,<1"]
 [project.optional-dependencies]
 archives = ["lz4>=4.3,<5"]
 textures = ["Pillow>=10,<13"]

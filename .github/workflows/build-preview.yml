@@ -23,7 +23,7 @@ jobs:
       - run: python -m pip install build pyinstaller
       - run: python -m build
       - run: python tools/check_manual_package.py
-      - run: python -m PyInstaller --onedir --name chimster --paths . --collect-data chimster --add-data "docs:chimster/manual" --hidden-import chimster.ui --collect-submodules PIL --collect-all moderngl --collect-all glcontext --distpath preview build_entry.py
+      - run: python -m PyInstaller --onedir --name chimster --paths . --collect-data chimster --collect-all tkinterdnd2 --collect-submodules fontTools --add-data "docs:chimster/manual" --hidden-import chimster.ui --collect-submodules PIL --collect-all moderngl --collect-all glcontext --distpath preview build_entry.py
       - name: Verify offline manual in executable
         shell: python
         run: |

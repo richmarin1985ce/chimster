@@ -4,7 +4,12 @@ from tkinter import ttk, filedialog, messagebox
 from .core import PROFILES, catalog, inspect_plugin, plan
 
 def launch():
- root=tk.Tk(); root.title('CHIMSTER | Bethesda Modding Workshop'); root.geometry('1000x650')
+ try:
+  from tkinterdnd2 import TkinterDnD
+  root=TkinterDnD.Tk()
+ except (ImportError,tk.TclError,RuntimeError):
+  root=tk.Tk()
+ root.title('CHIMSTER | Bethesda Modding Workshop'); root.geometry('1000x650')
  root.configure(bg='#20252c'); style=ttk.Style(root); style.theme_use('clam')
  top=ttk.Frame(root,padding=12); top.pack(fill='x'); ttk.Label(top,text='CHIMSTER',font=('TkDefaultFont',20,'bold')).pack(side='left')
  game=tk.StringVar(value='newvegas'); ttk.Combobox(top,textvariable=game,values=list(PROFILES),state='readonly').pack(side='right')
@@ -15,7 +20,7 @@ def launch():
   'Records':('Native records','Record editor','Plugin inspector','Load order'),
   'World':('Worldspace browser','3D viewport','Terrain editor','Interior editor','Navmesh editor','Worldspace validator','Landscape budget'),
   'Narrative':('Quest editor','Dialogue views','Script editor','Books & notes','Localization'),
-  'Assets':('Texture Forge','Voice containers'),
+  'Assets':('Asset Forge','Texture Forge','Font Forge','Voice containers'),
   'Gameplay':('Minigame editor',),
   'Tools':('Tool registry','Installed tools','OpenMW bridge','All development tools'),
   'Help':('Local wiki',)}
@@ -224,6 +229,9 @@ def launch():
  f=tab('Asset Forge')
  from .asset_ui import mount as mount_assets
  mount_assets(f)
+ f=tab('Font Forge')
+ from .font_ui import mount as mount_fonts
+ mount_fonts(f)
  f=tab('Terrain editor')
  from .terrain_ui import mount as mount_terrain
  mount_terrain(f)
