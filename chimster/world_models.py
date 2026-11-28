@@ -101,17 +101,24 @@ class LooseModels:
             self.cache[key]=candidate
         return self.cache[key]
 
+def archive_stamp(path):
+    s=path.stat()
+    return (s.st_dev,s.st_ino,s.st_size,s.st_mtime_ns,s.st_ctime_ns)
+
+
 class ArchiveModels:
     """Explicit low-to-high BSA order; loose models override selected archives."""
     def __init__(self, archives, loose=None):
         from .archive_reader import directory
-        from .loadorder import fingerprint
         self.archives=[]
         for p in archives:
             path=Path(p).resolve(strict=True)
             if path.suffix.casefold()!=".bsa":
                 raise ValueError("New Vegas model archives must be BSA")
-            self.archives.append((path,directory(path),fingerprint(path)))
+            before=archive_stamp(path)
+            entries=directory(path)
+            if archive_stamp(path)!=before:raise ValueError("Archive changed while indexing")
+            self.archives.append((path,entries,before))
         self.loose=loose
         self.cache={}
         self.vertices=0
@@ -131,16 +138,17 @@ class ArchiveModels:
                 pass
             else:
                 return self.loose(model)
+        if any(archive_stamp(p)!=stamp for p,_,stamp in self.archives):
+            raise ValueError("Archive changed; reselect sources")
         if key in self.cache:return self.cache[key]
         if len(self.cache)>=64:raise ValueError("Archive model cache limit reached")
         for archive,entries,digest in reversed(self.archives):
             if key not in entries:continue
             # Directory offsets are valid only for the indexed file revision.
-            from .loadorder import fingerprint
-            if fingerprint(archive)!=digest:raise ValueError("Archive changed; reselect sources")
+            if archive_stamp(archive)!=digest:raise ValueError("Archive changed; reselect sources")
             with archive.open("rb") as stream:
                 payload=reader(stream).read(stream,entries[key],64*1024*1024)
-            if fingerprint(archive)!=digest:raise ValueError("Archive changed during read")
+            if archive_stamp(archive)!=digest:raise ValueError("Archive changed during read")
             candidate=read_static_stream(BytesIO(payload))
             if self.vertices+len(candidate.vertices)>250000:raise ValueError("Archive geometry budget reached")
             self.vertices+=len(candidate.vertices)
