@@ -18,6 +18,13 @@ def inspect(profile,data):
                 try:row.setdefault("effects",[]).append(magic_effect(v))
                 except ValueError as e:row["issues"].append(str(e))
                 continue
+            if tag==b"AIDT" and node.signature in (b"NPC_",b"CREA"):
+                if len(v)==12:row["services"]=decode_services(v)
+                else:row["issues"].append("Invalid AIDT size")
+            if tag==b"FLAG" and node.signature==b"CONT":
+                if len(v)==4:
+                    f=int.from_bytes(v,"little");row["container_flags"]={"organic":bool(f&1),"respawn":bool(f&2),"raw":f}
+                else:row["issues"].append("Invalid container FLAG")
             if tag==b"DELE":row["deleted"]=True
             if tag in (b"NAME",b"FNAM",b"MODL",b"ITEX",b"TEXT",b"SCRI",b"ENAM"):
                 row["fields"].setdefault(k,[]).append(v.rstrip(b"\0").decode("cp1252",errors="replace"))
@@ -161,3 +168,50 @@ def edit_leveled_level(raw,level):
 def edit_chance_none(raw,chance):
     if len(raw)!=1 or type(chance)!=int or not 0<=chance<=100:raise ValueError("Invalid chance none")
     return bytes([chance])
+
+SERVICES=("weapons","armor","clothing","books","ingredients","lockpicks","probes","lights","apparatus","repair_tools","miscellaneous","spells","magic_items","potions","training","spellmaking","enchanting","repair")
+def decode_services(raw):
+    if len(raw)!=12:raise ValueError("Invalid AIDT")
+    flags=int.from_bytes(raw[8:],"little")
+    return {name:bool(flags&(1<<i)) for i,name in enumerate(SERVICES)}
+
+def edit_services(raw,**changes):
+    decode_services(raw)
+    if set(changes)-set(SERVICES) or any(type(v)!=bool for v in changes.values()):raise ValueError("Invalid service")
+    flags=int.from_bytes(raw[8:],"little")
+    for name,on in changes.items():
+        bit=1<<SERVICES.index(name);flags=(flags&~bit)|(bit if on else 0)
+    return raw[:8]+struct.pack("<I",flags)
+
+def edit_container_flags(raw,*,organic=None,respawn=None):
+    if len(raw)!=4:raise ValueError("Invalid FLAG")
+    flags=int.from_bytes(raw,"little")
+    for bit,on in ((1,organic),(2,respawn)):
+        if on is not None:
+            if type(on)!=bool:raise ValueError("Expected boolean")
+            flags=(flags&~bit)|(bit if on else 0)
+    if flags&2 and not flags&1:raise ValueError("Respawn requires organic container")
+    return struct.pack("<I",flags)
+
+def list_cycles(rows):
+    """Analyze effective winning records, not an unordered collection of overrides."""
+    graph={}
+    for row in rows:
+        if row.get("deleted") or "leveled" not in row or "identity" not in row:continue
+        key=row["identity"]
+        if key in graph:raise ValueError("Duplicate effective list identity")
+        graph[key]=[v["id"].casefold() for v in row["leveled"]["entries"]]
+    done=set();active=set();cycles=[]
+    for root in graph:
+        if root in done:continue
+        stack=[(root,iter(graph[root]))];active.add(root)
+        while stack:
+            node,edges=stack[-1]
+            child=next(edges,None)
+            if child is None:
+                stack.pop();active.remove(node);done.add(node)
+            elif child in active:
+                path=[n for n,_ in stack];cycles.append(path[path.index(child):]+[child])
+            elif child in graph and child not in done:
+                active.add(child);stack.append((child,iter(graph[child])))
+    return cycles
