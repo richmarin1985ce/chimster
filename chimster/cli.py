@@ -123,6 +123,7 @@ def build_parser():
  a.add_argument('--reuse',help='Previously completed build directory')
  for opt in ('optimize','release','final','warnings-as-errors'): a.add_argument('--'+opt,action='store_true')
  a=s.add_parser('pex-decompile'); a.add_argument('game'); a.add_argument('compiler'); a.add_argument('source'); a.add_argument('output'); a.add_argument('--execute',action='store_true'); a.add_argument('--timeout',type=int,default=120)
+ a=s.add_parser('fragment-source'); a.add_argument('game'); a.add_argument('script'); a.add_argument('kind',choices=['quest','dialogue']); a.add_argument('input'); a.add_argument('output')
  a=s.add_parser('compiler-smoke'); a.add_argument('profile'); a.add_argument('output'); a.add_argument('--execute',action='store_true'); a.add_argument('--timeout',type=int,default=120)
  a=s.add_parser('vmad-mutate'); a.add_argument('game'); a.add_argument('plugin'); a.add_argument('output'); a.add_argument('form',type=lambda v:int(v,0)); a.add_argument('action',choices=['attach','detach','add-property','set-property','remove-property']); a.add_argument('script'); a.add_argument('plugin_sha256'); a.add_argument('vmad_sha256'); a.add_argument('--property'); a.add_argument('--type-id',type=int); a.add_argument('--value',default='null'); a.add_argument('--pex')
  a=s.add_parser('vmad-inspect'); a.add_argument('game'); a.add_argument('plugin'); a.add_argument('form',type=lambda v:int(v,0))
@@ -355,6 +356,10 @@ def main(argv=None):
    result=decompile(n.game,n.compiler,n.source,n.output,execute=n.execute,timeout=n.timeout)
    if n.execute and result['status']!='source-recovered':
     print(json.dumps(result,indent=2)); raise SystemExit(1)
+  elif n.cmd=='fragment-source':
+   from .fragment_source import export
+   if Path(n.input).stat().st_size>2*1024*1024: raise ValueError('fragment input too large')
+   result=export(n.game,n.script,n.kind,json.loads(Path(n.input).read_text(encoding='utf-8')),n.output)
   elif n.cmd=='compiler-smoke':
    from .compiler_profiles import smoke
    result=smoke(n.profile,n.output,execute=n.execute,timeout=n.timeout)
