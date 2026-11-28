@@ -10,22 +10,25 @@ def parse(data,limit=64*1024*1024):
     pfsize,pfflags,fourcc=struct.unpack_from("<II4s",data,76)
     caps,caps2=struct.unpack_from("<II",data,108)
     mips=mips or 1
-    if size!=124 or pfsize!=32 or not pfflags&4 or not caps&0x1000 or caps2 or depth>1:
+    if size!=124 or pfsize!=32 or not pfflags&4 or not caps&0x1000 or caps2 not in (0,0xfe00) or depth>1:
         raise ValueError("Unsupported DDS layout")
     if not 1<=w<=65535 or not 1<=h<=65535 or not 1<=mips<=max(w,h).bit_length():
         raise ValueError("Invalid texture dimensions")
+    cube=caps2==0xfe00
+    if cube and w!=h:raise ValueError('Cubemap faces must be square')
     start=128
     if fourcc==b"DX10":
         if len(data)<148:raise ValueError("Truncated DX10 header")
         fmt,dimension,misc,array,alpha=struct.unpack_from("<5I",data,128)
-        if dimension!=3 or misc or array!=1 or alpha:raise ValueError("Unsupported DX10 metadata")
+        if dimension!=3 or misc!=(4 if cube else 0) or array!=1 or alpha:raise ValueError("Unsupported DX10 metadata")
         start=148
     else:fmt=LEGACY.get(fourcc)
     if fmt not in BLOCKS:raise ValueError("Unsupported block format")
     levels=[]
-    for i in range(mips):
+    for j in range(mips*(6 if cube else 1)):
+        i=j%mips
         length=((max(1,w>>i)+3)//4)*((max(1,h>>i)+3)//4)*BLOCKS[fmt]
         if start+length>len(data):raise ValueError("Truncated mip chain")
         levels.append(data[start:start+length]);start+=length
     if start!=len(data):raise ValueError("Unexpected DDS trailing data")
-    return {"width":w,"height":h,"mips":mips,"dxgi_format":fmt,"levels":levels}
+    return {"width":w,"height":h,"mips":mips,"dxgi_format":fmt,"levels":levels,"cubemap":cube}
