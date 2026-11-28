@@ -15,7 +15,7 @@ class Production:
         self.enabled=enabled
         self.pending=None
 
-    def preview(self,operation,id,output_id,revision,master_ids=(),aux_id=None):
+    def preview(self,operation,id,output_id,revision,master_ids=(),aux_id=None,edits_json=None):
         self.pending=None
         identifier(output_id)
         m=self.project.read()
@@ -30,6 +30,7 @@ class Production:
             a=m["artifacts"][identifier(key)]
             if a["size"]>limit or (kind and a["kind"]!=kind):raise ValueError("invalid input artifact")
             return a,self.project._object(a)
+        if edits_json is not None and operation!="mesh-model":raise ValueError("unexpected modeling edits")
         if operation!="native-build" and master_ids:raise ValueError("unexpected masters")
         if operation not in ("fuz","texture-material") and aux_id is not None:raise ValueError("unexpected auxiliary input")
         with tempfile.TemporaryDirectory(prefix="chimster-production-") as d:
@@ -112,6 +113,19 @@ class Production:
                         key=output_id+"."+suffix+"."+ext
                         new_key(key)
                         outputs.append((key,"texture",name+"_"+suffix+"."+ext,(target/("material_"+suffix+"."+ext)).read_bytes()))
+            elif operation=="mesh-model":
+                from .scene import load_obj
+                from .asset_forge import Session
+                from .mcp_modeling import apply_edits
+                a,p=source(id,"mesh",8*1024*1024)
+                if Path(a["filename"]).suffix.lower()!=".obj" or not isinstance(edits_json,str) or len(edits_json)>65536:
+                    raise ValueError("OBJ and bounded modeling edits required")
+                session=Session(load_obj(p));before=session.report()
+                count=apply_edits(session,edits_json)
+                target=root/(name+".obj");session.export_obj(target)
+                Session(load_obj(target))
+                outputs.append((output_id,"mesh",target.name,target.read_bytes()))
+                summary={"before":before,"after":session.report(),"edits":count,"native_export":False}
             elif operation=="scene-render":
                 from .scene import Scene,Camera,transformed
                 from .gpu_viewport import Renderer,Settings
