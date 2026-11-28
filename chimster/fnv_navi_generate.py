@@ -63,7 +63,7 @@ def extend(master_parts,meshes,*,registrations=None,grid_order=None):
             old_connections.add(fid);connections.append((tag,raw))
         else:raise ValueError("unsupported master NAVI order or field")
     if version is None or not old_maps or old_maps!=old_connections:raise ValueError("incomplete master NAVI map")
-    from .fnv_navi_variants import ordinary,split_neighbors
+    from .fnv_navi_variants import ordinary,split_neighbors,island
     registrations=registrations or {}
     rows={}
     for fid,r in meshes:
@@ -96,7 +96,7 @@ def extend(master_parts,meshes,*,registrations=None,grid_order=None):
     new_maps=[];new_connections=[]
     for fid,r in sorted(rows.items()):
         meta=registrations.get(fid,{})
-        if set(meta)-{"world","grid","preferred_value","preferred_neighbors"}:raise ValueError("unknown registration metadata")
+        if set(meta)-{"world","grid","preferred_value","preferred_neighbors","island_reference"}:raise ValueError("unknown registration metadata")
         actual=[e["raw_target"] for e in r["external"]]
         preferred_flags=any(f&0x40 for f in r["flags"])
         if preferred_flags and not {"preferred_value","preferred_neighbors"}<=meta.keys():raise ValueError("explicit preferred policy required")
@@ -109,7 +109,23 @@ def extend(master_parts,meshes,*,registrations=None,grid_order=None):
         else:
             if "grid" in meta:raise ValueError("interior grid must be zero")
             location=r["raw_cell"];grid=(0,0)
-        new_maps.append((b"NVMI",ordinary(fid,location,r["vertices"],grid=grid,grid_order=grid_order or "xy",preferred_value=meta.get("preferred_value",0.))))
+        options={"grid":grid,"grid_order":grid_order or "xy","preferred_value":meta.get("preferred_value",0.)}
+        if "island_reference" in meta:
+            from .fnv_navi_variants import decode
+            from .fnv_navmesh import inspect
+            ref=meta["island_reference"]
+            if not isinstance(ref,dict) or set(ref)!={"nvmi_hex","navm"}:raise ValueError("explicit island NVMI and corresponding native NAVM reference required")
+            raw=bytes.fromhex(ref["nvmi_hex"])
+            if (b"NVMI",raw) not in maps:raise ValueError("island reference is not in the base NAVI")
+            sample=decode(raw,grid_order=options["grid_order"])
+            source=ref["navm"]
+            if source["form_id"]!=sample["mesh"]:raise ValueError("island reference identity mismatch")
+            native,_=inspect([(k.encode("ascii"),bytes.fromhex(v)) for k,v in source["fields"]])
+            if native["issues"]:raise ValueError("invalid island reference NAVM")
+            if "world" not in meta and sample["location"]!=native["raw_cell"]:raise ValueError("interior island reference location mismatch")
+            payload=island(fid,location,r["vertices"],r["triangles"],reference=raw,reference_vertices=native["vertices"],reference_triangles=native["triangles"],**options)
+        else:payload=ordinary(fid,location,r["vertices"],**options)
+        new_maps.append((b"NVMI",payload))
         new_connections.append((b"NVCI",encode_connection(fid,standard,preferred,(d["raw_target"] for d in r["doors"]))))
     return head+maps+new_maps+connections+new_connections
 
