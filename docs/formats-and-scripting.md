@@ -23,6 +23,11 @@ The original grammar library uses the Sublime Text v2 model: ordered regular-exp
 
 Copy exports into Sublime Text's User packages folder. Actual Sublime loading, desktop execution and compiler execution remain unverified; synthetic regression fixtures are committed but execution deferred. Reference: https://www.sublimetext.com/docs/syntax.html
 
+### API symbols, completion and local libraries
+Use Ctrl+Space for an explicit completion chooser; F12 displays matching signatures and descriptions, and navigates to a unique declaration in the current file. The initial original API seed catalog separates game families and requires explicit opt-in to SKSE, F4SE, OBSE, FOSE or xNVSE symbols. It is not a comprehensive or version-certified function dictionary. Unknown symbols are not compilation errors.
+
+Index local PSC reads an explicitly selected local Papyrus library (up to 2,000 files and 32 MiB), skips symlink entries, records declaration source paths and line numbers, and associates the results with the current game profile in memory. No proprietary sources are bundled or uploaded by the indexer. The selected library may contain extender or mod functions; provenance is displayed, but runtime compatibility is not inferred. Indexing is synchronous in this prototype. No persistent index, type inference, cross-file go-to-definition, full symbol parser or external version audit yet. Regression fixtures added; test execution deferred.
+
 ## Voice
 The formats module packs and unpacks supported FUZ containers. A FUZ is not a speech synthesizer: it contains separate lip-sync and audio payloads. XWM encoding, actual lip-sync generation and Wwise conversion remain unimplemented. Do not republish extracted game voice assets.
 
