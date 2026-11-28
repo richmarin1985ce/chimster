@@ -50,8 +50,8 @@ def mount(parent, game=None):
                 state["paths"][item]=path
                 walk(n.children,item,path)
         walk(s.nodes)
-    def open_file():
-        name=filedialog.askopenfilename(filetypes=[("Plugins","*.esp *.esm *.esl"),("All","*")])
+    def open_file(dropped=None):
+        name=dropped if dropped is not None else filedialog.askopenfilename(filetypes=[("Plugins","*.esp *.esm *.esl"),("All","*")])
         if not name:return
         p=Path(name);data=p.read_bytes();kind=profile.get()
         nodes=parse(kind,data)
@@ -145,3 +145,5 @@ def mount(parent, game=None):
     ttk.Button(bar,text="Validate",command=guard(validate)).pack(side="left")
     ttk.Button(bar,text="Export staged copy",command=guard(export)).pack(side="left")
     tree.bind("<<TreeviewSelect>>",lambda event:guard(inspect)() if tree.selection() else None)
+    from .drop_import import editor_drop
+    editor_drop(parent,[([".esp",".esm",".esl"],open_file,False)])
