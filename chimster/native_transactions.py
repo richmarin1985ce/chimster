@@ -14,6 +14,12 @@ def apply(profile,data,operations,expected_revision,validate=None):
         args=dict(operation)
         kind=args.pop("kind")
         fn={"replace":replace,"remove":remove,"insert":insert_adjacent,"typed":edit}.get(kind)
+        if kind in ("create","duplicate"):
+            if profile!="morrowind":raise ValueError("Unsupported creation profile")
+            from .tes3_create import create
+            from .tes3_duplicate import duplicate
+            candidate=(create if kind=="create" else duplicate)(candidate,**args,revision=revision(candidate))
+            continue
         if fn is None:raise ValueError("Unknown operation")
         key="revision"
         candidate=fn(profile,candidate,**args,**{key:revision(candidate)})
