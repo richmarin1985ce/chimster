@@ -171,3 +171,33 @@ class BuiltinLODTests(unittest.TestCase):
                 self.assertIn("NiAlphaProperty",result["block_types"])
                 with self.assertRaises(FileExistsError):
                     export_tile(game,"object","TestWorld",4,-4,0,mesh,"textures/a.dds","textures/a_n.dds",d,True)
+
+    def test_modern_source_groups(self):
+        from chimster.modern_lod_codec import encode_groups,read_static_groups
+        mesh=terrain_grid([[1.,2.],[2.,3.]])
+        for profile in ("skyrim","skyrim-se","fallout4"):
+            raw=encode_groups([(mesh,"textures/a.dds","textures/a_n.dds",False),
+                               (mesh,"textures/b.dds","textures/b_n.dds",True)],profile,"companion")
+            groups=read_static_groups(raw,profile)
+            self.assertEqual(len(groups),2)
+            self.assertEqual(groups[0][1:],("textures/a.dds","textures/a_n.dds",False))
+            self.assertEqual(groups[1][1:],("textures/b.dds","textures/b_n.dds",True))
+            self.assertEqual(sum(len(m.faces) for m,*_ in groups),4)
+            with self.assertRaises(ValueError):read_static_groups(raw[:-1],profile)
+
+    def test_oblivion_decimal_world_identity(self):
+        from chimster.world_lod_oblivion import plan
+        from chimster.record_graph import Identity
+        from types import SimpleNamespace
+        from collections import defaultdict
+        import struct
+        world=Identity("world.esp",0x800);cell=Identity("world.esp",0x801)
+        row={"key":cell,"grid":(-1,2)}
+        browser=SimpleNamespace(profile="oblivion",worlds={world:{"editor_id":"Demo"}},
+            source_paths=[Path("Oblivion.esm"),Path("World.esp")],
+            cells={world:[row]},coordinates={(world,(-1,2)):[row]},
+            children={cell:[{"signature":"LAND","height_raw":struct.pack("<f",0)+bytes(1092)}]})
+        result,_=plan(browser,world)
+        self.assertEqual(result["formid"],0x01000800)
+        self.assertEqual(result["tiles"][0]["native_mesh_target"],"meshes/landscape/lod/16779264.-32.0.32.nif")
+        self.assertFalse(result["native_runtime_assets"])
