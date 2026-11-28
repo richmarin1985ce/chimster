@@ -155,6 +155,24 @@ def launch():
    from pathlib import Path
    show(to,build_cube(source,Path(parent)/'texture-cube',face.get()))
   except (OSError,ValueError,ImportError,tk.TclError) as e:messagebox.showerror('Cubemap generation failed',str(e))
+ def archive_texture():
+  from .archive_reader import read
+  from tkinter import simpledialog
+  from pathlib import Path
+  source=filedialog.askopenfilename(filetypes=[('Archives','*.bsa *.ba2')])
+  if not source:return
+  name=simpledialog.askstring('Texture member','Relative DDS member path')
+  if not name:return
+  try:
+   if not name.lower().endswith('.dds'):raise ValueError('Select a DDS texture')
+   data=read(source,name)
+   if not data.startswith(b'DDS '):raise ValueError('Member is not DDS')
+   target=filedialog.asksaveasfilename(defaultextension='.dds',initialfile=Path(name.replace(chr(92),'/')).name)
+   if target:
+    with open(target,'xb') as stream:stream.write(data)
+    messagebox.showinfo('Texture Forge','Texture imported to local workspace. Select it as an input in Texture Forge.')
+  except (OSError,ValueError,KeyError) as e:messagebox.showerror('Texture import failed',str(e))
+ ttk.Button(bar,text='Import archived DDS',command=archive_texture).pack(side='left')
  ttk.Button(bar,text='Generate material maps',command=material).pack(side='left')
  ttk.Button(bar,text='Generate cubemap',command=cube).pack(side='left')
  f=tab('Load order'); ttk.Label(f,text='Scan a JSON load-order profile, without altering installed plugins.').pack(anchor='w')
