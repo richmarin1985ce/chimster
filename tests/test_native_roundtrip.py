@@ -134,3 +134,38 @@ class NativeTypedWorkbench(unittest.TestCase):
                 self.assertEqual(list(subrecords(profile,node)),parts[:2]+[(b"FLTV",struct.pack("<f",15)),parts[-1]])
                 for bad in (32768,2.5,True):
                     with self.assertRaises(ValueError):edit(profile,data,(0,),b"FLTV",0,{"value":bad},rev)
+
+    def test_gameplay_properties_and_repeated_inventory(self):
+        from chimster.native_typed_edit import edit,property_fields
+        from chimster.native_profiles import PROFILES
+        from hashlib import sha256
+        cases=[
+            ("morrowind",b"WEAP",b"WPDT",struct.pack("<fIHHffH6BI",1,2,0,3,1,1,0,1,2,1,2,1,2,0),"value",55),
+            ("oblivion",b"WEAP",b"DATA",struct.pack("<IffIIIfH",0,1,1,0,2,3,1,4),"damage",55),
+            ("fallout3",b"WEAP",b"DATA",struct.pack("<iifhB",2,3,1,4,5),"damage",55),
+            ("new-vegas",b"ARMO",b"DATA",struct.pack("<iif",2,3,1),"health",55),
+            ("skyrim",b"WEAP",b"DATA",struct.pack("<IfH",2,1,4),"damage",55),
+            ("skyrim-se",b"ARMO",b"DATA",struct.pack("<If",2,1),"value",55),
+            ("fallout4",b"MISC",b"DATA",struct.pack("<If",2,1),"value",55),
+        ]
+        for profile,sig,tag,raw,key,value in cases:
+            with self.subTest(profile=profile):
+                p=PROFILES[profile];tes3=p.family=="TES3"
+                parts=[(tag,raw),(b"ZZZZ",b"opaque")]
+                payload=b"".join(struct.pack("<4sI" if tes3 else "<4sH",k,len(v))+v for k,v in parts)
+                header=struct.pack("<4sIII",sig,len(payload),0,0) if tes3 else struct.pack("<4sIIII",sig,len(payload),0,1,0)+bytes(p.record_header-20)
+                data=header+payload
+                out=edit(profile,data,(0,),tag,0,{key:value},sha256(data).hexdigest())
+                node=parse(profile,out)[0]
+                self.assertEqual(property_fields(profile,node)[0]["value"][key],value)
+                self.assertEqual(list(subrecords(profile,node))[-1],parts[-1])
+                with self.assertRaises(ValueError):edit(profile,data,(0,),tag,0,{"unknown":1},sha256(data).hexdigest())
+        parts=[(b"CNTO",struct.pack("<Ii",0x1234,1)),(b"CNTO",struct.pack("<Ii",0x5678,2))]
+        payload=b"".join(struct.pack("<4sH",k,len(v))+v for k,v in parts)
+        data=struct.pack("<4sIIIII",b"CONT",len(payload),0,1,0,0)+payload
+        rev=sha256(data).hexdigest()
+        out=edit("skyrim-se",data,(0,),b"CNTO",1,{"count":9},rev)
+        node=parse("skyrim-se",out)[0]
+        self.assertEqual(list(subrecords("skyrim-se",node)),[parts[0],(b"CNTO",struct.pack("<Ii",0x5678,9))])
+        self.assertEqual([r["occurrence"] for r in property_fields("skyrim-se",node)],[0,1])
+        with self.assertRaises(ValueError):edit("skyrim-se",data,(0,),b"CNTO",1,{"formid":1},rev)
