@@ -21,10 +21,18 @@ def mount(parent, game=None):
     ttk.Combobox(bar,textvariable=profile,values=list(PROFILES),state="readonly").pack(side="left")
     pane=ttk.Panedwindow(parent,orient="horizontal");pane.pack(fill="both",expand=True)
     left=ttk.Frame(pane);right=ttk.Frame(pane);pane.add(left,weight=1);pane.add(right,weight=2)
-    tree=ttk.Treeview(left,show="tree");tree.pack(fill="both",expand=True)
-    out=tk.Text(right,wrap="word");out.pack(fill="both",expand=True)
+    tree=ttk.Treeview(left,show="tree")
+    scroll=ttk.Scrollbar(left,orient="vertical",command=tree.yview)
+    tree.configure(yscrollcommand=scroll.set)
+    scroll.pack(side="right",fill="y");tree.pack(fill="both",expand=True)
+    out=tk.Text(right,wrap="word",state="disabled")
+    detail_scroll=ttk.Scrollbar(right,orient="vertical",command=out.yview)
+    out.configure(yscrollcommand=detail_scroll.set)
+    detail_scroll.pack(side="right",fill="y");out.pack(fill="both",expand=True)
     def show(value):
+        out.configure(state="normal")
         out.delete("1.0","end");out.insert("1.0",pformat(value))
+        out.configure(state="disabled")
     def guard(fn):
         def run():
             try:fn()
@@ -51,7 +59,7 @@ def mount(parent, game=None):
             raise ValueError("wrong plugin header")
         masters=[raw.rstrip(b"\0").decode("cp1252") for tag,raw in subrecords(kind,nodes[0]) if tag==b"MAST"]
         s=NativeSession(kind,data,None if kind=="morrowind" else Slots(p.name,masters))
-        state.update(session=s,source=p,undo=[],redo=[]);refresh()
+        state.update(session=s,source=p,undo=[],redo=[],master_report=None);refresh()
     def selected():
         if not tree.selection():raise ValueError("Select a record first")
         return state["paths"][tree.selection()[0]]
@@ -100,6 +108,8 @@ def mount(parent, game=None):
         ttk.Button(dialog,text="Go to record",command=guard(navigate)).pack(anchor="w")
         results.bind("<Double-1>",lambda event:guard(navigate)())
         ttk.Label(dialog,text="Incomplete schemas are coverage warnings, not proof of corruption.").pack(anchor="w")
+        if state.get("master_report"):
+            ttk.Button(dialog,text="Master diagnostics",command=lambda:show(state["master_report"])).pack(anchor="w")
         populate()
     def load_masters():
         s=state["session"]
@@ -111,6 +121,7 @@ def mount(parent, game=None):
         types,report=index_masters(s.profile,Path(directory),s.slots.names[:-1])
         candidate=NativeSession(s.profile,s.data,s.slots,types,report.pop("records",{}))
         state["session"]=candidate
+        state["master_report"]=report
         refresh()
         show({"master_index":report,"external_types":len(types),"diagnostics":candidate.validate()})
     def export():
