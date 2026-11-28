@@ -224,6 +224,9 @@ def launch():
  f=tab('Interior editor')
  from .interior_ui import mount as mount_interior
  mount_interior(f)
+ f=tab('Navmesh editor')
+ from .navmesh_ui import mount as mount_navmesh
+ mount_navmesh(f)
  f=tab('Books & notes')
  from .book_ui import mount as mount_books
  mount_books(f)
