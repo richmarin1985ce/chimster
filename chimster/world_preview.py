@@ -93,6 +93,8 @@ def preview(browser, key, radius=0, models=None):
     if world in browser.worlds and browser.profile=="new-vegas":
         from .world_environment import effective
         environment=effective(browser,world)
+        from .world_climate import representative_weather
+        environment["weather_preview"]=representative_weather(browser,environment["values"].get("climate"))
     return Scene(assets,instances), {
         "cell":label(key),"cells":len(cells),"grid":grid,"land_tiles":land_count,
         "proxy_references":len(instances)-land_count-model_count,"model_references":model_count,"skipped_references":skipped,
