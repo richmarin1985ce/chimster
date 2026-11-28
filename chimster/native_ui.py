@@ -61,6 +61,7 @@ def mount(parent, game=None):
         s=NativeSession(kind,data,None if kind=="morrowind" else Slots(p.name,masters))
         state.update(session=s,source=p,undo=[],redo=[],master_report=None);refresh()
     def selected():
+        if state["session"] is None:raise ValueError("Open a plugin first")
         if not tree.selection():raise ValueError("Select a record first")
         return state["paths"][tree.selection()[0]]
     def inspect():
@@ -111,8 +112,9 @@ def mount(parent, game=None):
         ttk.Button(dialog,text="Go to record",command=guard(navigate)).pack(anchor="w")
         results.bind("<Double-1>",lambda event:guard(navigate)())
         ttk.Label(dialog,text="Incomplete schemas are coverage warnings, not proof of corruption.").pack(anchor="w")
-        if state.get("master_report"):
-            ttk.Button(dialog,text="Master diagnostics",command=lambda:show(state["master_report"])).pack(anchor="w")
+        master_report=state.get("master_report")
+        if master_report:
+            ttk.Button(dialog,text="Master diagnostics",command=lambda:show(master_report)).pack(anchor="w")
         populate()
     def load_masters():
         s=state["session"]
