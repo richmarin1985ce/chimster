@@ -4,7 +4,8 @@ from .dds_texture import parse
 from .ba2_hash import hashes
 from .compatibility_asset_lookup import normalize
 
-def build(entries,limit=256*1024*1024,compress=True):
+def build(entries,limit=256*1024*1024,compress=True,*,version=1):
+    if version not in (1,7,8):raise ValueError('Unsupported Fallout 4 BA2 version')
     rows=[];seen=set();total=24
     for name,data in entries:
         key=normalize(name)
@@ -27,4 +28,4 @@ def build(entries,limit=256*1024*1024,compress=True):
         records.append(struct.pack("<QIIHHI",offset,packed,len(raw),0,t["mips"]-1,0xbaadf00d))
         payload.append(stored);offset+=len(stored)
         names.append(struct.pack("<H",len(path))+path)
-    return struct.pack("<4sI4sIQ",b"BTDX",1,b"DX10",len(rows),offset)+b"".join(records+payload+names)
+    return struct.pack("<4sI4sIQ",b"BTDX",version,b"DX10",len(rows),offset)+b"".join(records+payload+names)
