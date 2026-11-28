@@ -76,6 +76,89 @@ def common_fields(profile,node,localized=False):
         except (ValueError,UnicodeError,struct.error,OverflowError):continue
     return result
 
+def _fixed_properties(profile,sig,tag,raw):
+    """Candidate exact-length property adapters, with no reference-bearing bytes exposed."""
+    if profile=="morrowind":
+        key=(sig.decode("ascii"),tag.decode("ascii"))
+        if key in tes3_items.SCHEMAS:
+            return {k:v for k,v in tes3_items.decode_properties(*key,raw).items() if k!="unknown"}
+        if (sig,tag)==(b"BOOK",b"BKDT"):
+            return dict(zip(("weight","value","scroll","skill","enchantment_points"),struct.unpack("<fIIiI",raw)))
+        if (sig,tag)==(b"INGR",b"IRDT"):
+            d=tes3_items.ingredient_data(raw);return {k:d[k] for k in ("weight","value")}
+        if sig in (b"NPC_",b"CREA") and tag==b"NPDT":return tes3_actor_data.decode(sig,raw)
+        if sig in (b"NPC_",b"CREA") and tag==b"AIDT":
+            return {**tes3_actor_data.ai_decode(raw),**tes3_items.decode_services(raw)}
+        if sig in (b"NPC_",b"CREA",b"CONT") and tag==b"NPCO":
+            return {"count":tes3_items.inventory_entry(raw)["count"]}
+        if sig in (b"SPEL",b"ENCH",b"ALCH") and tag==b"ENAM":
+            return tes3_items.magic_effect(raw)
+        if sig in (b"LEVI",b"LEVC") and tag==b"INTV":return {"level":struct.unpack("<H",raw)[0]}
+        if sig in (b"LEVI",b"LEVC") and tag==b"NNAM":return {"chance":struct.unpack("<B",raw)[0]}
+    if profile=="oblivion":
+        if (sig,tag) in native_items.OBLIVION_FIELDS:
+            return {k:v for k,v in native_items.oblivion_properties(sig,tag,raw).items() if k!="reserved"}
+    if profile in ("fallout3","new-vegas") and (sig,tag)==(b"BOOK",b"DATA"):
+        flags,skill,value,weight=struct.unpack("<Bbif",raw)
+        return {"skill":skill,"value":value,"weight":weight,"untakeable":bool(flags&2)}
+    if profile in ("oblivion","fallout3","new-vegas") and sig in (b"LVLI",b"LVLC",b"LVLN",b"LVSP") and tag==b"LVLO":
+        level,_,_,count,_=struct.unpack("<h2sIh2s",raw)
+        return {"level":level,"count":count}
+    spec=_property_layout(profile,sig,tag)
+    if spec is not None:
+        fmt,keys=spec
+        return dict(zip(keys,struct.unpack(fmt,raw)))
+    return None
+
+def _property_layout(profile,sig,tag):
+    if profile not in _SCALAR_PROFILES:return None
+    if tag==b"CNTO" and sig in (b"NPC_",b"CONT",b"CREA") and profile in ("oblivion","fallout3","new-vegas","skyrim","skyrim-se","fallout4"):
+        # Inventory FormID is read separately and is not editable in this adapter.
+        return None
+    if tag==b"DATA":
+        if profile in ("fallout3","new-vegas") and sig in (b"MISC",b"KEYM"):
+            return "<if",("value","weight")
+        if profile in ("fallout3","new-vegas") and sig==b"WEAP":
+            return "<iifhB",("value","health","weight","damage","clip_size")
+        if profile in ("fallout3","new-vegas") and sig==b"ARMO":
+            return "<iif",("value","health","weight")
+        if profile in ("skyrim","skyrim-se") and sig==b"WEAP":
+            return "<IfH",("value","weight","damage")
+        if profile in ("skyrim","skyrim-se") and sig in (b"MISC",b"ARMO",b"KEYM"):
+            return "<If",("value","weight")
+        if profile=="fallout4" and sig==b"MISC":
+            return "<If",("value","weight")
+    return None
+
+def _edit_fixed(profile,sig,tag,raw,changes):
+    spec=_property_layout(profile,sig,tag)
+    if spec is None:return None
+    fmt,keys=spec
+    if set(changes)-set(keys):raise ValueError("Unsupported property")
+    values=dict(zip(keys,struct.unpack(fmt,raw)))
+    values.update(changes)
+    for key,v in changes.items():
+        if key=="weight":
+            if type(v) not in (int,float) or not math.isfinite(v) or not 0<=v<=1e6:raise ValueError("Invalid weight")
+        elif type(v)!=int or v<0:raise ValueError("Invalid integer property")
+    try:return struct.pack(fmt,*(values[k] for k in keys))
+    except (struct.error,OverflowError) as exc:raise ValueError("Property outside native range") from exc
+
+def property_fields(profile,node,localized=False):
+    """Field-level editor rows, including repeated typed inventory/effect entries."""
+    rows=common_fields(profile,node,localized)
+    parts=list(subrecords(profile,node));counts={}
+    for tag,raw in parts:
+        occurrence=counts.get(tag,0);counts[tag]=occurrence+1
+        try:
+            values=_fixed_properties(profile,node.signature,tag,raw)
+            if values is None and profile in _SCALAR_PROFILES and tag==b"CNTO" and node.signature in (b"NPC_",b"CONT",b"CREA"):
+                if len(raw)==8:values={"count":struct.unpack_from("<i",raw,4)[0]}
+            if values is not None and all(type(v) in (int,float,bool) and (type(v)!=float or math.isfinite(v)) for v in values.values()):
+                rows.append({"tag":tag.decode("ascii"),"occurrence":occurrence,"type":"properties","value":values})
+        except (ValueError,UnicodeError,struct.error,OverflowError):continue
+    return rows
+
 def edit(profile,data,path,tag,occurrence,changes,revision):
     if not path or any(type(i)!=int or i<0 for i in path):raise ValueError("Invalid path")
     if not isinstance(changes,dict) or not changes:raise ValueError("Expected nonempty typed changes")
@@ -131,18 +214,17 @@ def edit(profile,data,path,tag,occurrence,changes,revision):
         elif sig in (b"NPC_",b"CREA") and tag==b"FLAG":
             updated=tes3_actor_data.flags_edit(sig,raw,**changes)
         else:raise ValueError("No registered typed editor for field")
-    elif profile in ("fallout3","new-vegas") and sig in (b"MISC",b"KEYM") and tag==b"DATA":
-        if len(raw)!=8 or set(changes)-{"value","weight"}:raise ValueError("Unsupported item DATA")
-        value,weight=struct.unpack("<if",raw)
-        value=changes.get("value",value);weight=changes.get("weight",weight)
-        if type(value)!=int or not 0<=value<=2147483647:raise ValueError("Invalid value")
-        if type(weight) not in (int,float) or not math.isfinite(weight) or not 0<=weight<=1e6:raise ValueError("Invalid weight")
-        updated=struct.pack("<if",value,weight)
+    elif _property_layout(profile,sig,tag) is not None:
+        updated=_edit_fixed(profile,sig,tag,raw,changes)
+    elif profile in _SCALAR_PROFILES and tag==b"CNTO" and sig in (b"NPC_",b"CONT",b"CREA"):
+        if len(raw)!=8 or set(changes)!={"count"} or type(changes["count"])!=int or not 1<=changes["count"]<=2147483647:
+            raise ValueError("Invalid inventory count")
+        updated=raw[:4]+struct.pack("<i",changes["count"])
     elif profile=="oblivion" and (sig,tag) in native_items.OBLIVION_FIELDS:
         updated=native_items.edit_oblivion_properties(sig,tag,raw,**changes)
     elif profile in ("fallout3","new-vegas") and (sig,tag)==(b"BOOK",b"DATA"):
         updated=native_items.edit_fallout_book_data(profile,raw,**changes)
-    elif profile=="oblivion" and sig in (b"LVLI",b"LVLC",b"LVSP") and tag==b"LVLO":
+    elif profile in ("oblivion","fallout3","new-vegas") and sig in (b"LVLI",b"LVLC",b"LVLN",b"LVSP") and tag==b"LVLO":
         updated=native_items.edit_oblivion_leveled_entry(raw,**changes)
     else:raise ValueError("No registered typed editor for field")
     return replace(profile,data,path,tag,occurrence,raw,updated,revision)
