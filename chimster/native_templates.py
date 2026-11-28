@@ -10,7 +10,7 @@ def string(value):
     return value.encode("cp1252")+b"\0"
 
 def misc(profile,data,revision,*,editor_id,name,value,weight,bounds,model=None,_signature=b"MISC"):
-    if profile!="new-vegas":raise ValueError("Unverified template profile")
+    if profile not in ("fallout3","new-vegas"):raise ValueError("Unverified template profile")
     if type(value)!=int or not 0<=value<=2147483647:raise ValueError("Invalid value")
     if type(weight) not in (int,float) or not math.isfinite(weight) or not 0<=weight<=1e6:raise ValueError("Invalid weight")
     bounds=tuple(bounds)

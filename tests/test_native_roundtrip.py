@@ -55,3 +55,181 @@ class NativeRoundtrip(unittest.TestCase):
         with self.assertRaises(ValueError):
             apply(parts+[(b"ZZZZ",b"x")],proposal)
         self.assertFalse(plan("morrowind","STAT",[],None,None)["applicable"])
+
+
+class NativeTypedWorkbench(unittest.TestCase):
+    @staticmethod
+    def fixture(profile, localized=False, deleted=False):
+        from chimster.native_profiles import PROFILES
+        p=PROFILES[profile]
+        tes3=p.family=="TES3"
+        def record(sig,parts,form=0,flags=0):
+            payload=b"".join(struct.pack("<4sI" if tes3 else "<4sH",tag,len(raw))+raw for tag,raw in parts)
+            if tes3:header=struct.pack("<4sIII",sig,len(payload),0,flags)
+            else:header=struct.pack("<4sIIII",sig,len(payload),flags,form,0)+bytes(p.record_header-20)
+            return header+payload
+        header=record(b"TES3" if tes3 else b"TES4",[],flags=0x80 if localized else 0)
+        name=b"NAME" if tes3 else b"EDID"
+        title=b"FNAM" if tes3 else b"FULL"
+        misc=record(b"MISC",[(name,b"Object\0"),(title,b"Old\0"),(b"ZZZZ",b"opaque")],1,0x20 if deleted else 0)
+        gmst=record(b"GMST",[(name,b"iExample\0"),(b"INTV" if tes3 else b"DATA",struct.pack("<i",7))],2)
+        if not tes3:
+            def group(sig,body):
+                return struct.pack("<4sI4siI",b"GRUP",p.group_header+len(body),sig,0,0)+bytes(p.group_header-20)+body
+            misc=group(b"MISC",misc)
+            gmst=group(b"GMST",gmst)
+        return header+misc+gmst, None if tes3 else Slots("fixture.esp")
+
+    def test_cross_game_typed_fields_and_atomic_batch(self):
+        from chimster.native_editor import NativeSession
+        for profile in ("morrowind","oblivion","fallout3","new-vegas","skyrim","skyrim-se","fallout4"):
+            with self.subTest(profile=profile):
+                data,slots=self.fixture(profile)
+                s=NativeSession(profile,data,slots)
+                a,b=((1,),(2,)) if profile=="morrowind" else ((1,0),(2,0))
+                tag=b"FNAM" if profile=="morrowind" else b"FULL"
+                scalar=b"INTV" if profile=="morrowind" else b"DATA"
+                self.assertEqual(s.typed_fields(a)[0]["value"],"Old")
+                rev=s.revision
+                with self.assertRaises(ValueError):
+                    s.apply_typed(rev,[(a,tag,0,{"value":"Changed"}),(b,scalar,0,{"value":True})])
+                self.assertEqual(s.data,data)
+                edits=[(a,tag,0,{"value":"Longer name"}),(b,scalar,0,{"value":42})]
+                s.apply_typed(rev,edits)
+                self.assertEqual(s.typed_fields(a)[0]["value"],"Longer name")
+                self.assertIn((b"ZZZZ",b"opaque"),s.rows[a]["parts"])
+                self.assertEqual(s.typed_fields(b)[0]["value"],42)
+                with self.assertRaises(ValueError):s.apply_typed(rev,edits)
+                self.assertEqual(s.node((0,)).header,parse(profile,data)[0].header)
+
+    def test_localized_deleted_and_experimental_guards(self):
+        from chimster.native_editor import NativeSession
+        for profile,localized,deleted in (("skyrim-se",True,False),("new-vegas",False,True),("skyrim-vr",False,False)):
+            data,slots=self.fixture(profile,localized,deleted)
+            s=NativeSession(profile,data,slots)
+            with self.assertRaises(ValueError):
+                s.apply_typed(s.revision,[((1,0),b"FULL",0,{"value":"Changed"})])
+            self.assertEqual(s.data,data)
+
+    def test_morrowind_setting_adapter(self):
+        from chimster.native_typed_edit import edit
+        from hashlib import sha256
+        data,_=self.fixture("morrowind")
+        updated=edit("morrowind",data,(2,),b"INTV",0,{"value":12},sha256(data).hexdigest())
+        self.assertEqual(dict(subrecords("morrowind",parse("morrowind",updated)[2]))[b"INTV"],struct.pack("<i",12))
+
+    def test_global_exact_integer_and_compressed_preservation(self):
+        from chimster.native_typed_edit import edit
+        from hashlib import sha256
+        for profile in ("fallout3","new-vegas","skyrim","skyrim-se","fallout4"):
+            with self.subTest(profile=profile):
+                parts=[(b"EDID",b"Counter\0"),(b"FNAM",b"s"),(b"FLTV",struct.pack("<f",2)),(b"ZZZZ",b"opaque")]
+                raw=b"".join(struct.pack("<4sH",tag,len(value))+value for tag,value in parts)
+                packed=struct.pack("<I",len(raw))+zlib.compress(raw)
+                data=struct.pack("<4sIIIII",b"GLOB",len(packed),0x40000,3,0,0)+packed
+                rev=sha256(data).hexdigest()
+                out=edit(profile,data,(0,),b"FLTV",0,{"value":15},rev)
+                node=parse(profile,out)[0]
+                self.assertEqual(struct.unpack_from("<I",node.header,8)[0],0x40000)
+                self.assertEqual(list(subrecords(profile,node)),parts[:2]+[(b"FLTV",struct.pack("<f",15)),parts[-1]])
+                for bad in (32768,2.5,True):
+                    with self.assertRaises(ValueError):edit(profile,data,(0,),b"FLTV",0,{"value":bad},rev)
+
+    def test_gameplay_properties_and_repeated_inventory(self):
+        from chimster.native_typed_edit import edit,property_fields
+        from chimster.native_profiles import PROFILES
+        from hashlib import sha256
+        cases=[
+            ("morrowind",b"WEAP",b"WPDT",struct.pack("<fIHHffH6BI",1,2,0,3,1,1,0,1,2,1,2,1,2,0),"value",55),
+            ("oblivion",b"WEAP",b"DATA",struct.pack("<IffIIIfH",0,1,1,0,2,3,1,4),"damage",55),
+            ("fallout3",b"WEAP",b"DATA",struct.pack("<iifhB",2,3,1,4,5),"damage",55),
+            ("new-vegas",b"ARMO",b"DATA",struct.pack("<iif",2,3,1),"health",55),
+            ("skyrim",b"WEAP",b"DATA",struct.pack("<IfH",2,1,4),"damage",55),
+            ("skyrim-se",b"ARMO",b"DATA",struct.pack("<If",2,1),"value",55),
+            ("fallout4",b"MISC",b"DATA",struct.pack("<If",2,1),"value",55),
+        ]
+        for profile,sig,tag,raw,key,value in cases:
+            with self.subTest(profile=profile):
+                p=PROFILES[profile];tes3=p.family=="TES3"
+                parts=[(tag,raw),(b"ZZZZ",b"opaque")]
+                payload=b"".join(struct.pack("<4sI" if tes3 else "<4sH",k,len(v))+v for k,v in parts)
+                header=struct.pack("<4sIII",sig,len(payload),0,0) if tes3 else struct.pack("<4sIIII",sig,len(payload),0,1,0)+bytes(p.record_header-20)
+                data=header+payload
+                out=edit(profile,data,(0,),tag,0,{key:value},sha256(data).hexdigest())
+                node=parse(profile,out)[0]
+                self.assertEqual(property_fields(profile,node)[0]["value"][key],value)
+                self.assertEqual(list(subrecords(profile,node))[-1],parts[-1])
+                with self.assertRaises(ValueError):edit(profile,data,(0,),tag,0,{"unknown":1},sha256(data).hexdigest())
+        parts=[(b"CNTO",struct.pack("<Ii",0x1234,1)),(b"CNTO",struct.pack("<Ii",0x5678,2))]
+        payload=b"".join(struct.pack("<4sH",k,len(v))+v for k,v in parts)
+        data=struct.pack("<4sIIIII",b"CONT",len(payload),0,1,0,0)+payload
+        rev=sha256(data).hexdigest()
+        out=edit("skyrim-se",data,(0,),b"CNTO",1,{"count":9},rev)
+        node=parse("skyrim-se",out)[0]
+        self.assertEqual(list(subrecords("skyrim-se",node)),[parts[0],(b"CNTO",struct.pack("<Ii",0x5678,9))])
+        self.assertEqual([r["occurrence"] for r in property_fields("skyrim-se",node)],[0,1])
+        with self.assertRaises(ValueError):edit("skyrim-se",data,(0,),b"CNTO",1,{"formid":1},rev)
+
+
+class NativeCreationAndReferences(unittest.TestCase):
+    @staticmethod
+    def record(sig,parts,form=0,flags=0):
+        raw=b"".join(struct.pack("<4sH",tag,len(v))+v for tag,v in parts)
+        return struct.pack("<4sIIIII",sig,len(raw),flags,form,0,0)+raw
+
+    def test_create_duplicate_and_identity_preservation(self):
+        from chimster.native_editor import NativeSession
+        for profile in ("fallout3","new-vegas"):
+            header=self.record(b"TES4",[(b"HEDR",struct.pack("<fII",1.34,0,0x800))])
+            s=NativeSession(profile,header,Slots("fixture.esp"))
+            args=dict(editor_id="Original",name="Item",model="mesh.nif",value=3,weight=1,bounds=[0]*6)
+            new=s.create_or_duplicate(s.revision,"native_misc",**args)
+            path=s.resolve_identity(new);before=s.node(path)
+            duplicate=s.create_or_duplicate(s.revision,"native_duplicate",path=path,new_id="Copy")
+            self.assertNotEqual(new,duplicate)
+            self.assertEqual(s.node(s.resolve_identity(new)),before)
+            self.assertEqual(dict(s.rows[s.resolve_identity(duplicate)]["parts"])[b"EDID"],b"Copy\0")
+            original=s.data
+            with self.assertRaises(ValueError):s.create_or_duplicate(s.revision,"native_misc",**args)
+            self.assertEqual(s.data,original)
+    def test_tes3_create_and_duplicate(self):
+        from chimster.native_editor import NativeSession
+        raw=struct.pack("<4sI",b"HEDR",300)+bytes(300)
+        data=struct.pack("<4sIII",b"TES3",len(raw),0,0)+raw
+        s=NativeSession("morrowind",data,None)
+        key=s.create_or_duplicate(s.revision,"create",signature="MISC",new_id="Original",name="Item",model="mesh.nif",properties={"value":3,"weight":1})
+        path=s.resolve_identity(key)
+        copy=s.create_or_duplicate(s.revision,"duplicate",index=path[0],new_id="Copy")
+        self.assertNotEqual(key,copy)
+        self.assertEqual(len(s.paths),2)
+    def test_reference_selector_filters_and_ambiguity(self):
+        from chimster.native_editor import NativeSession
+        record=self.record
+        header=record(b"TES4",[])
+        data=header+record(b"NPC_",[(b"RNAM",struct.pack("<I",2))],1)+record(b"RACE",[(b"EDID",b"RaceA\0")],2)+record(b"RACE",[(b"EDID",b"RaceB\0")],3)+record(b"MISC",[],4)
+        s=NativeSession("skyrim-se",data,Slots("a.esp"))
+        fields=s.reference_fields((1,))
+        self.assertEqual(fields[0]["target"],Identity("a.esp",2))
+        matches=s.reference_targets((1,),0,0,"RaceB")
+        self.assertEqual([x["local_id"] for x in matches],[3])
+        s.apply(s.revision,[((1,),0,Identity("a.esp",2),Identity("a.esp",3),0)])
+        self.assertEqual(s.reference_fields((1,))[0]["target"],Identity("a.esp",3))
+        ambiguous=NativeSession("skyrim-se",data+record(b"RACE",[],3),Slots("a.esp"))
+        self.assertNotIn(3,[x["local_id"] for x in ambiguous.reference_targets((1,),0,0)])
+    def test_semantic_comparison_master_reorder(self):
+        from chimster.native_compare import semantic_compare
+        left=self.record(b"REFR",[(b"NAME",struct.pack("<I",1)),(b"ZZZZ",b"x")],0x02000800)
+        right=self.record(b"REFR",[(b"NAME",struct.pack("<I",0x01000001)),(b"ZZZZ",b"x")],0x02000800)
+        report=semantic_compare("skyrim",left,(0,),Slots("p.esp",["a.esm","b.esm"]),right,(0,),Slots("p.esp",["b.esm","a.esm"]))
+        self.assertEqual(report["fields"][0]["status"],"changed")
+        self.assertEqual(report["fields"][0]["semantic_status"],"equivalent")
+        self.assertEqual(report["fields"][1]["semantic_status"],"opaque-unchanged")
+    def test_native_string_tables(self):
+        from chimster.compatibility_strings import encode,parse,edit
+        from hashlib import sha256
+        for kind in ("STRINGS","DLSTRINGS","ILSTRINGS"):
+            data=encode({3:"Hello",12:"Résumé",100:""},kind)
+            result=edit(data,kind,{12:"New"},sha256(data).hexdigest())
+            self.assertEqual(parse(result,kind),{3:"Hello",12:"New",100:""})
+            with self.assertRaises(ValueError):edit(data,kind,{5:"New"},sha256(data).hexdigest())
+            with self.assertRaises(ValueError):edit(data,kind,{3:"New"},"stale")
