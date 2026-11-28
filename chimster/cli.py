@@ -81,6 +81,7 @@ def build_parser():
  b=c.add_parser('snapshot'); b.add_argument('game',choices=['oblivionremastered','fallout76']); b.add_argument('root'); b.add_argument('release')
  b=c.add_parser('compare'); b.add_argument('old'); b.add_argument('new')
  b=c.add_parser('package-layout'); b.add_argument('paths',nargs='+')
+ a=s.add_parser('fnv-interior'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--master',action='append',default=[]); a.add_argument('--ledger-in'); a.add_argument('--ledger-out')
  a=s.add_parser('world-check'); a.add_argument('plugins',nargs='+'); a.add_argument('--strict',action='store_true'); a.add_argument('--quest-links',action='store_true')
  a=s.add_parser('landscape-budget'); a.add_argument('game',choices=['oblivion','fallout3','newvegas']); a.add_argument('plugin')
  a=s.add_parser('record-inspect'); a.add_argument('plugin'); a.add_argument('origin'); a.add_argument('id',type=lambda x:int(x,0))
@@ -329,6 +330,13 @@ def main(argv=None):
    print(json.dumps(result,indent=2))
    if not result['valid']:raise SystemExit(1)
    return
+  elif n.cmd=='fnv-interior':
+   from .fnv_interior import export
+   from .formids import staged_build
+   from .quest_editor import load
+   spec=load(n.project)
+   if n.ledger_in and not n.ledger_out:raise ValueError('ledger input requires ledger output')
+   result=staged_build(lambda ids:export(spec,n.output,n.master,ids),n.output,n.ledger_out,n.ledger_in) if n.ledger_out else export(spec,n.output,n.master)
   elif n.cmd=='world-check':
    from .world_validator import validate
    result=validate(n.plugins,quest_links=n.quest_links)
