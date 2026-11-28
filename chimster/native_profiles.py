@@ -15,6 +15,7 @@ class Profile:
     group_header: int | None
     light_runtime: bool
     schema_revision: str | None = None
+    experimental: bool = False
 
 PROFILES = {
     p.name: p for p in (
@@ -25,6 +26,8 @@ PROFILES = {
         Profile("new-vegas", "FNV", 24, 24, False, "fnv-generated-v1"),
         Profile("skyrim", "TES5", 24, 24, False),
         Profile("skyrim-se", "TES5SE", 24, 24, True),
+        Profile("skyrim-vr", "TES5VR", 24, 24, False, experimental=True),
+        Profile("fallout4-vr", "FO4VR", 24, 24, False, experimental=True),
         Profile("fallout4", "FO4", 24, 24, True),
     )
 }
@@ -45,6 +48,7 @@ class RuntimeSlots:
     """Explicit full and light runtime tables; never use for on-disk decoding."""
     def __init__(self, profile, full=(), light=()):
         self.profile = PROFILES[profile]
+        if self.profile.experimental:raise ValueError("Runtime slot conventions not verified for this profile")
         if self.profile.family == "TES3":
             raise ValueError("TES3 has no runtime FormID table")
         self.full = tuple(plugin_name(x) for x in full)
@@ -97,10 +101,10 @@ def inspect_profile(profile, signature, parts, slots):
 
 def capability_manifest():
     """Describe implemented format infrastructure, not retail certification."""
-    return {"version":2,"pending_profiles":["skyrim-vr","fallout4-vr"],"deferred_profiles":["arena","daggerfall","oblivion-remastered","starfield","fallout76"],"profiles":[
+    return {"version":3,"pending_profiles":[],"deferred_profiles":["arena","daggerfall","oblivion-remastered","starfield","fallout76"],"profiles":[
         {"id":p.name,"release_scope":"deferred" if p.name=="oblivion-remastered" else "active","family":p.family,"record_header":p.record_header,
          "group_header":p.group_header,"light_runtime":p.light_runtime,
          "identity_kind":"named-subset" if p.family=="TES3" else "plugin-relative",
          "generated_schema":p.schema_revision,
-         "retail_verified":False}
+         "experimental":p.experimental,"structural_read":True,"runtime_slots_verified":False,"retail_verified":False}
         for p in PROFILES.values()]}
