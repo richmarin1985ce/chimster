@@ -81,8 +81,11 @@ def build_parser():
  b=c.add_parser('snapshot'); b.add_argument('game',choices=['oblivionremastered','fallout76']); b.add_argument('root'); b.add_argument('release')
  b=c.add_parser('compare'); b.add_argument('old'); b.add_argument('new')
  b=c.add_parser('package-layout'); b.add_argument('paths',nargs='+')
+ a=s.add_parser('navmesh-auto'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--rooms',action='store_true'); a.add_argument('--spacing',type=float,default=0.5); a.add_argument('--radius',type=float,default=0.3); a.add_argument('--height',type=float,default=1.8)
+ a=s.add_parser('navmesh-route'); a.add_argument('project'); a.add_argument('start',type=int); a.add_argument('end',type=int); a.add_argument('--closed',action='append',default=[])
+ a=s.add_parser('navmesh-draft'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--cell',type=lambda x:int(x,0),required=True); a.add_argument('--version',type=int,required=True)
  a=s.add_parser('fnv-interior'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--master',action='append',default=[]); a.add_argument('--ledger-in'); a.add_argument('--ledger-out')
- a=s.add_parser('world-check'); a.add_argument('plugins',nargs='+'); a.add_argument('--strict',action='store_true'); a.add_argument('--quest-links',action='store_true')
+ a=s.add_parser('world-check'); a.add_argument('plugins',nargs='+'); a.add_argument('--strict',action='store_true'); a.add_argument('--quest-links',action='store_true'); a.add_argument('--navmesh',action='store_true')
  a=s.add_parser('landscape-budget'); a.add_argument('game',choices=['oblivion','fallout3','newvegas']); a.add_argument('plugin')
  a=s.add_parser('record-inspect'); a.add_argument('plugin'); a.add_argument('origin'); a.add_argument('id',type=lambda x:int(x,0))
  a=s.add_parser('record-edit-text'); a.add_argument('plugin'); a.add_argument('output'); a.add_argument('origin'); a.add_argument('id',type=lambda x:int(x,0)); a.add_argument('field'); a.add_argument('value'); a.add_argument('hash')
@@ -330,6 +333,27 @@ def main(argv=None):
    print(json.dumps(result,indent=2))
    if not result['valid']:raise SystemExit(1)
    return
+  elif n.cmd=='navmesh-auto':
+   from .navmesh import generate
+   from .navmesh_rooms import build
+   from .quest_editor import load
+   spec=load(n.project)
+   if n.rooms:mesh=build(spec,n.spacing,{"radius":n.radius,"height":n.height})
+   else:mesh=generate(spec)
+   from pathlib import Path
+   with Path(n.output).open("x",encoding="utf-8") as stream:json.dump(mesh,stream)
+   result={"output":n.output,"vertices":len(mesh["vertices"]),"triangles":len(mesh["triangles"]),"regions":len(mesh["regions"]),"issues":mesh.get("issues",[]),"scope":mesh["scope"]}
+  elif n.cmd=='navmesh-route':
+   from .quest_editor import load
+   from .navmesh import route
+   mesh=load(n.project);result=route(mesh,n.start,n.end,mesh.get("links",[]),n.closed)
+  elif n.cmd=='navmesh-draft':
+   from .quest_editor import load
+   from .fnv_navmesh import draft
+   from pathlib import Path
+   mesh=load(n.project);parts=draft(mesh,n.cell,n.version)
+   with Path(n.output).open("x",encoding="utf-8") as stream:json.dump({"status":"UNFINALIZED GEOMETRY ONLY; not a playable NAVM or ESP","fields":[[t.decode(),v.hex()] for t,v in parts]},stream)
+   result={"output":n.output,"scope":"geometry draft; grid, external links, door records and NAVI finalization pending"}
   elif n.cmd=='fnv-interior':
    from .fnv_interior import export
    from .formids import staged_build
@@ -339,7 +363,7 @@ def main(argv=None):
    result=staged_build(lambda ids:export(spec,n.output,n.master,ids),n.output,n.ledger_out,n.ledger_in) if n.ledger_out else export(spec,n.output,n.master)
   elif n.cmd=='world-check':
    from .world_validator import validate
-   result=validate(n.plugins,quest_links=n.quest_links)
+   result=validate(n.plugins,quest_links=n.quest_links,navmesh=n.navmesh)
    print(json.dumps(result,indent=2))
    if not result['valid'] or (n.strict and result['warnings']):raise SystemExit(1)
    return
