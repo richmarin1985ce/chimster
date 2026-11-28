@@ -49,3 +49,23 @@ def read_fnv_settings(raw):
     if low not in (4,8,16,32) or high not in (4,8,16,32) or low>high or not stride or x>X or y>Y or obj not in (4,8,16,32):
         raise ValueError("Invalid LODSettings fields")
     return {"min_level":low,"max_level":high,"stride":stride,"min_cell":(x,y),"max_cell":(X,Y),"object_level":obj}
+
+
+def skyrim_settings(cells,levels=(4,8,16,32),southwest=None):
+    """16-byte classic Skyrim LOD quadtree settings candidate."""
+    import struct
+    bounds=world_bounds(cells);lo,hi=bounds["min_cell"],bounds["max_cell"]
+    if not levels or any(v not in (4,8,16,32) for v in levels):raise ValueError("Unsupported LOD levels")
+    origin=tuple(southwest) if southwest is not None else tuple(v//max(levels)*max(levels) for v in lo)
+    if len(origin)!=2 or any(type(v)!=int or not -32768<=v<=32767 for v in origin) or any(origin[i]>lo[i] for i in range(2)):raise ValueError("Invalid southwest origin")
+    size=max(levels)
+    while any(origin[i]+size<=hi[i] for i in range(2)):size*=2
+    if size>65536:raise ValueError("LOD quadtree extent limit")
+    return struct.pack("<2h3I",*origin,size,min(levels),max(levels))
+
+def read_skyrim_settings(raw):
+    import struct
+    if len(raw)!=16:raise ValueError("Invalid Skyrim LOD settings size")
+    x,y,size,low,high=struct.unpack("<2h3I",raw)
+    if low not in (4,8,16,32) or high not in (4,8,16,32) or low>high or size<high or size&(size-1) or size>65536:raise ValueError("Invalid Skyrim LOD settings")
+    return {"southwest":(x,y),"stride":size,"min_level":low,"max_level":high}
