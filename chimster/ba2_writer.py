@@ -1,8 +1,8 @@
 """Build BA2 v1 GNRL archives from caller-owned assets and supplied native hashes."""
-import struct
+import struct,zlib
 from .compatibility_asset_lookup import normalize
 
-def build(entries,limit=256*1024*1024):
+def build(entries,limit=256*1024*1024,compress=False):
     rows=[];seen=set();total=24
     for name,data,name_hash,dir_hash in entries:
         key=normalize(name)
@@ -17,7 +17,10 @@ def build(entries,limit=256*1024*1024):
         rows.append((raw,ext,data,name_hash,dir_hash))
     offset=24+36*len(rows);records=[];payload=[];names=[]
     for name,ext,data,nh,dh in rows:
-        records.append(struct.pack("<I4sIIQIII",nh,ext,dh,0,offset,0,len(data),0xbaadf00d))
-        payload.append(data);offset+=len(data)
+        candidate=zlib.compress(data) if compress else data
+        packed=len(candidate) if compress and len(candidate)<len(data) else 0
+        stored=candidate if packed else data
+        records.append(struct.pack("<I4sIIQIII",nh,ext,dh,0,offset,packed,len(data),0xbaadf00d))
+        payload.append(stored);offset+=len(stored)
         names.append(struct.pack("<H",len(name))+name)
     return struct.pack("<4sI4sIQ",b"BTDX",1,b"GNRL",len(rows),offset)+b"".join(records+payload+names)
