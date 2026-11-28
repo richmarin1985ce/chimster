@@ -20,6 +20,8 @@ def key_json(key):
 
 class Draft:
     def __init__(self, browser, name="ChimsterDraft.esp"):
+        if browser.profile!="new-vegas":
+            raise ValueError("Native world drafts are New Vegas only")
         self.original = browser
         self.name = name.lower()
         if not re.fullmatch(r"[a-z0-9_-]+\.esp",self.name) or any(k.origin==self.name or r["plugin"]==self.name for k,r in browser.winners.items()) or any(p.name.casefold()==self.name for p in getattr(browser,"source_paths",())):
