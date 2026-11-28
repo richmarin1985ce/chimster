@@ -20,6 +20,21 @@ def inspect(signature, parts, slots, include_null=False):
     """Return references and coverage; unsupported layouts remain opaque."""
     parts = list(parts)
     sig = signature.encode("ascii")
+    from .quest_remap_schema import PATTERNS as QUEST_PATTERNS, fields as quest_fields
+    from .world_remap_schema import PATTERNS as WORLD_PATTERNS, fields as world_fields
+    exact = quest_fields if sig in QUEST_PATTERNS else world_fields if sig in WORLD_PATTERNS else None
+    if exact is not None:
+        try:
+            offsets = exact(sig, parts)
+        except (ValueError, UnicodeError, struct.error):
+            pass
+        else:
+            edges = []
+            for i, offset, kinds in offsets:
+                target = slots.decode(struct.unpack_from("<I", parts[i][1], offset)[0])
+                if target is not None or include_null:
+                    edges.append(Reference(i, offset, target, kinds))
+            return edges, ()
     if sig in PATTERNS:
         # Validate the entire layout before extracting any exact-layout links.
         try:
