@@ -3,14 +3,14 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, simpledialog
 from pathlib import Path
 from pprint import pformat
-from .world_browser import Browser, label
+from .world_browser import Browser, label, BROWSE_PROFILES
 from .native_profiles import canonical_profile
 
 
 def mount(parent, game, open_preview=None):
     state = {"paths": [], "index": None, "world": None, "cell": None,
              "worlds": [], "cells": {}, "objects": {}, "center": (0, 0)}
-    status = tk.StringVar(value="New Vegas only. Add plugins in master-first load order.")
+    status = tk.StringVar(value="Add plugins in master-first load order. Native editing: New Vegas.")
     query = tk.StringVar()
     object_query = tk.StringVar()
     world_choice = tk.StringVar()
@@ -48,7 +48,7 @@ def mount(parent, game, open_preview=None):
         return not (state.get('draft') and state['draft'].operations) or messagebox.askyesno('Discard draft?','Changing the load order or rebuilding discards the in-memory draft. Export first if needed. Continue?',parent=parent)
     def add():
         if not allow_reset():return
-        for p in filedialog.askopenfilenames(filetypes=[("New Vegas plugins", "*.esm *.esp")]):
+        for p in filedialog.askopenfilenames(filetypes=[("Bethesda plugins", "*.esm *.esp")]):
             if p not in state["paths"]:
                 state["paths"].append(p)
         update_paths()
@@ -80,11 +80,12 @@ def mount(parent, game, open_preview=None):
     def load():
         if not allow_reset():return
         try:
-            if canonical_profile(game.get()) != "new-vegas":
-                raise ValueError("Select New Vegas in the main game selector.")
+            profile=canonical_profile(game.get())
+            if profile not in BROWSE_PROFILES:
+                raise ValueError("Select a supported full-slot Bethesda profile.")
             if not state["paths"]:
                 raise ValueError("Add plugins first.")
-            index = Browser.open(state["paths"])
+            index = Browser.open(state["paths"],profile)
         except (OSError, ValueError, KeyError, TypeError) as exc:
             messagebox.showerror("Worldspace browser", str(exc))
             return
@@ -258,13 +259,13 @@ def mount(parent, game, open_preview=None):
                 if size>=19:
                     canvas.create_text(x+size/2,y+size/2,text=f"{grid[0]}\n{grid[1]}",fill="white",font=("TkDefaultFont",7),tags=(tag,))
     def render_cell(focus=None):
-        if canonical_profile(game.get())!='new-vegas':
-            status.set('Select New Vegas to load this preview.');return
+        if state['index'] is not None and canonical_profile(game.get())!=state['index'].profile:
+            status.set('Select the loaded browser profile.');return
         if state['index'] is None or state['cell'] is None or open_preview is None:
             status.set('Select a cell first.');return
         try:
             from .world_preview import preview
-            scene, report = preview(state['index'],state['cell'],int(radius.get()),state['models'])
+            scene, report = preview(state['index'],state['cell'],int(radius.get()),state['models'] if state['index'].profile=="new-vegas" else None)
             if open_preview(scene,report,focus,viewport_select):
                 show(report)
         except (OSError,ValueError,TypeError,KeyError) as exc:
@@ -293,6 +294,8 @@ def mount(parent, game, open_preview=None):
     def edit_draft(action):
         index=state["index"]
         if index is None:return
+        if index.profile!="new-vegas" or canonical_profile(game.get())!="new-vegas":
+            status.set("Native world editing is currently New Vegas only.");return
         from .world_draft import Draft
         draft=state["draft"]
         if draft is None:
