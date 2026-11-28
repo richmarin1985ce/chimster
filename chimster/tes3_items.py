@@ -46,6 +46,9 @@ def inspect(profile,data):
         if node.signature in (b"LEVI",b"LEVC") and not row.get("deleted"):
             try:row["leveled"]=leveled(node.signature,list(subrecords(profile,node)))
             except ValueError as e:row["issues"].append(str(e))
+        if node.signature in (b"ARMO",b"CLOT",b"NPC_",b"CREA"):
+            try:row.update(actor_links(node.signature,list(subrecords(profile,node))))
+            except ValueError as e:row["issues"].append(str(e))
         names=row["fields"].get("NAME",[])
         if len(names)==1 and names[0]:row["identity"]=names[0].casefold()
         else:row["issues"].append("Missing or ambiguous NAME")
@@ -215,3 +218,38 @@ def list_cycles(rows):
             elif child in graph and child not in done:
                 active.add(child);stack.append((child,iter(graph[child])))
     return cycles
+
+def actor_links(signature,parts):
+    out={};current=None
+    for tag,raw in parts:
+        def name():return raw.split(b"\0",1)[0].decode("cp1252")
+        if signature in (b"ARMO",b"CLOT"):
+            if tag==b"INDX":
+                if len(raw)!=1 or raw[0]>26:raise ValueError("Invalid body slot")
+                current={"slot":raw[0]};out.setdefault("body_parts",[]).append(current)
+            elif tag in (b"BNAM",b"CNAM"):
+                if current is None:raise ValueError("Orphan body part")
+                key="male" if tag==b"BNAM" else "female"
+                if key in current:raise ValueError("Duplicate body part")
+                current[key]=name()
+        else:
+            if tag==b"NPCS":
+                if len(raw)!=32:raise ValueError("Invalid spell reference")
+                out.setdefault("spells",[]).append(name())
+            elif signature==b"NPC_" and tag in (b"RNAM",b"ANAM",b"BNAM",b"CNAM",b"KNAM"):
+                out[{b"RNAM":"race",b"ANAM":"faction",b"BNAM":"head",b"CNAM":"class",b"KNAM":"hair"}[tag]]=name()
+            elif tag==b"NPDT" and signature==b"NPC_":
+                if len(raw) not in (12,52):raise ValueError("Unknown NPC data size")
+                out["npc_stats"]={"level":struct.unpack_from("<h",raw)[0],"gold":struct.unpack_from("<i",raw,len(raw)-4)[0],"layout":len(raw)}
+            elif tag==b"DODT":
+                if len(raw)!=24:raise ValueError("Invalid travel destination")
+                coords=struct.unpack("<6f",raw)
+                if not all(isfinite(v) for v in coords):raise ValueError("Invalid travel coordinates")
+                out.setdefault("travel",[]).append({"position":coords[:3],"rotation":coords[3:]})
+            elif tag==b"DNAM" and out.get("travel"):
+                out["travel"][-1]["cell"]=name()
+    return out
+
+def edit_npc_gold(raw,gold):
+    if len(raw) not in (12,52) or type(gold)!=int or not 0<=gold<=2147483647:raise ValueError("Invalid NPC gold")
+    return raw[:-4]+struct.pack("<i",gold)
