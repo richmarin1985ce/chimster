@@ -10,6 +10,10 @@ from math import isfinite, floor
 from .native_parser import parse, subrecords
 from .record_graph import Slots
 from .loadorder import plugin_name, fingerprint
+from .native_profiles import canonical_profile
+
+BROWSE_PROFILES = ("oblivion","fallout3","new-vegas","skyrim","skyrim-se","fallout4")
+# Only common structural fields; localized FULL, landscape and models gated by profile.
 
 PLACED = {"REFR", "ACHR", "ACRE"}
 KINDS = {"WRLD", "CELL", "LAND", "NAVM"} | PLACED
@@ -25,17 +29,20 @@ def text_field(raw):
     return raw[:-1].decode("cp1252", errors="replace")
 
 
-def read_plugin(path):
+def read_plugin(path, profile="new-vegas"):
+    profile=canonical_profile(profile)
+    if profile not in BROWSE_PROFILES:raise ValueError("World browser profile not supported")
     path = Path(path)
-    nodes = parse("new-vegas", path.read_bytes())
+    nodes = parse(profile, path.read_bytes())
     if not nodes or nodes[0].signature != b"TES4":
         raise ValueError(f"{path.name}: expected TES4 header")
     # MAST is repeatable; do not derive it from the dict.
-    masters = [text_field(raw) for tag, raw in subrecords("new-vegas", nodes[0]) if tag == b"MAST"]
+    masters = [text_field(raw) for tag, raw in subrecords(profile, nodes[0]) if tag == b"MAST"]
     if any(not name for name in masters):
         raise ValueError(f"{path.name}: invalid master name")
-    if struct.unpack_from("<I", nodes[0].header, 8)[0] & 0x200:
-        raise ValueError("Light plugins are not supported by the New Vegas browser")
+    if profile in ("skyrim-se","fallout4") and (struct.unpack_from("<I", nodes[0].header, 8)[0] & 0x200 or path.suffix.casefold()==".esl"):
+        raise ValueError("Light plugins require a separate browser identity adapter")
+    localized=bool(struct.unpack_from("<I",nodes[0].header,8)[0]&0x80)
     slots = Slots(path.name, masters)
     rows = []
     seen = set()
@@ -64,12 +71,12 @@ def read_plugin(path):
                    "world": world, "cell": cell, "bucket": bucket, "editor_id": "", "name": ""}
             # Only decode browser records and base record EDIDs. Opaque fields are never rewritten.
             if not flags & 0x20:
-                parts = list(subrecords("new-vegas", node))
+                parts = list(subrecords(profile, node))
                 fields = dict(parts)
                 row["editor_id"] = text_field(fields.get(b"EDID"))
                 if sig not in KINDS and b"MODL" in fields:
                     row["model"] = text_field(fields[b"MODL"])
-                if sig in KINDS:
+                if sig in KINDS and (profile in ("oblivion","fallout3","new-vegas") or not localized):
                     row["name"] = text_field(fields.get(b"FULL"))
                 if sig == "CELL":
                     grid = fields.get(b"XCLC", b"")
@@ -78,7 +85,7 @@ def read_plugin(path):
                         row["grid"] = struct.unpack_from("<2i", grid)
                     data = fields.get(b"DATA", b"")
                     row["interior"] = bool(data and data[0] & 1)
-                if sig == "LAND" and b"VHGT" in fields:
+                if sig == "LAND" and b"VHGT" in fields and profile in ("oblivion","fallout3","new-vegas","skyrim","skyrim-se"):
                     row["height_raw"] = fields[b"VHGT"]
                 if sig in PLACED:
                     scale = fields.get(b"XSCL", b"")
@@ -102,6 +109,7 @@ def read_plugin(path):
 
 class Browser:
     def __init__(self, plugins):
+        self.profile = "new-vegas"
         self.winners = {}
         self.history = defaultdict(list)
         self.issues = []
@@ -148,10 +156,13 @@ class Browser:
                 self.issues.append(f"Duplicate coordinates {label(world)} {grid}")
 
     @classmethod
-    def open(cls, paths):
+    def open(cls, paths, profile="new-vegas"):
+        profile=canonical_profile(profile)
+        if profile not in BROWSE_PROFILES:raise ValueError("Unsupported browser profile")
         paths = tuple(Path(p).resolve(strict=True) for p in paths)
         hashes = tuple(fingerprint(p) for p in paths)
-        result = cls(read_plugin(path) for path in paths)
+        result = cls(read_plugin(path,profile) for path in paths)
+        result.profile=profile
         if hashes != tuple(fingerprint(p) for p in paths):
             raise ValueError('Plugin changed while building browser index')
         result.source_paths = paths
