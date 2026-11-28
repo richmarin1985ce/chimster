@@ -76,3 +76,16 @@ An experimental static-root Skyrim LE/SE path decodes bhkCompressedMeshShape big
     python -m chimster navmesh-registration project.json
 
 Project JSON contains meshes (native candidate fields with form_id, optional expected location and grid), navi (locally sourced native fields), and optional explicit door_backlinks (reference, mesh, triangle; caller must verify actual XNDP convention). Review checks known fields, grid framing, reciprocal external edges and shared edge coordinates with opposite winding, exact known NAVI registration location/grid and door backlink consistency. Registration manifests include candidate payload hashes and expected IDs for a native finalizer. Neither command synthesizes unknown NVMI tails or NVCI data. Full NAVI generation and playable ESP finalization remain pending. New integration fixtures are committed but unexecuted; local GitHub DNS prevents full checkout/build.
+
+## Native staging, XNDP triangle bindings and optional FO4 backend
+Interior projects can explicitly include a cell-level navmesh_stage object: mesh (vertices and triangles, no unresolved portable off-mesh links), version, divisor, count_width, optional cover and flags, and doors (placement, triangle, tail_hex, backlink_tail_hex). The existing fnv-interior command writes NAVM into the temporary child group and assigns stable FormIDs. Door bindings require a persistent DOOR placement and emit matching NVDP and XNDP signed triangle indices. Large subrecords use XXXX framing. This produces an unfinalized ESP, not a game-ready plugin. Preserve a separate untouched stage copy, open another copy with the identical filename and master order in GECK, finalize the new cells, save, then run:
+
+    python -m chimster navmesh-verify-stage staging/Stage.esp finalized/Stage.esp --master /path/to/FalloutNV.esm
+
+The review compares record identities, NAVM geometry, NAVI registrations and load-order diagnostics. It does not generate unknown NAVI data or execute GECK. GECK may legitimately make other changes; the review reports these for inspection. Native game traversal remains required. See https://geckwiki.com/index.php/Finalize_Cell_NavMeshes .
+
+Skyrim compressed collision now accepts the absent-transform sentinel 65535 and applies a proper quaternion rotation when a transform is present. Referenced chunks are still rejected because their semantics and fixture coverage are incomplete. An optional local PyNifly adapter supports a restricted Fallout 4 static root physics body, validated triangle meshes and nested compound transforms; it rejects dynamic/trigger bodies, nonidentity root transforms, unsupported shape types and multiple collision bodies/nodes. The compatible local PyNifly backend is required, not bundled or installed by Chimster.
+
+    python -m chimster navmesh-fo4 asset.nif mesh.json --unit-scale 1 --spacing 1
+
+Unit scale and spacing are illustrative, not native recommendations. New synthetic regression fixtures were committed; native compilation, full suite execution, GECK finalization and real asset tests remain outstanding. Additional primitives and referenced chunks remain pending.
