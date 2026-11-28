@@ -152,3 +152,22 @@ class BuiltinLODTests(unittest.TestCase):
         groups=read_static_groups(raw,include_cutout=True)
         self.assertEqual(groups[0][1:],("textures/tree.dds","textures/tree_n.dds",True))
         with self.assertRaises(ValueError):read_static_groups(raw)
+
+    def test_modern_candidate_streams(self):
+        from chimster.modern_lod_codec import encode_groups,inspect,export_tile
+        mesh=terrain_grid([[1.,2.],[2.,3.]])
+        for game,stream in (("skyrim",83),("skyrim-se",100),("fallout4",130)):
+            raw=encode_groups([(mesh,"textures/a.dds","textures/a_n.dds")],game)
+            info=inspect(raw,game)
+            self.assertEqual(info["stream"],stream)
+            self.assertEqual(info["triangles"],2)
+            self.assertEqual(info["vertices"],4)
+            self.assertFalse(info["runtime_verified"])
+            with self.assertRaises(ValueError):inspect(raw[:-1],game)
+            with tempfile.TemporaryDirectory() as d:
+                result=export_tile(game,"object","TestWorld",4,-4,0,mesh,"textures/a.dds","textures/a_n.dds",d,True)
+                self.assertTrue(Path(result["path"]).is_file())
+                self.assertTrue(result["path"].endswith(".bto"))
+                self.assertIn("NiAlphaProperty",result["block_types"])
+                with self.assertRaises(FileExistsError):
+                    export_tile(game,"object","TestWorld",4,-4,0,mesh,"textures/a.dds","textures/a_n.dds",d,True)
