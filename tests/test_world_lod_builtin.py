@@ -272,3 +272,21 @@ class BuiltinLODTests(unittest.TestCase):
             self.assertEqual(inspect(far.read_bytes())["triangles"],2)
             self.assertIn(0x01000802,decode_cell((out/"DistantLOD/Demo_0_0.lod").read_bytes()))
             self.assertFalse(result["runtime_verified"])
+
+    def test_oblivion_multimaterial_and_color_roundtrip(self):
+        from chimster.oblivion_lod_nif import encode_groups,read_static_groups,inspect,DEFAULT_MATERIAL
+        a=terrain_grid([[0.,1.],[2.,3.]])
+        b=terrain_grid([[2.,3.],[4.,5.]])
+        a.colors=[(1.,.5,.25,1.)]*len(a.vertices)
+        tint=(.5,.75,1.)+DEFAULT_MATERIAL[3:]
+        raw=encode_groups([(a,"textures/a.dds",False,tint),(b,"textures/b.dds",True,DEFAULT_MATERIAL)])
+        groups=read_static_groups(raw)
+        self.assertEqual(len(groups),2)
+        self.assertEqual(groups[0][0].colors,a.colors)
+        self.assertEqual(groups[0][3],tint)
+        self.assertEqual(groups[1][2],True)
+        report=inspect(raw)
+        self.assertEqual(report["triangles"],4)
+        self.assertEqual(report["colored_vertices"],4)
+        self.assertEqual(report["material_groups"],2)
+        with self.assertRaises(ValueError):read_static_groups(raw[:-1])
