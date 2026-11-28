@@ -21,3 +21,8 @@ The staged writer now supports the exact generated exterior WRLD/CELL/LAND/REFR 
 
 ## Script-free generated quests
 Master-table staging supports exact generated New Vegas QUST/DIAL/INFO layouts and type-7 topic-owned groups; known CTDA parameters and quest/dialogue links are remapped by origin. Nonempty result scripts and unknown conditions are refused. Graph inspection shares the generated quest and world offsets. No blanket quest/script compatibility or runtime certification. Regression execution deferred.
+
+
+## Shared native typed workbench
+The native workbench now discovers and edits a conservative subset of existing inline display names, typed GMST values, and GLOB values for Morrowind, Oblivion, Fallout 3, New Vegas, Skyrim, Skyrim SE, and Fallout 4. TES3 uses FNAM for display names and NAME for persistent named settings/globals; TES4-family formats use FULL and EDID respectively. Localized string fields, duplicate scalar fields, deleted records, unknown layouts and profiles outside this explicit allowlist remain unavailable for this adapter. This does not enable Starfield or Remastered writes or certify VR formats. Existing specialized typed adapters remain available through the transaction API.
+The NativeSession apply_typed method uses revision-checked atomic batches; identity and record type changes are refused. The desktop workbench exposes common typed fields, eight-step undo/redo, and validated create-only staged export through native_save. Unknown subrecord bytes remain intact. Source plugin files are not edited. Synthetic fixtures cover seven profile layouts, compressed global records, failed batch rollback and stale revisions. Independent editor and game verification remains required.
