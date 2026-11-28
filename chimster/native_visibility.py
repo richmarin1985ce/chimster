@@ -2,8 +2,9 @@
 import struct
 from .native_parser import parse,subrecords
 FIELDS={b"XRMR",b"XLRM",b"XPRM",b"XPOD",b"XPTL",b"XORD",b"XMBR",b"XMBO",b"XMBP",b"XRMK"}
-PROFILES={"fallout3","newvegas","skyrim","skyrimse","fallout4"}
+PROFILES={"fallout3","new-vegas","skyrim","skyrim-se","fallout4"}
 def inspect(profile,data):
+    profile={"newvegas":"new-vegas","skyrimse":"skyrim-se"}.get(profile,profile)
     if profile not in PROFILES:raise ValueError("Visibility profile not supported")
     result=[]
     def walk(nodes,groups=()):
