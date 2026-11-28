@@ -16,13 +16,29 @@ def mount(parent, game, open_preview=None):
     world_choice = tk.StringVar()
     radius = tk.StringVar(value="0")
     state["models"] = None
+    state["loose"] = None
+    state["archives"] = ()
     state["draft"] = None
     def choose_models():
         folder = filedialog.askdirectory(title="Choose game Data directory with loose meshes")
         if folder:
             from .world_models import LooseModels
-            state["models"] = LooseModels(folder)
+            state["loose"] = LooseModels(folder)
+            configure_models()
             status.set("Loose NIF preview enabled: "+folder)
+    def configure_models():
+        from .world_models import ArchiveModels
+        state["models"]=ArchiveModels(state["archives"],state["loose"]) if state["archives"] else state["loose"]
+    def choose_archives():
+        paths=filedialog.askopenfilenames(title="Select BSAs in low-to-high priority order",filetypes=[("Bethesda archives","*.bsa")])
+        if not paths:return
+        if not messagebox.askyesno("Archive preview order","Later archives win; loose files override. Confirm order:\\n"+"\\n".join(Path(p).name for p in paths),parent=parent):return
+        try:
+            from .world_models import ArchiveModels
+            candidate=ArchiveModels(paths,state["loose"])
+            state["archives"]=paths;state["models"]=candidate
+            status.set(f"{len(paths)} archive layers indexed")
+        except (OSError,ValueError) as exc:messagebox.showerror("Archive models",str(exc),parent=parent)
     gx, gy = tk.StringVar(value="0"), tk.StringVar(value="0")
     toolbar = ttk.Frame(parent)
     toolbar.pack(fill="x")
@@ -85,6 +101,7 @@ def mount(parent, game, open_preview=None):
                       ("Remove", remove), ("Build index", load)):
         ttk.Button(toolbar, text=name, command=cmd).pack(side="left")
     ttk.Button(toolbar,text="Loose models",command=choose_models).pack(side="left")
+    ttk.Button(toolbar,text="BSA models",command=choose_archives).pack(side="left")
     selectors = ttk.Frame(parent)
     selectors.pack(fill="x", pady=4)
     ttk.Label(selectors, text="World Space").pack(side="left")
