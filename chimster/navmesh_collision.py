@@ -164,11 +164,37 @@ def generate_collision(spec):
             for dest in by_xy.get((x+dx,y+dy),[]):
                 w=kept[dest];deltas=[abs(z[a]-w[b]) for a,b in zip(ea,eb)]
                 if max(deltas)<=EPS or max(deltas)>step+EPS:continue
+                # The swept body travels at the higher edge elevation. Clip collision
+                # polygons to a conservative rectangular aperture around the seam.
+                # Reject overhead or upright obstruction anywhere in that aperture.
+                if 2*radius>s+EPS:
+                    reject["step_width"]+=1;continue
+                axis=0 if dx else 1;along=1-axis
+                seam=(ox+(x+1)*s) if dx else (oy+(y+1)*s)
+                center=(oy+(y+.5)*s) if dx else (ox+(x+.5)*s)
+                low=max(z[ea[0]],z[ea[1]],w[eb[0]],w[eb[1]])
+                half=max(radius,EPS);sweep=s*.5+half
+                window=((axis,seam-sweep,1),(axis,seam+sweep,-1),(along,center-half,1),(along,center+half,-1),(2,low+EPS,1),(2,low+height-EPS,-1))
+                blocked=False
+                reach_cells=math.ceil(sweep/s)+1
+                for yy in range(y-reach_cells,y+reach_cells+1):
+                    for xx in range(x-reach_cells,x+reach_cells+1):
+                        for _,poly in columns.get((xx,yy),[]):
+                            if max(p[2] for p in poly)<=low+EPS or min(p[2] for p in poly)>=low+height-EPS:continue
+                            hit=list(poly)
+                            for ax,val,sign in window:
+                                hit=clip(hit,ax,val,sign)
+                                if not hit:break
+                            if hit:blocked=True;break
+                        if blocked:break
+                    if blocked:break
+                if blocked:
+                    reject["step_sweep"]+=1;continue
                 # Avoid declaring a step when another sheet is already a direct continuation.
                 a=cell_tri[key]+ta;b=cell_tri[dest]+tb
                 if b in report["neighbors"][a]:continue
                 links.append({"id":f"step:{x}:{y}:{i}:{dx}:{dy}:{dest[2]}","from":a,"to":b,
-                              "bidirectional":True,"kind":"step","height_delta":max(deltas)})
+                              "bidirectional":True,"kind":"step","height_delta":max(deltas),"clearance_checked":True})
     minimum=spec.get("min_region_cells",1)
     if type(minimum) is not int or not 1<=minimum<=250000:raise ValueError("invalid region threshold")
     # Region pruning uses both triangle adjacency and explicit step links.
