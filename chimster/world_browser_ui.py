@@ -15,6 +15,13 @@ def mount(parent, game, open_preview=None):
     object_query = tk.StringVar()
     world_choice = tk.StringVar()
     radius = tk.StringVar(value="0")
+    state["models"] = None
+    def choose_models():
+        folder = filedialog.askdirectory(title="Choose game Data directory with loose meshes")
+        if folder:
+            from .world_models import LooseModels
+            state["models"] = LooseModels(folder)
+            status.set("Loose NIF preview enabled: "+folder)
     gx, gy = tk.StringVar(value="0"), tk.StringVar(value="0")
     toolbar = ttk.Frame(parent)
     toolbar.pack(fill="x")
@@ -68,6 +75,7 @@ def mount(parent, game, open_preview=None):
     for name, cmd in (("Add plugins", add), ("Up", lambda: move(-1)), ("Down", lambda: move(1)),
                       ("Remove", remove), ("Build index", load)):
         ttk.Button(toolbar, text=name, command=cmd).pack(side="left")
+    ttk.Button(toolbar,text="Loose models",command=choose_models).pack(side="left")
     selectors = ttk.Frame(parent)
     selectors.pack(fill="x", pady=4)
     ttk.Label(selectors, text="World Space").pack(side="left")
@@ -228,7 +236,7 @@ def mount(parent, game, open_preview=None):
             status.set('Select a cell first.');return
         try:
             from .world_preview import preview
-            scene, report = preview(state['index'],state['cell'],int(radius.get()))
+            scene, report = preview(state['index'],state['cell'],int(radius.get()),state['models'])
             if open_preview(scene,report,focus):
                 show(report)
         except (OSError,ValueError,TypeError,KeyError) as exc:
