@@ -84,7 +84,7 @@ def named_key(signature, parts, encoding="cp1252"):
         return None
     return Tes3Key(signature, raw.decode(encoding))
 
-def references(profile, signature, parts, slots):
+def references(profile, signature, parts, slots, include_null=False):
     parts = list(parts)
     catalog = CATALOGS[profile]
     edges, opaque = [], []
@@ -94,11 +94,11 @@ def references(profile, signature, parts, slots):
             opaque.append(i)
             continue
         target = slots.decode(struct.unpack_from("<I",raw,spec.offset)[0])
-        if target is not None:
+        if target is not None or include_null:
             edges.append((i,spec.offset,target,spec.targets))
     if profile == "new-vegas":
         from .schema_reference import inspect
-        extracted, unknown = inspect(signature, parts, slots)
+        extracted, unknown = inspect(signature, parts, slots, include_null=include_null)
         known = {(i,offset): (i,offset,target,kinds) for i,offset,target,kinds in edges}
         for edge in extracted:
             previous = known.get((edge.field,edge.offset))
