@@ -7,7 +7,7 @@ from .world_browser import Browser, label, BROWSE_PROFILES
 from .native_profiles import canonical_profile
 
 
-def mount(parent, game, open_preview=None):
+def mount(parent, game, open_preview=None, viewport_drop=None):
     state = {"paths": [], "index": None, "world": None, "cell": None,
              "worlds": [], "cells": {}, "objects": {}, "center": (0, 0)}
     status = tk.StringVar(value="Add plugins in master-first load order. Native editing: New Vegas.")
@@ -399,7 +399,7 @@ def mount(parent, game, open_preview=None):
             status.set("Static placement is New Vegas only.");return
         win=tk.Toplevel(parent);win.title("Static Object Window");win.geometry("410x440")
         search=tk.StringVar()
-        ttk.Label(win,text="Drag a static onto the cell list or exterior grid.").pack(anchor="w")
+        ttk.Label(win,text="Drag a static onto a cell, grid or open native viewport.").pack(anchor="w")
         ttk.Entry(win,textvariable=search).pack(fill="x")
         listing=table(win,(("name","Editor ID",180),("file","Plugin",120)))
         rows={}
@@ -422,9 +422,21 @@ def mount(parent, game, open_preview=None):
             index=state["index"]
             if index is None or base not in index.active:return
             def inside(widget):
-                return widget.winfo_rootx()<=e.x_root<widget.winfo_rootx()+widget.winfo_width() and widget.winfo_rooty()<=e.y_root<widget.winfo_rooty()+widget.winfo_height()
-            key=None;xy=None
-            if inside(canvas) and state["world"] is not None:
+                return widget.winfo_viewable() and widget.winfo_rootx()<=e.x_root<widget.winfo_rootx()+widget.winfo_width() and widget.winfo_rooty()<=e.y_root<widget.winfo_rooty()+widget.winfo_height()
+            key=None;xy=None;z=0
+            view_drop=viewport_drop(e.x_root,e.y_root) if viewport_drop else None
+            if view_drop is not None:
+                from math import floor
+                token,pos=view_drop
+                owner=next((r for k,r in index.active.items() if label(k)==token and r["signature"]=="CELL"),None)
+                if owner is None or owner.get("world")!=state["world"]:return
+                if owner.get("grid") is not None:
+                    candidates=index.coordinates.get((owner["world"],tuple(floor(v/4096) for v in pos[:2])),())
+                    if len(candidates)!=1:return
+                    key=candidates[0]["key"]
+                else:key=owner["key"]
+                xy=pos[:2];z=pos[2]
+            elif inside(canvas) and state["world"] is not None:
                 size=max(10,min(canvas.winfo_width(),canvas.winfo_height())//9)
                 px=e.x_root-canvas.winfo_rootx();py=e.y_root-canvas.winfo_rooty()
                 if not 0<=px<9*size or not 0<=py<9*size:return
@@ -442,11 +454,13 @@ def mount(parent, game, open_preview=None):
             if xy is None:
                 grid=row.get("grid")
                 xy=(grid[0]*4096+2048,grid[1]*4096+2048) if grid else (0,0)
-            coords=simpledialog.askstring("Confirm static placement","World X,Y,Z (game units)",initialvalue=f"{xy[0]:.3f},{xy[1]:.3f},0",parent=parent)
+            coords=simpledialog.askstring("Confirm static placement","World X,Y,Z (game units)",initialvalue=f"{xy[0]:.3f},{xy[1]:.3f},{z:.3f}",parent=parent)
             if coords is None:return
             try:position=tuple(map(float,coords.split(",")))
             except ValueError:messagebox.showerror("Placement","Expected three coordinates",parent=parent);return
             edit_draft("drop",(key,base,position))
+            if view_drop is not None and state.get("cell")==key:
+                render_cell()
         listing.bind("<ButtonPress-1>",begin,add="+")
         listing.bind("<ButtonRelease-1>",release,add="+")
         search.trace_add("write",populate)
