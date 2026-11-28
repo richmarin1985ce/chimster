@@ -74,12 +74,12 @@ The five connected sections are now tracked together using the existing ten equa
 | 2 Game compatibility | 5 | 3 | 2 | 65% |
 | 3 Native records | 3 | 6 | 1 | 60% |
 | 5 World editor | 4 | 4 | 2 | 60% |
-| 7 Validation | 4 | 4 | 2 | 60% |
+| 7 Validation | 4 | 5 | 1 | 65% |
 | 14 Quests/dialogue | 4 | 4 | 2 | 60% |
-| Combined, equal section weights | 20 | 21 | 9 | 61% |
+| Combined, equal section weights | 20 | 22 | 8 | 62% |
 
 5 implemented: terrain import, portable sculpt/paint, snapped placement, portable chunk storage. Partial: native exterior authoring, persistent identity/world inspection, interior layout/native integration, roads/settlement tools. Pending: continuous native streaming/3D editing; native navigation/weather/water integration.
-7 implemented: structural bounds checks, group/owner checks, dependency/load-order checks, read-only issue reporting/export gate. Partial: typed reference checks, merged-world/override preservation, landscape/LOD coverage, game-specific schema coverage. Pending: complete navmesh validation and independent retail validation/repair workflow.
+7 implemented: structural bounds checks, group/owner checks, dependency/load-order checks, read-only issue reporting/export gate. Partial: typed reference checks, merged-world/override preservation, landscape/LOD coverage, game-specific schema coverage. Partial addition: native FNV navigation geometry and link validation. Pending: independent retail validation/repair workflow.
 14 implemented: portable quest graph/editor, bounded state analysis, generated FNV stage/objective/dialogue authoring, GECK source draft planning. Partial: native typed quest references/conditions, actor/reputation integration, compilation attachment tooling, scenes/aliases/cross-game adapters. Pending: verified runtime progression and independent retail/GECK validation.
 
 Cross-section pass: native quest inspection now shares generated CTDA and dialogue reference offsets, validates duplicate IDs and topic/previous-response ownership. Native world inspection exposes LAND, owning world/cell, persistent flag and reference bucket. Opt-in world-check --quest-links audits generated quest links against merged winners; unknown layouts remain opaque warnings. Integration fixtures added, execution remains deferred. No change to prior Section 2/3 milestone scores.
@@ -97,6 +97,10 @@ New Vegas REFR marker codec validates documented XPRM, XTRI, XRMR/XLRM, XPOD/XPT
 
 ### Ordered interior development pass (navmesh deferred)
 User priority: visual room/door/portal editor → connectivity diagnostics → trigger activation chains → lighting/acoustic spaces → occlusion/multibounds. Navmesh development on hold. Desktop Interior editor supports top-down selection, room/placement creation, shared-face portal creation, editable properties, door bindings, project open/save, undo/redo and experimental FNV export. Connectivity audit detects broken links, reciprocal teleport/persistence failures, arrival ambiguity, disconnected components and unreachable rooms. Portable trigger event dispatch supports finite acyclic chains, transactional door state, and closed-portal binding; no native script execution. Portable room environments support ambient/fog/light and scalar portal acoustic preview. Portable occluder/multibound review checks room containment, ambiguous membership and portal overlap. These last three systems are stored as project metadata and explicitly omitted from ESP exports; native game serialization, renderer hookup and runtime verification remain pending. Estimates remain 65/60/60/60/60. Regression execution deferred.
+
+### Navmesh reopened — automatic authoring first
+Navmesh is active again at the user's direction. Implemented portable single-layer heightfield auto generation with per-agent slope, step, headroom, radius, blocked-cell, collision-proxy and region thresholds; deterministic welded grid triangulation; reciprocal edge checks and region analysis. Room layouts build separate floor meshes and explicit clearance-checked portal links, preventing automatic wall crossing. Route review supports disabled door/portal transitions; quality reports and manual triangle exclusion are available. Desktop Navmesh editor and CLI support generation, review, routes and portable saving.
+Native FNV NAVM inspection reads documented NVER/DATA/NVVX/NVTR/NVCA/NVDP/NVGD/NVEX, validates counts and known topology, exposes typed cell/door/external links, and integrates opt-in world-check --navmesh. Unknown grid and auxiliary fields are explicitly not certified. Native geometry draft emits documented header/vertex/triangle fields only, not a playable ESP; native NVGD/NVCA/NAVI finalization, cross-cell stitching, XNDP reconciliation, GECK/runtime verification, full arbitrary geometry and stacked floors, pathgrid adapters for older games, and other NAVM families remain open. No native navigation readiness claim. Section 7 advances from pending to partial on the navmesh-validation milestone (+5 points); 2/3/5/14 remain 65/60/60/60. Combined 62%. Regression fixtures committed, execution deferred.
 
 ## Critical path
 1. Stable project FormID allocation, typed native record schema and dependency-safe edits.
