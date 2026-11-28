@@ -23,6 +23,9 @@ def inspect(profile,data):
                 if not isfinite(w):row["issues"].append("Nonfinite weight");continue
                 row["book_data"]={"weight":w,"value":val,"scroll":scroll,"skill":skill,"enchantment_points":enchant}
         for tag,raw in row["raw"]:
+            if tag=="NPCO":
+                try:row.setdefault("inventory",[]).append(inventory_entry(bytes.fromhex(raw)))
+                except ValueError as e:row["issues"].append(str(e))
             if row["signature"]=="INGR" and tag=="IRDT":
                 try:row["properties"]=ingredient_data(bytes.fromhex(raw))
                 except ValueError as e:row["issues"].append(str(e))
@@ -49,6 +52,11 @@ def edit_book_data(raw,**changes):
 
 # Fixed-size TES3 data structures. Preserve flags and untouched values.
 SCHEMAS={
+ ("APPA","AADT"):("<IffI",("type","quality","weight","value")),
+ ("LOCK","LKDT"):("<fIfI",("weight","value","quality","uses")),
+ ("PROB","PBDT"):("<fIfI",("weight","value","quality","uses")),
+ ("REPA","RIDT"):("<fIIf",("weight","value","uses","quality")),
+ ("LIGH","LHDT"):("<fIiIII",("weight","value","duration","radius","color_raw","flags")),
  ("CLOT","CTDT"):("<IfHH",("type","weight","value","enchantment_points")),
  ("ENCH","ENDT"):("<4I",("type","cost","charge","flags")),
  ("WEAP","WPDT"):("<fIHHffH6BI",("weight","value","type","health","speed","reach","enchantment_points","chop_min","chop_max","slash_min","slash_max","thrust_min","thrust_max","flags")),
@@ -68,8 +76,10 @@ def edit_properties(signature,tag,raw,**changes):
     if set(changes)-set(values) or "unknown" in changes:raise ValueError("Unsupported property")
     values.update(changes)
     for key,v in values.items():
-        if key in ("weight","speed","reach"):
+        if key in ("weight","speed","reach","quality"):
             if not isfinite(v) or not 0<=v<=1e6:raise ValueError("Invalid "+key)
+        elif key=="duration":
+            if type(v)!=int or not -1<=v<=2147483647:raise ValueError("Invalid duration")
         elif type(v)!=int or v<0:raise ValueError("Invalid "+key)
     if signature=="CLOT" and values["type"]>9:raise ValueError("Invalid clothing type")
     if signature=="ENCH" and values["type"]>3:raise ValueError("Invalid enchantment type")
@@ -92,3 +102,13 @@ def edit_ingredient(raw,*,weight=None,value=None):
     v=data["value"] if value is None else value
     if not isfinite(w) or not 0<=w<=1e6 or type(v)!=int or not 0<=v<=2147483647:raise ValueError("Invalid ingredient properties")
     return struct.pack("<fi",w,v)+raw[8:]
+
+def inventory_entry(raw):
+    if len(raw)!=36:raise ValueError("Invalid NPCO size")
+    count,name=struct.unpack("<i32s",raw)
+    return {"count":count,"item":name.split(b"\0",1)[0].decode("cp1252")}
+
+def edit_inventory_count(raw,count):
+    inventory_entry(raw)
+    if type(count)!=int or not -2147483648<=count<=2147483647:raise ValueError("Invalid count")
+    return struct.pack("<i",count)+raw[4:]
