@@ -302,6 +302,10 @@ def mount(parent, game, open_preview=None, viewport_drop=None):
     objects.bind('<Double-1>',render_object)
     def edit_draft(action,drop=None):
         index=state["index"]
+        if index is None and action=="new_world" and not state["paths"] and canonical_profile(game.get())=="new-vegas":
+            index=Browser.open([])
+            state["index"]=index
+            state["world"]=None
         if index is None:return
         if index.profile!="new-vegas" or canonical_profile(game.get())!="new-vegas":
             status.set("Native world editing is currently New Vegas only.");return
@@ -312,7 +316,68 @@ def mount(parent, game, open_preview=None, viewport_drop=None):
             state["draft"]=draft
         key=state["cell"]
         try:
-            if action=="world":
+            if action=="new_world":
+                name=simpledialog.askstring("New worldspace","Editor ID",parent=parent)
+                if not name:return
+                title=simpledialog.askstring("New worldspace","Display name",initialvalue=name,parent=parent)
+                if title is None:return
+                raw=simpledialog.askstring("New worldspace","Origin X,Y, width,height in cells (maximum 256 cells)",initialvalue="0,0,1,1",parent=parent)
+                if raw is None:return
+                x,y,w,h=map(int,raw.split(","))
+                world=draft.create_world(name,title,(x,y),(w,h))
+                state["world"]=world;key=None
+            elif action=="environment":
+                world=state["world"]
+                if world is None:return
+                import json
+                from .world_environment import FIELDS,LINKS
+                row=index.worlds[world]
+                win=tk.Toplevel(parent);win.title("Worldspace environment");win.transient(parent)
+                ttk.Label(win,text="Heights in game units. Flags are a numeric bitmask. Links use plugin and local FormID.").pack(anchor="w",padx=8,pady=4)
+                body=ttk.Frame(win,padding=8);body.pack(fill="both",expand=True)
+                labels={"heights":"Land, water heights","lod_height":"LOD water height","map_size_bounds":"Map size X,Y; NW X,Y; SE X,Y","map_offset":"Map scale, X,Y offsets","flags":"World flags (byte)"}
+                fields={}
+                env=row.get("environment",{})
+                for i,name in enumerate(FIELDS):
+                    ttk.Label(body,text=labels[name]).grid(row=i,column=0,sticky="w",pady=3)
+                    value=tk.StringVar(value=",".join(map(str,env[name])) if name in env else "")
+                    ttk.Entry(body,textvariable=value,width=35).grid(row=i,column=1,sticky="ew",pady=3)
+                    fields[name]=value
+                choices={}
+                for i,(name,(_,sig)) in enumerate(LINKS.items(),len(FIELDS)):
+                    items=[r for r in index.active.values() if r["signature"]==sig]
+                    items.sort(key=lambda r:index.name(r).casefold())
+                    options={"(unchanged)":None,"(clear)":None}
+                    for item in items:
+                        k=item["key"];options[index.name(item)+" ["+label(k)+"]"]=(k.origin,k.local)
+                    value=tk.StringVar(value=next((s for s,k in options.items() if k is not None and k==env.get(name)),"(unchanged)"))
+                    ttk.Label(body,text=name.replace("_"," ").title()).grid(row=i,column=0,sticky="w",pady=3)
+                    ttk.Combobox(body,values=list(options),textvariable=value,state="readonly",width=35).grid(row=i,column=1,sticky="ew")
+                    choices[name]=(value,options)
+                ttk.Label(win,text="Blank numeric fields remain unchanged. 0x02: no fast travel; 0x10: no LOD water.").pack(anchor="w",padx=8)
+                def save():
+                    try:
+                        changes={}
+                        for name,var in fields.items():
+                            raw=var.get().strip()
+                            if not raw:continue
+                            parts=raw.split(",")
+                            value=tuple(int(v,0) for v in parts) if name in ("flags","map_size_bounds") else tuple(float(v) for v in parts)
+                            if value!=env.get(name):changes[name]=value
+                        for name,(var,options) in choices.items():
+                            choice=var.get()
+                            if choice!="(unchanged)" and options[choice]!=env.get(name):changes[name]=options[choice]
+                        if changes:
+                            if state["draft"] is not draft or state["index"] is not index:raise ValueError("Draft changed; reopen properties")
+                            draft.set_environment(world,changes)
+                            state["index"]=draft.index();refresh_cells()
+                            show(state["index"].details(state["index"].worlds[world]))
+                            status.set("World environment staged; export ESP to publish")
+                        win.destroy()
+                    except (ValueError,TypeError,KeyError,OSError) as exc:messagebox.showerror("Environment",str(exc),parent=win)
+                ttk.Button(win,text="Stage changes",command=save).pack(pady=8)
+                return
+            elif action=="world":
                 world=state["world"]
                 if world is None:return
                 row=index.worlds[world]
@@ -391,7 +456,7 @@ def mount(parent, game, open_preview=None, viewport_drop=None):
             messagebox.showerror("World edit draft",str(exc),parent=parent)
     editbar=ttk.Frame(parent)
     editbar.pack(fill="x",before=pane)
-    for title,action in (("World properties","world"),("New cell","new"),("Rename","rename"),("Duplicate","duplicate"),("Place static","place"),("Transform","transform"),("Undo","undo"),("Redo","redo"),("Export draft","export"),("Export ESP","esp")):
+    for title,action in (("New world","new_world"),("World properties","world"),("Environment","environment"),("New cell","new"),("Rename","rename"),("Duplicate","duplicate"),("Place static","place"),("Transform","transform"),("Undo","undo"),("Redo","redo"),("Export draft","export"),("Export ESP","esp")):
         ttk.Button(editbar,text=title,command=lambda a=action:edit_draft(a)).pack(side="left")
     def object_palette():
         if state["index"] is None:return
