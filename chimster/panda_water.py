@@ -67,7 +67,9 @@ def create_water(root,effects):
     node.set_transparency(TransparencyAttrib.M_alpha)
     node.set_depth_write(False)
     node.set_bin("transparent",0)
-    node.set_shader(Shader.make(Shader.SL_GLSL,VERTEX,FRAGMENT))
+    node.set_shader(Shader.make(Shader.SL_GLSL,VERTEX,FRAGMENT),10)
+    from panda3d.core import BitMask32
+    node.hide(BitMask32.bit(2))
     node.set_shader_input("water_color",effects.water_color)
     node.set_shader_input("sky_color",effects.fog_color)
     node.set_shader_input("fog_density",effects.fog_density)

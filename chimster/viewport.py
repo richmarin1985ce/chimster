@@ -44,7 +44,7 @@ def mount(parent):
                 raw=panda.render(scene,replace(camera,zoom=camera.zoom*factor),rw,rh,materials,settings,effects)
                 photo=ImageTk.PhotoImage(Image.frombytes("RGBA",(rw,rh),raw).resize((w,h)))
                 canvas.create_image(0,0,image=photo,anchor="nw",tags=("gl",))
-                status.set(backend.get()+(" | native water path" if water_enabled.get() else "")+(" | post fallback: "+panda.post_error if panda.post_error else "")+(" | reflection fallback: "+panda.water_error if panda.water_error else ""))
+                status.set(backend.get()+(" | underwater native fog" if panda.underwater else " | water" if water_enabled.get() else "")+(" | post fallback: "+panda.post_error if panda.post_error else "")+(" | reflection fallback: "+panda.water_error if panda.water_error else ""))
                 return
             except Exception as e:
                 failure="Panda3D: "+str(e)[:150];backend.set("ModernGL")
@@ -238,7 +238,7 @@ def mount(parent):
         win=tk.Toplevel(parent);win.title("Lighting and atmospheric controls")
         ttk.Label(win,text="ModernGL: nested shadow maps and volumetric lighting. Panda: native lights, shadows, distance fog.").pack(padx=8,pady=6)
         base=preset(effect_name.get())
-        keys=("ambient","sun_intensity","sun_color","environment_strength","shadow_size","shadow_extent","shadow_cascades","shadow_bias","fog_density","fog_color","fog_height","fog_falloff","scatter_strength","scatter_anisotropy","volume_steps","volume_distance","ssr_strength","ssr_steps","ssr_distance")
+        keys=("ambient","sun_intensity","sun_color","environment_strength","shadow_size","shadow_extent","shadow_cascades","shadow_bias","fog_density","fog_color","fog_height","fog_falloff","scatter_strength","scatter_anisotropy","volume_steps","volume_distance","water_absorption","water_foam","underwater_density","ssr_strength","ssr_steps","ssr_distance")
         fields={k:tk.StringVar(value=json.dumps(custom_fx.get(k,getattr(base,k)))) for k in keys}
         fields["sun_direction"]=tk.StringVar(value=json.dumps(settings.light))
         light=LocalLight()

@@ -206,6 +206,7 @@ class Preview:
         self.sun.look_at(Point3(*anchor),Vec3(0,0,1) if abs(direction[2])<.99 else Vec3(0,1,0))
         below=self.water is not None and eye[2]<effects.water_level
         if below!=self.underwater:
+            self.close_post()
             if below or effects.fog_density:
                 fog=Fog("water-haze" if below else "preview-haze")
                 fog.set_color(*(effects.water_color if below else effects.fog_color))
@@ -275,6 +276,12 @@ class Preview:
         self.configure_effects(effects,settings,camera.center,eye)
         self.update_water_targets(effects,w,h,eye,camera.center,up)
         self.update_post(effects)
+        if self.water is not None:
+            # The volume compositor integrates to the water surface; avoid
+            # applying the same atmospheric extinction inside the water shader.
+            post=getattr(self.post,"volume_post",self.post)
+            volume=bool(getattr(post,"volume",False))
+            self.water.set_shader_input("fog_density",0. if volume else effects.underwater_density if self.underwater else effects.fog_density)
         self.engine.render_frame();self.engine.sync_frame()
         raw=bytes(self.texture.get_ram_image_as("RGBA"))
         if len(raw)!=w*h*4:raise RuntimeError("Incomplete framebuffer")
@@ -284,12 +291,11 @@ class Preview:
         if self.post is not None:self.post.close();self.post=None
         self.post_key=None;self.post_error=None
     def update_post(self,effects):
-        # Reflection buffers and post graphs have incompatible sort/ownership
-        # assumptions; retain the original water path until combined tests exist.
+        # Below-water rendering retains the native underwater fog path.
         from .panda_volume import needs_volume
-        mode=self.mode if self.water is None else "native"
-        if mode in ("native","filters") and self.water is None and needs_volume(effects):mode="volume"
-        key=(mode,effects)
+        mode="native" if self.underwater else self.mode
+        if not self.underwater and mode in ("native","filters") and needs_volume(effects):mode="volume"
+        key=(mode,effects,bool(self.underwater))
         if key!=self.post_key:
             self.close_post();self.post_key=key
             if mode!="native" and (mode!="filters" or effects.ao_strength or effects.scatter_strength):

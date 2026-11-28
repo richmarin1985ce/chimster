@@ -206,3 +206,32 @@ class PostTests(unittest.TestCase):
             d=preview.render(scene,cam,96,72,materials)
             self.assertEqual(a,d)
         finally:preview.close()
+
+    def test_pbr_water_volume_interoperability(self):
+        import os
+        if not os.environ.get("CHIMSTER_TEST_PANDA_GL"):self.skipTest("Optional framebuffer test")
+        from panda3d.core import load_prc_file_data
+        load_prc_file_data("chimster-test","load-display p3headlessgl\naudio-library-name null")
+        from chimster.panda_viewport import Preview
+        from chimster.gpu_viewport import make_demo
+        from chimster.scene import Camera
+        from chimster.render_effects import Effects
+        scene,materials=make_demo();preview=Preview("pbr")
+        try:
+            fx=Effects(water_level=.3,reflection_size=128,refraction=True,fog_density=.03,scatter_strength=.5,ao_strength=.3,shadow_size=512)
+            a=preview.render(scene,Camera(zoom=4,pitch=40),96,72,materials,effects=fx)
+            self.assertIsNone(preview.post_error)
+            self.assertIsNone(preview.water_error)
+            self.assertIsNotNone(preview.post.volume_post)
+            self.assertEqual(len(a),96*72*4)
+            self.assertTrue(all(b.get_sort()<preview.post.pipeline._filtermgr.buffers[0].get_sort() for b in preview.water_targets.buffers))
+            b=preview.render(scene,Camera(zoom=4,pitch=-40),96,72,materials,effects=fx)
+            self.assertTrue(preview.underwater)
+            self.assertIsNone(preview.post)
+            self.assertIsNone(preview.water_targets)
+            self.assertNotEqual(a,b)
+            c=preview.render(scene,Camera(zoom=4,pitch=40),64,48,materials,effects=fx)
+            self.assertIsNone(preview.post_error)
+            self.assertIsNotNone(preview.post.volume_post)
+            self.assertEqual(len(c),64*48*4)
+        finally:preview.close()

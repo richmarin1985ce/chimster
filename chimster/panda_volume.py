@@ -51,7 +51,7 @@ def bind(quad,preview,effects):
 class SunDepth:
     """Bounded auxiliary sun map, only allocated for shadowed volume mode."""
     def __init__(self,preview,effects):
-        from panda3d.core import Texture,GraphicsOutput,Camera,OrthographicLens,NodePath
+        from panda3d.core import Texture,GraphicsOutput,Camera,OrthographicLens,NodePath,BitMask32
         self.preview=preview;self.buffer=None;self.camera=None;self.effects=effects
         self.depth=Texture("volume-sun-depth")
         self.depth.set_format(Texture.F_depth_component)
@@ -68,6 +68,7 @@ class SunDepth:
             self.lens.set_near_far(.1,effects.shadow_extent*4)
             self.camera=preview.root.attach_new_node(Camera("volume-sun-camera",self.lens))
             self.camera.node().set_scene(preview.root)
+            self.camera.node().set_camera_mask(BitMask32.bit(2))
             # Depth-only geometry path: preserve per-material alpha testing, avoid
             # recursively sampling the scene's lighting/shadow shader.
             state=NodePath("volume-depth-state");state.set_shader_off(100);state.set_light_off(100);state.set_fog_off(100)

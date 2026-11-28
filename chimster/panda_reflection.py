@@ -17,8 +17,8 @@ class WaterTargets:
             for name in ("reflection","refraction") if effects.refraction else ("reflection",):
                 buf=preview.output.make_texture_buffer(name,width,height)
                 if buf is None:raise RuntimeError("Water target unavailable")
-                self.buffers.append(buf);buf.set_sort(-100+len(self.buffers))
-                buf.set_clear_color((*effects.fog_color,1));buf.set_clear_color_active(True)
+                self.buffers.append(buf);buf.set_sort(-1500+len(self.buffers))
+                buf.set_clear_color((*effects.fog_color,1));buf.set_clear_color_active(True);buf.set_clear_depth_active(True);buf.set_clear_depth(1.)
                 camera=preview.root.attach_new_node(Camera(name,preview.lens))
                 self.nodes.append(camera);self.cameras[name]=camera
                 camera.node().set_scene(preview.root)
@@ -41,6 +41,7 @@ class WaterTargets:
             preview.water.hide(BitMask32.bit(2))
             preview.water.set_shader_input("use_reflection",1.)
             preview.water.set_shader_input("use_refraction",float(effects.refraction))
+            preview.water.set_depth_write(bool(effects.refraction))
         except Exception:
             self.close()
             raise
@@ -59,4 +60,4 @@ class WaterTargets:
         if self.preview.water is not None:
             self.preview.water.set_shader_input("use_reflection",0.)
             self.preview.water.set_shader_input("use_refraction",0.)
-            self.preview.water.show(__import__("panda3d.core",fromlist=["BitMask32"]).BitMask32.bit(2))
+            self.preview.water.set_depth_write(False)
