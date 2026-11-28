@@ -54,7 +54,7 @@ def validate_tail(tail,stream):
 
 def shader(tex,stream,kind,cutout,colored=False,metadata=()):
     typ=9 if kind=="terrain" else 13 if kind=="object" else 0
-    f1=0x80000100|(0x4000 if kind=="terrain" else 0)
+    f1=(0x80000000 if stream==130 else 0x80000100)|(0x4000 if kind=="terrain" else 0)
     f2=1|({"terrain":2,"object":4,"companion":0}[kind])|(16 if cutout else 0)|(32 if colored else 0)
     tail=default_tail(stream)
     if metadata:
@@ -62,7 +62,7 @@ def shader(tex,stream,kind,cutout,colored=False,metadata=()):
         if source_stream!=stream:raise ValueError("Shader metadata stream mismatch")
         tail=validate_tail(bytes.fromhex(tailhex),stream)
         # Preserve static appearance flags, not gameplay/dynamic animation flags.
-        f1|=source_f1&0x00400309
+        f1|=source_f1&(0x00400209 if stream==130 else 0x00400309)
         f2|=source_f2&0x10
     if stream==130 and cutout:f2|=1<<25
     return pack("I",typ)+net()+pack("II4fi",f1,f2,0,0,1,1,tex)+tail
@@ -292,7 +292,10 @@ def read_static_groups(raw,profile):
         if r.i!=len(data):raise ValueError("Unsupported source shape tail")
         key,metadata,uv_transform=material(sid,aid)
         target=groups.setdefault((*key,metadata),Mesh());offset=len(target.vertices)
-        target.lod_shader=metadata;target.lod_alpha_threshold=metadata[-1]
+        baseline=0 if stream==130 else 0x100
+        canonical=(metadata[1]==baseline and metadata[2]==(16 if key[2] else 0) and metadata[3]==default_tail(stream).hex())
+        target.lod_shader=() if canonical else metadata
+        target.lod_alpha_threshold=metadata[-1]
         if offset+len(mesh.vertices)>100000 or len(target.faces)+len(mesh.faces)>100000:raise ValueError("Source geometry budget")
         validate_mesh(mesh)
         for p in mesh.vertices:
