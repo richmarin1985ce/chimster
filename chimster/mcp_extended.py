@@ -13,7 +13,7 @@ def native_profile(game):
     if p not in active_profiles():raise ValueError("native profile deferred")
     return p
 
-def native_browse(project,id,offset=0,limit=50,signature="",validate=False):
+def native_session(project,id):
     from .native_parser import parse,subrecords
     from .native_editor import NativeSession
     from .record_graph import Slots
@@ -26,6 +26,11 @@ def native_browse(project,id,offset=0,limit=50,signature="",validate=False):
     if not nodes or nodes[0].signature!=expected:raise ValueError("wrong plugin header")
     masters=[v.rstrip(b"\0").decode("cp1252") for tag,v in subrecords(profile,nodes[0]) if tag==b"MAST"]
     session=NativeSession(profile,raw,None if profile=="morrowind" else Slots(a["filename"],masters))
+    return m,a,session,masters
+
+def native_browse(project,id,offset=0,limit=50,signature="",validate=False):
+    m,a,session,masters=native_session(project,id)
+    profile=session.profile
     if signature and (len(signature)!=4 or not signature.isascii()):raise ValueError("invalid signature")
     paths=[path for path in session.rows if not signature or session.node(path).signature.decode("ascii")==signature]
     rows=[]
@@ -94,3 +99,74 @@ class MeshProposals:
         self.recovery.pending=None
         self.recovery.record_commit(revision,m["revision"])
         return {"id":key,"revision":m["revision"],"artifact":m["artifacts"][key],"undo_target_revision":revision}
+
+def native_detail(project,id,identity,offset=0,limit=50):
+    from .native_identity import token
+    m,a,s,_=native_session(project,id)
+    path=s.resolve_identity(identity)
+    row=s.rows[path]
+    edges={}
+    for i,o,target,kinds in row["edges"]:
+        edges.setdefault(i,[]).append({"offset":o,"identity":token(s.profile,target),
+                                      "expected_types":sorted(kinds)})
+    fields=[{"index":i,"tag":tag.decode("ascii",errors="replace"),"size":len(raw),
+             "hex_preview":raw[:32].hex(),"opaque":i in row["opaque"],"references":edges.get(i,[])}
+            for i,(tag,raw) in enumerate(row["parts"]) if offset<=i<offset+limit]
+    return {"id":id,"revision":m["revision"],"sha256":a["sha256"],"identity":identity,
+            "signature":s.node(path).signature.decode("ascii"),"fields":fields,
+            "total":len(row["parts"]),"next_offset":offset+limit if offset+limit<len(row["parts"]) else None}
+
+REFERENCE_PROFILES={"oblivion","fallout3","new-vegas","skyrim","skyrim-se","fallout4"}
+
+class ReferenceProposals:
+    """Owned full-slot ESP records, known fields, same-plugin targets only."""
+    def __init__(self,project,recovery,enabled=False):
+        self.project=project
+        self.recovery=recovery
+        self.enabled=enabled
+        self.pending=None
+
+    def preview(self,id,identity,index,offset,expected_identity,target_identity,revision,sha256):
+        import struct
+        from .native_identity import parse_token
+        from .loadorder import plugin_name
+        self.pending=None
+        m,a,s,masters=native_session(self.project,id)
+        if s.profile not in REFERENCE_PROFILES or m["revision"]!=revision or a["sha256"]!=sha256:
+            raise ValueError("unsupported profile or stale revision")
+        if Path(a["filename"]).suffix.lower()!=".esp" or struct.unpack_from("<I",s.nodes[0].header,8)[0]&0x200:
+            raise ValueError("full-slot ESP required")
+        own=plugin_name(a["filename"])
+        path=s.resolve_identity(identity)
+        key=s.rows[path]["key"]
+        expected=parse_token(expected_identity,s.profile)[1] if expected_identity else None
+        target=parse_token(target_identity,s.profile)[1]
+        if key.origin!=own or target.origin!=own:
+            raise ValueError("only same-plugin owned records and targets")
+        s.resolve_identity(target_identity)
+        before=s.node(path)
+        originals={p:(s.node(p).header,s.node(p).payload) for p in s.rows if p!=path}
+        s.apply(s.revision,[(identity,index,expected,target,offset)])
+        if set(s.rows)!=(set(originals)|{path}) or any((s.node(p).header,s.node(p).payload)!=value for p,value in originals.items()):
+            raise ValueError("unexpected changes to unrelated records")
+        raw=s.data
+        if len(raw)>8*1024*1024 or self.project.read()["revision"]!=revision:
+            raise ValueError("stale or oversized output")
+        token=secrets.token_urlsafe(24) if self.enabled else None
+        if token:self.pending=(token,id,a["filename"],raw,revision)
+        return {"id":id,"revision":revision,"identity":identity,"field_index":index,"field_offset":offset,
+                "before":expected_identity or None,"after":target_identity,"untouched_records":len(originals),
+                "sha256":hashlib.sha256(raw).hexdigest(),"proposal_token":token,"apply_enabled":self.enabled,
+                "requires_game_testing":True}
+
+    def apply(self,token):
+        if not self.enabled or self.pending is None or not token.isascii() or not secrets.compare_digest(token,self.pending[0]):
+            raise ValueError("invalid reference proposal")
+        _,key,name,raw,revision=self.pending
+        self.pending=None
+        with tempfile.TemporaryDirectory(prefix="chimster-reference-") as d:
+            p=Path(d)/name;p.write_bytes(raw)
+            m=self.project.add(key,"plugin",p,revision,replace=True)
+        self.recovery.pending=None
+        self.recovery.record_commit(revision,m["revision"])
+        return {"id":key,"revision":m["revision"],"artifact":m["artifacts"][key],"requires_game_testing":True}
