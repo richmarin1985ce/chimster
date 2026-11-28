@@ -4,7 +4,7 @@ from math import isfinite
 from .native_parser import parse,subrecords
 from .native_profiles import PROFILES
 
-ITEMS={b"BOOK",b"NOTE",b"WEAP",b"ARMO",b"CLOT",b"ALCH",b"INGR",b"AMMO",b"MISC",b"KEYM",b"CONT",b"LVLI"}
+ITEMS={b"SLGM",b"APPA",b"ENCH",b"SPEL",b"BOOK",b"NOTE",b"WEAP",b"ARMO",b"CLOT",b"ALCH",b"INGR",b"AMMO",b"MISC",b"KEYM",b"CONT",b"LVLI"}
 LOCALIZED={ "skyrim","skyrim-se","fallout4" }
 
 def inspect(profile,data):
@@ -33,7 +33,7 @@ def inspect(profile,data):
                     else:value={"opaque":v.hex()}
                     row["fields"].setdefault(k,[]).append(value)
                 if profile=="oblivion" and (node.signature,tag) in OBLIVION_FIELDS:
-                    try:row["properties"]=oblivion_properties(node.signature,tag,v)
+                    try:row.setdefault("property_fields",{})[k]=oblivion_properties(node.signature,tag,v)
                     except ValueError as e:row["issues"].append(str(e))
                 if tag==b"DATA" and node.signature==b"BOOK" and profile in ("fallout3","new-vegas") and len(v)==10:
                     f,s,val,w=struct.unpack("<Bbif",v)
@@ -59,6 +59,13 @@ def edit_fallout_book_data(profile,raw,**changes):
 
 # Classic Oblivion only; no inheritance into the Remastered profile.
 OBLIVION_FIELDS={
+ (b"SLGM",b"DATA"):("<If",("value","weight")),
+ (b"SLGM",b"SOUL"):("<B",("soul",)),
+ (b"SLGM",b"SLCP"):("<B",("capacity",)),
+ (b"ALCH",b"DATA"):("<f",("weight",)),
+ (b"APPA",b"DATA"):("<BIff",("type","value","weight","quality")),
+ (b"ENCH",b"ENIT"):("<IIIB3s",("type","charge","cost","flags","reserved")),
+ (b"SPEL",b"SPIT"):("<IIIB3s",("type","cost","level","flags","reserved")),
  (b"WEAP",b"DATA"):("<IffIIIfH",("type","speed","reach","flags","value","health","weight","damage")),
  (b"AMMO",b"DATA"):("<fB3sIfH",("speed","flags","reserved","value","weight","damage")),
  (b"CLOT",b"DATA"):("<If",("value","weight")),
@@ -80,9 +87,10 @@ def edit_oblivion_properties(signature,tag,raw,**changes):
     d.update(changes)
     for k,v in d.items():
         if k=="reserved":continue
-        if k in ("weight","speed","reach"):
+        if k in ("weight","speed","reach","quality"):
             if not isfinite(v) or not 0<=v<=1e6:raise ValueError("Invalid weight")
         elif type(v)!=int or (k=="skill" and not -1<=v<=20) or (k!="skill" and v<0):raise ValueError("Invalid "+k)
+    if any(d[k]>5 for k in ("soul","capacity") if k in d):raise ValueError("Invalid soul tier")
     fmt,keys=OBLIVION_FIELDS[signature,tag]
     try:return struct.pack(fmt,*(d[k] for k in keys))
     except (struct.error,OverflowError) as e:raise ValueError("Outside native range") from e
