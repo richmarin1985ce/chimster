@@ -22,6 +22,10 @@ def inspect(profile,data):
                 w,val,scroll,skill,enchant=struct.unpack("<fIIiI",v)
                 if not isfinite(w):row["issues"].append("Nonfinite weight");continue
                 row["book_data"]={"weight":w,"value":val,"scroll":scroll,"skill":skill,"enchantment_points":enchant}
+        for tag,raw in row["raw"]:
+            if (row["signature"],tag) in SCHEMAS:
+                try:row["properties"]=decode_properties(row["signature"],tag,bytes.fromhex(raw))
+                except ValueError as e:row["issues"].append(str(e))
         names=row["fields"].get("NAME",[])
         if len(names)==1 and names[0]:row["identity"]=names[0].casefold()
         else:row["issues"].append("Missing or ambiguous NAME")
@@ -39,3 +43,32 @@ def edit_book_data(raw,**changes):
     if any(type(x)!=int or not 0<=x<=0xffffffff for x in (v,e)):raise ValueError("Invalid unsigned property")
     if type(s)!=int or s not in (0,1) or type(k)!=int or not -1<=k<=26:raise ValueError("Invalid scroll or skill")
     return struct.pack("<fIIiI",w,v,s,k,e)
+
+# Fixed-size TES3 data structures. Preserve flags and untouched values.
+SCHEMAS={
+ ("WEAP","WPDT"):("<fIHHffH6BI",("weight","value","type","health","speed","reach","enchantment_points","chop_min","chop_max","slash_min","slash_max","thrust_min","thrust_max","flags")),
+ ("ARMO","AODT"):("<IfIIII",("type","weight","value","health","enchantment_points","armor_rating")),
+ ("MISC","MCDT"):("<fII",("weight","value","unknown")),
+ ("ALCH","ALDT"):("<fII",("weight","value","flags")),
+}
+def decode_properties(signature,tag,raw):
+    fmt,keys=SCHEMAS[signature,tag]
+    if len(raw)!=struct.calcsize(fmt):raise ValueError("Unexpected "+tag+" length")
+    values=dict(zip(keys,struct.unpack(fmt,raw)))
+    if any(isinstance(v,float) and not isfinite(v) for v in values.values()):raise ValueError("Nonfinite item property")
+    return values
+
+def edit_properties(signature,tag,raw,**changes):
+    values=decode_properties(signature,tag,raw)
+    if set(changes)-set(values) or "unknown" in changes:raise ValueError("Unsupported property")
+    values.update(changes)
+    for key,v in values.items():
+        if key in ("weight","speed","reach"):
+            if not isfinite(v) or not 0<=v<=1e6:raise ValueError("Invalid "+key)
+        elif type(v)!=int or v<0:raise ValueError("Invalid "+key)
+    if signature=="WEAP":
+        for attack in ("chop","slash","thrust"):
+            if values[attack+"_min"]>values[attack+"_max"]:raise ValueError("Inverted damage range")
+    fmt,keys=SCHEMAS[signature,tag]
+    try:return struct.pack(fmt,*(values[k] for k in keys))
+    except (struct.error,OverflowError) as e:raise ValueError("Property outside native range") from e
