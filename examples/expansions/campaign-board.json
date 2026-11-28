@@ -1,0 +1,3070 @@
+{
+  "schema": "chimster.expansion-design.v1",
+  "status": "review-only design; not native records or executable quest scripts",
+  "projects": [
+    {
+      "id": "flagstaff",
+      "game": "newvegas",
+      "title": "Fallout 66: Courier's Road",
+      "canon_status": "proposed; existing creator-approved canon takes precedence",
+      "factions": [
+        {
+          "id": "caravan",
+          "name": "Chartered caravan houses",
+          "goal": "Protect trade contracts and private fortunes; divided over captivity"
+        },
+        {
+          "id": "ranch",
+          "name": "Ranchers' association",
+          "goal": "Resist requisitions without losing livelihoods"
+        },
+        {
+          "id": "legion",
+          "name": "Legion supply administration",
+          "goal": "Meet wartime quotas at civilian expense"
+        },
+        {
+          "id": "captive",
+          "name": "Captive solidarity networks",
+          "goal": "Free separated families and establish safe passage"
+        },
+        {
+          "id": "road",
+          "name": "Independent roadside communities",
+          "goal": "Keep trade roads open without coercion"
+        },
+        {
+          "id": "survey",
+          "name": "Hidden reconnaissance cell",
+          "goal": "Collect intelligence; claims Chicago Enclave ties without settling canon"
+        }
+      ],
+      "actors": [
+        {
+          "id": "vesta",
+          "name": "Vesta Marrow",
+          "faction": "caravan",
+          "home": "market",
+          "role": "Caravan proprietor; profits from captivity; wants predictable trade"
+        },
+        {
+          "id": "silvan",
+          "name": "Silvan Rusk",
+          "faction": "ranch",
+          "home": "ranch",
+          "role": "Rancher facing destructive requisitions"
+        },
+        {
+          "id": "cassian",
+          "name": "Cassian Vale",
+          "faction": "legion",
+          "home": "depot",
+          "role": "Quartermaster torn between orders and supplies"
+        },
+        {
+          "id": "livia",
+          "name": "Livia Sable",
+          "faction": "caravan",
+          "home": "ledger",
+          "role": "Clerk with evidence of contracts; values security"
+        },
+        {
+          "id": "ash",
+          "name": "Ash",
+          "faction": "captive",
+          "home": "pit",
+          "role": "Potential companion seeking separated family"
+        },
+        {
+          "id": "nell",
+          "name": "Nell Fallow",
+          "faction": "road",
+          "home": "repair",
+          "role": "Repair shop owner preserving road heritage"
+        },
+        {
+          "id": "finch",
+          "name": "Morrow Finch",
+          "faction": "survey",
+          "home": "surveycamp",
+          "role": "Disguised surveyor; optional intelligence lead"
+        },
+        {
+          "id": "tallow",
+          "name": "Tallow",
+          "faction": "road",
+          "home": "service",
+          "role": "Former guard with escape knowledge"
+        }
+      ],
+      "locations": [
+        {
+          "id": "pit",
+          "name": "Slave pit entrance",
+          "type": "interior",
+          "region": "slice",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "labor",
+          "name": "Labor yard",
+          "type": "exterior",
+          "region": "slice",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "store",
+          "name": "Guarded supply store",
+          "type": "interior",
+          "region": "slice",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "service",
+          "name": "Service escape corridor",
+          "type": "interior",
+          "region": "slice",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "repair",
+          "name": "Roadside repair shop",
+          "type": "hub",
+          "region": "slice",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "market",
+          "name": "Flagstaff caravan market",
+          "type": "hub",
+          "region": "city",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "ledger",
+          "name": "Charter records office",
+          "type": "interior",
+          "region": "city",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "depot",
+          "name": "Legion provisioning depot",
+          "type": "hub",
+          "region": "city",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "ranch",
+          "name": "Rusk bighorner ranch",
+          "type": "hub",
+          "region": "rural",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "stockyard",
+          "name": "Stockyard",
+          "type": "exterior",
+          "region": "rural",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "mill",
+          "name": "Feed mill",
+          "type": "interior",
+          "region": "rural",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "well",
+          "name": "Community well",
+          "type": "exterior",
+          "region": "rural",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "station",
+          "name": "Roadside station",
+          "type": "interior",
+          "region": "highway",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "culvert",
+          "name": "Old highway culvert",
+          "type": "interior",
+          "region": "highway",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "motel",
+          "name": "Motor court",
+          "type": "interior",
+          "region": "highway",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "museum",
+          "name": "Road heritage room",
+          "type": "interior",
+          "region": "highway",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "surveycamp",
+          "name": "Survey camp",
+          "type": "exterior",
+          "region": "east",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "relay",
+          "name": "Abandoned relay station",
+          "type": "interior",
+          "region": "east",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "ridge",
+          "name": "Eastbound ridge",
+          "type": "exterior",
+          "region": "east",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "quarry",
+          "name": "Cinder quarry",
+          "type": "exterior",
+          "region": "rural",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "clinic",
+          "name": "Civilian clinic",
+          "type": "interior",
+          "region": "city",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "refuge",
+          "name": "Hidden family refuge",
+          "type": "hub",
+          "region": "rural",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "court",
+          "name": "Supply hearing hall",
+          "type": "interior",
+          "region": "city",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "crossroads",
+          "name": "Highway crossroads",
+          "type": "exterior",
+          "region": "highway",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "return",
+          "name": "Mojave return point",
+          "type": "transition",
+          "region": "highway",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        }
+      ],
+      "quests": [
+        {
+          "id": "CR_MQ01",
+          "title": "The Roman Holiday",
+          "kind": "main",
+          "requires": [],
+          "locations": [
+            "pit",
+            "labor"
+          ],
+          "actors": [
+            "ash"
+          ],
+          "objective": "Confiscation receipt and first pit decisions",
+          "resolutions": [
+            "record confiscation or learn location through Ash"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "CR_MQ02",
+          "title": "Don't Fence Me In",
+          "kind": "main",
+          "requires": [
+            "CR_MQ01"
+          ],
+          "locations": [
+            "store",
+            "service",
+            "repair"
+          ],
+          "actors": [
+            "ash",
+            "tallow",
+            "nell"
+          ],
+          "objective": "Recover gear; establish cover or leave with others",
+          "resolutions": [
+            "repair/service route or bargain",
+            "companions may remain behind"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "CR_MQ03",
+          "title": "All Roads Lead to Rome",
+          "kind": "main",
+          "requires": [
+            "CR_MQ02"
+          ],
+          "locations": [
+            "market",
+            "ledger",
+            "ranch"
+          ],
+          "actors": [
+            "vesta",
+            "livia",
+            "silvan"
+          ],
+          "objective": "Trace charter obligations and obtain standing",
+          "resolutions": [
+            "trade, speech or evidence route"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "CR_MQ04",
+          "title": "The Best Things in Life Are Free",
+          "kind": "main",
+          "requires": [
+            "CR_MQ03"
+          ],
+          "locations": [
+            "depot",
+            "stockyard",
+            "well"
+          ],
+          "actors": [
+            "cassian",
+            "silvan"
+          ],
+          "objective": "Resolve immediate shortages",
+          "resolutions": [
+            "allocate supplies, negotiate quotas or expose abuse"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "CR_MQ05",
+          "title": "Long Distance Call",
+          "kind": "main",
+          "requires": [
+            "CR_MQ04"
+          ],
+          "locations": [
+            "surveycamp",
+            "relay",
+            "ridge"
+          ],
+          "actors": [
+            "finch"
+          ],
+          "objective": "Investigate eastbound surveys",
+          "resolutions": [
+            "follow evidence or decline deeper intelligence thread",
+            "main story continues"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "CR_MQ06",
+          "title": "The Price of Civilization",
+          "kind": "main",
+          "requires": [
+            "CR_MQ05"
+          ],
+          "locations": [
+            "court",
+            "market",
+            "refuge"
+          ],
+          "actors": [
+            "cassian",
+            "vesta",
+            "livia",
+            "ash"
+          ],
+          "objective": "Settle capital politics and road access",
+          "resolutions": [
+            "freedom, commerce and provisioning outcomes vary independently"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "CR_MQ07",
+          "title": "East of the Sun",
+          "kind": "main",
+          "requires": [
+            "CR_MQ06"
+          ],
+          "locations": [
+            "return",
+            "repair"
+          ],
+          "actors": [
+            "nell"
+          ],
+          "objective": "Return to Mojave with conditional slides",
+          "resolutions": [
+            "leave or remain",
+            "vanilla endings untouched"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "CR_SQ01",
+          "title": "Separated",
+          "kind": "side",
+          "requires": [
+            "CR_MQ02"
+          ],
+          "locations": [
+            "refuge",
+            "clinic"
+          ],
+          "actors": [
+            "ash"
+          ],
+          "objective": "Find relatives and decide their route",
+          "resolutions": [
+            "rescue, escort or safe contact"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "CR_SQ02",
+          "title": "Mother Road",
+          "kind": "side",
+          "requires": [
+            "CR_MQ02"
+          ],
+          "locations": [
+            "museum",
+            "motel",
+            "station"
+          ],
+          "actors": [
+            "nell"
+          ],
+          "objective": "Recover road history",
+          "resolutions": [
+            "preserve archive or trade duplicates"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "CR_SQ03",
+          "title": "The Empty Trough",
+          "kind": "side",
+          "requires": [
+            "CR_MQ03"
+          ],
+          "locations": [
+            "mill",
+            "ranch"
+          ],
+          "actors": [
+            "silvan"
+          ],
+          "objective": "Resolve a feed shortage",
+          "resolutions": [
+            "repair equipment or barter"
+          ],
+          "status": "outline"
+        }
+      ],
+      "initial_slice": [
+        "pit",
+        "labor",
+        "store",
+        "service",
+        "repair"
+      ],
+      "release_gate": "Native records, scripts, assets, navigation, independent retail runtime and save/load verification required."
+    },
+    {
+      "id": "coldharbour",
+      "game": "morrowind",
+      "title": "Coldharbour",
+      "canon_status": "proposed; existing creator-approved canon takes precedence",
+      "factions": [
+        {
+          "id": "refuge",
+          "name": "Unbound Refuge",
+          "goal": "Free captives without accepting new contracts"
+        },
+        {
+          "id": "market",
+          "name": "Ledger Exchange",
+          "goal": "Trade in obligations; some brokers seek reform"
+        },
+        {
+          "id": "wardens",
+          "name": "Chain Wardens",
+          "goal": "Maintain the repeating fragments; split over their purpose"
+        },
+        {
+          "id": "witness",
+          "name": "Witness Circle",
+          "goal": "Collect testimony and protect memories"
+        }
+      ],
+      "actors": [
+        {
+          "id": "nare",
+          "name": "Nare Seloth",
+          "faction": "refuge",
+          "home": "refuge",
+          "role": "Former prisoner, pragmatic healer"
+        },
+        {
+          "id": "vedan",
+          "name": "Vedan Aravel",
+          "faction": "witness",
+          "home": "archive",
+          "role": "Scribe who records changes between fragments"
+        },
+        {
+          "id": "mira",
+          "name": "Mira Othrel",
+          "faction": "market",
+          "home": "market",
+          "role": "Broker who can void lesser contracts"
+        },
+        {
+          "id": "dren",
+          "name": "Dren Varo",
+          "faction": "wardens",
+          "home": "gate",
+          "role": "Warden who doubts the repetition"
+        },
+        {
+          "id": "sena",
+          "name": "Sena Ralas",
+          "faction": "refuge",
+          "home": "well",
+          "role": "Water keeper seeking lost kin"
+        },
+        {
+          "id": "orven",
+          "name": "Orven Thalas",
+          "faction": "witness",
+          "home": "tower",
+          "role": "Cartographer whose maps contradict each other"
+        },
+        {
+          "id": "thal",
+          "name": "Thal Varyn",
+          "faction": "wardens",
+          "home": "fort",
+          "role": "Custodian offering conditional release"
+        },
+        {
+          "id": "ilvi",
+          "name": "Ilvi Meren",
+          "faction": "market",
+          "home": "count",
+          "role": "Debt clerk hiding a missing name"
+        }
+      ],
+      "locations": [
+        {
+          "id": "entry",
+          "name": "Fractured arrival",
+          "type": "transition",
+          "region": "slice",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "village",
+          "name": "Distorted ash village",
+          "type": "exterior",
+          "region": "slice",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "refuge",
+          "name": "Unbound refuge",
+          "type": "hub",
+          "region": "slice",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "shrine",
+          "name": "Inverted shrine",
+          "type": "interior",
+          "region": "slice",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "gate",
+          "name": "Chained passage",
+          "type": "transition",
+          "region": "slice",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "market",
+          "name": "Ruined obligation market",
+          "type": "hub",
+          "region": "west",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "count",
+          "name": "Counting house",
+          "type": "interior",
+          "region": "west",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "bridge",
+          "name": "Chain bridge",
+          "type": "exterior",
+          "region": "west",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "well",
+          "name": "Dry memory well",
+          "type": "interior",
+          "region": "west",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "archive",
+          "name": "Witness archive",
+          "type": "interior",
+          "region": "north",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "tower",
+          "name": "Bent watchtower",
+          "type": "interior",
+          "region": "north",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "terrace",
+          "name": "Ash terrace",
+          "type": "exterior",
+          "region": "north",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "cave",
+          "name": "Echo cavern",
+          "type": "interior",
+          "region": "north",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "canal",
+          "name": "Black canal",
+          "type": "exterior",
+          "region": "east",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "docks",
+          "name": "Silent docks",
+          "type": "exterior",
+          "region": "east",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "cellar",
+          "name": "False cellar",
+          "type": "interior",
+          "region": "east",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "fort",
+          "name": "Warden fortress",
+          "type": "hub",
+          "region": "east",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "court",
+          "name": "Broken tribunal",
+          "type": "interior",
+          "region": "east",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "foundry",
+          "name": "Chain foundry",
+          "type": "interior",
+          "region": "south",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "quarry",
+          "name": "Glass quarry",
+          "type": "exterior",
+          "region": "south",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "crypt",
+          "name": "Borrowed tomb",
+          "type": "interior",
+          "region": "south",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "road",
+          "name": "Road of repeating signs",
+          "type": "exterior",
+          "region": "south",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "engine",
+          "name": "Contract mechanism",
+          "type": "interior",
+          "region": "core",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "sanctum",
+          "name": "Severance chamber",
+          "type": "interior",
+          "region": "core",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "exit",
+          "name": "Return fissure",
+          "type": "transition",
+          "region": "core",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        }
+      ],
+      "quests": [
+        {
+          "id": "CH_MQ01",
+          "title": "A Place Remembered",
+          "kind": "main",
+          "requires": [],
+          "locations": [
+            "entry",
+            "village",
+            "refuge"
+          ],
+          "actors": [
+            "nare"
+          ],
+          "objective": "Survive arrival and locate refuge",
+          "resolutions": [
+            "help witness or follow trail"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "CH_MQ02",
+          "title": "Names in Iron",
+          "kind": "main",
+          "requires": [
+            "CH_MQ01"
+          ],
+          "locations": [
+            "shrine",
+            "gate"
+          ],
+          "actors": [
+            "dren",
+            "nare"
+          ],
+          "objective": "Find passage and establish a first obligation",
+          "resolutions": [
+            "void bargain through testimony or offer temporary service"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "CH_MQ03",
+          "title": "The Price of a Name",
+          "kind": "main",
+          "requires": [
+            "CH_MQ02"
+          ],
+          "locations": [
+            "market",
+            "count",
+            "well"
+          ],
+          "actors": [
+            "mira",
+            "ilvi",
+            "sena"
+          ],
+          "objective": "Discover missing contracts",
+          "resolutions": [
+            "trade, persuade or recover evidence"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "CH_MQ04",
+          "title": "Maps That Lie",
+          "kind": "main",
+          "requires": [
+            "CH_MQ03"
+          ],
+          "locations": [
+            "archive",
+            "tower",
+            "cave"
+          ],
+          "actors": [
+            "vedan",
+            "orven"
+          ],
+          "objective": "Compare repeated fragments and establish mechanism",
+          "resolutions": [
+            "collect testimony or physical markers"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "CH_MQ05",
+          "title": "The Custodian's Offer",
+          "kind": "main",
+          "requires": [
+            "CH_MQ04"
+          ],
+          "locations": [
+            "fort",
+            "court",
+            "foundry"
+          ],
+          "actors": [
+            "thal",
+            "dren"
+          ],
+          "objective": "Acquire access to the core",
+          "resolutions": [
+            "negotiate, expose contradiction or bypass"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "CH_MQ06",
+          "title": "Unwritten",
+          "kind": "main",
+          "requires": [
+            "CH_MQ05"
+          ],
+          "locations": [
+            "engine",
+            "sanctum"
+          ],
+          "actors": [
+            "nare",
+            "thal",
+            "mira"
+          ],
+          "objective": "Choose what happens to the mechanism",
+          "resolutions": [
+            "sever, redirect or accept limited bargain",
+            "captive outcomes vary"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "CH_MQ07",
+          "title": "A Road Home",
+          "kind": "main",
+          "requires": [
+            "CH_MQ06"
+          ],
+          "locations": [
+            "exit",
+            "refuge"
+          ],
+          "actors": [
+            "nare",
+            "vedan"
+          ],
+          "objective": "Leave or return to help survivors",
+          "resolutions": [
+            "return with testimony or leave it archived"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "CH_SQ01",
+          "title": "The Water Keeper",
+          "kind": "side",
+          "requires": [
+            "CH_MQ01"
+          ],
+          "locations": [
+            "well",
+            "canal"
+          ],
+          "actors": [
+            "sena"
+          ],
+          "objective": "Restore access to water",
+          "resolutions": [
+            "repair channel or negotiate ration"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "CH_SQ02",
+          "title": "A Missing Name",
+          "kind": "side",
+          "requires": [
+            "CH_MQ03"
+          ],
+          "locations": [
+            "count",
+            "cellar"
+          ],
+          "actors": [
+            "ilvi"
+          ],
+          "objective": "Trace erased captive identity",
+          "resolutions": [
+            "recover record or witness account"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "CH_SQ03",
+          "title": "The Honest Map",
+          "kind": "side",
+          "requires": [
+            "CH_MQ04"
+          ],
+          "locations": [
+            "tower",
+            "road"
+          ],
+          "actors": [
+            "orven"
+          ],
+          "objective": "Mark reliable routes",
+          "resolutions": [
+            "survey or verify with witnesses"
+          ],
+          "status": "outline"
+        }
+      ],
+      "initial_slice": [
+        "entry",
+        "village",
+        "refuge",
+        "shrine",
+        "gate"
+      ],
+      "release_gate": "Native records, scripts, assets, navigation, independent retail runtime and save/load verification required."
+    },
+    {
+      "id": "hunting",
+      "game": "oblivion",
+      "title": "The Hunting Grounds",
+      "canon_status": "proposed; existing creator-approved canon takes precedence",
+      "factions": [
+        {
+          "id": "pack",
+          "name": "Ashen Track Pack",
+          "goal": "Protect kin and refuse coerced hunts"
+        },
+        {
+          "id": "hunters",
+          "name": "Antler Company",
+          "goal": "Treat the hunt as status and obligation"
+        },
+        {
+          "id": "refuge",
+          "name": "Hearthkeepers",
+          "goal": "Shelter mortals and transformed people"
+        },
+        {
+          "id": "ritual",
+          "name": "Keepers of the Chase",
+          "goal": "Preserve ritual rules; divided on voluntary participation"
+        }
+      ],
+      "actors": [
+        {
+          "id": "maelin",
+          "name": "Maelin Varo",
+          "faction": "refuge",
+          "home": "camp",
+          "role": "Missing-person investigator and guide"
+        },
+        {
+          "id": "corin",
+          "name": "Corin Hale",
+          "faction": "hunters",
+          "home": "lodge",
+          "role": "Hunter who treats quarry as trophies"
+        },
+        {
+          "id": "siv",
+          "name": "Siv Redtrail",
+          "faction": "pack",
+          "home": "packden",
+          "role": "Pack leader seeking a ceasefire"
+        },
+        {
+          "id": "len",
+          "name": "Lenna Thorne",
+          "faction": "refuge",
+          "home": "hearth",
+          "role": "Healer testing ways to manage transformation"
+        },
+        {
+          "id": "orr",
+          "name": "Orren Reed",
+          "faction": "ritual",
+          "home": "arena",
+          "role": "Ritual interpreter concerned with fair terms"
+        },
+        {
+          "id": "bren",
+          "name": "Bren Ashfoot",
+          "faction": "pack",
+          "home": "trail",
+          "role": "Scout skeptical of outsiders"
+        },
+        {
+          "id": "fara",
+          "name": "Fara Glen",
+          "faction": "hunters",
+          "home": "watch",
+          "role": "Hunter who wants to leave the company"
+        },
+        {
+          "id": "tess",
+          "name": "Tessa Venn",
+          "faction": "refuge",
+          "home": "mill",
+          "role": "Refuge keeper collecting food and supplies"
+        }
+      ],
+      "locations": [
+        {
+          "id": "camp",
+          "name": "Great Forest camp",
+          "type": "hub",
+          "region": "slice",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "trail",
+          "name": "Missing hunters trail",
+          "type": "exterior",
+          "region": "slice",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "crossing",
+          "name": "Antler crossing",
+          "type": "transition",
+          "region": "slice",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "lodge",
+          "name": "Island hunting lodge",
+          "type": "hub",
+          "region": "slice",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "arena",
+          "name": "Trial clearing",
+          "type": "exterior",
+          "region": "slice",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "hearth",
+          "name": "Hearthkeeper refuge",
+          "type": "hub",
+          "region": "west",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "packden",
+          "name": "Ashen Track den",
+          "type": "interior",
+          "region": "west",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "mill",
+          "name": "Woodland mill",
+          "type": "interior",
+          "region": "west",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "spring",
+          "name": "Moonlit spring",
+          "type": "exterior",
+          "region": "west",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "cairn",
+          "name": "Standing cairns",
+          "type": "exterior",
+          "region": "west",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "watch",
+          "name": "Hunter watch post",
+          "type": "interior",
+          "region": "north",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "ravine",
+          "name": "Ravine trail",
+          "type": "exterior",
+          "region": "north",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "cave",
+          "name": "Root cave",
+          "type": "interior",
+          "region": "north",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "ridge",
+          "name": "Northern ridge",
+          "type": "exterior",
+          "region": "north",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "lake",
+          "name": "Blackwater lake",
+          "type": "exterior",
+          "region": "east",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "ford",
+          "name": "River ford",
+          "type": "exterior",
+          "region": "east",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "ruins",
+          "name": "Unidentified Ayleid-inspired ruins",
+          "type": "interior",
+          "region": "east",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "blind",
+          "name": "Abandoned hunting blind",
+          "type": "interior",
+          "region": "east",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "meadow",
+          "name": "Prey meadow",
+          "type": "exterior",
+          "region": "south",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "grove",
+          "name": "Silverleaf grove",
+          "type": "exterior",
+          "region": "south",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "hollow",
+          "name": "Fallen tree hollow",
+          "type": "interior",
+          "region": "south",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "circle",
+          "name": "Ritual stone circle",
+          "type": "exterior",
+          "region": "core",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "sanctum",
+          "name": "Keeper's lodge",
+          "type": "interior",
+          "region": "core",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "pass",
+          "name": "Final chase pass",
+          "type": "exterior",
+          "region": "core",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "exit",
+          "name": "Return crossing",
+          "type": "transition",
+          "region": "core",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        }
+      ],
+      "quests": [
+        {
+          "id": "HG_MQ01",
+          "title": "The Empty Camp",
+          "kind": "main",
+          "requires": [],
+          "locations": [
+            "camp",
+            "trail"
+          ],
+          "actors": [
+            "maelin",
+            "bren"
+          ],
+          "objective": "Trace disappearance in Great Forest",
+          "resolutions": [
+            "track signs or question survivors"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "HG_MQ02",
+          "title": "Across the Antlers",
+          "kind": "main",
+          "requires": [
+            "HG_MQ01"
+          ],
+          "locations": [
+            "crossing",
+            "lodge"
+          ],
+          "actors": [
+            "corin",
+            "maelin"
+          ],
+          "objective": "Reach realm and learn contest terms",
+          "resolutions": [
+            "accept invitation or follow missing party"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "HG_MQ03",
+          "title": "The First Chase",
+          "kind": "main",
+          "requires": [
+            "HG_MQ02"
+          ],
+          "locations": [
+            "arena",
+            "hearth"
+          ],
+          "actors": [
+            "orr",
+            "len"
+          ],
+          "objective": "Complete trial without mandatory transformation",
+          "resolutions": [
+            "tracking route or consensual transformation route"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "HG_MQ04",
+          "title": "Two Kinds of Hunger",
+          "kind": "main",
+          "requires": [
+            "HG_MQ03"
+          ],
+          "locations": [
+            "packden",
+            "watch",
+            "mill"
+          ],
+          "actors": [
+            "siv",
+            "fara",
+            "tess"
+          ],
+          "objective": "Investigate pack and hunter conflict",
+          "resolutions": [
+            "mediate supplies or take sides"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "HG_MQ05",
+          "title": "Terms of the Hunt",
+          "kind": "main",
+          "requires": [
+            "HG_MQ04"
+          ],
+          "locations": [
+            "ruins",
+            "circle",
+            "sanctum"
+          ],
+          "actors": [
+            "orr",
+            "corin"
+          ],
+          "objective": "Establish ritual loophole or challenge",
+          "resolutions": [
+            "evidence, trial or negotiated terms"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "HG_MQ06",
+          "title": "The Last Chase",
+          "kind": "main",
+          "requires": [
+            "HG_MQ05"
+          ],
+          "locations": [
+            "pass",
+            "meadow"
+          ],
+          "actors": [
+            "siv",
+            "corin",
+            "orr"
+          ],
+          "objective": "Resolve the contested hunt",
+          "resolutions": [
+            "free quarry, broker terms or endorse contest"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "HG_MQ07",
+          "title": "Back Through the Trees",
+          "kind": "main",
+          "requires": [
+            "HG_MQ06"
+          ],
+          "locations": [
+            "exit",
+            "camp"
+          ],
+          "actors": [
+            "maelin"
+          ],
+          "objective": "Return; settle transformation outcome",
+          "resolutions": [
+            "retain optional power or seek reversal"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "HG_SQ01",
+          "title": "The Lost Scout",
+          "kind": "side",
+          "requires": [
+            "HG_MQ02"
+          ],
+          "locations": [
+            "ravine",
+            "cave"
+          ],
+          "actors": [
+            "bren"
+          ],
+          "objective": "Find missing scout",
+          "resolutions": [
+            "escort or signal refuge"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "HG_SQ02",
+          "title": "A Hunter's Leave",
+          "kind": "side",
+          "requires": [
+            "HG_MQ03"
+          ],
+          "locations": [
+            "watch",
+            "blind"
+          ],
+          "actors": [
+            "fara"
+          ],
+          "objective": "Help hunter leave company",
+          "resolutions": [
+            "secure permission or safe route"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "HG_SQ03",
+          "title": "The Full Hearth",
+          "kind": "side",
+          "requires": [
+            "HG_MQ03"
+          ],
+          "locations": [
+            "mill",
+            "grove"
+          ],
+          "actors": [
+            "tess"
+          ],
+          "objective": "Restore refuge supplies",
+          "resolutions": [
+            "gather or exchange"
+          ],
+          "status": "outline"
+        }
+      ],
+      "initial_slice": [
+        "camp",
+        "trail",
+        "crossing",
+        "lodge",
+        "arena"
+      ],
+      "release_gate": "Native records, scripts, assets, navigation, independent retail runtime and save/load verification required."
+    },
+    {
+      "id": "pits",
+      "game": "skyrim",
+      "title": "The Pits",
+      "canon_status": "proposed; existing creator-approved canon takes precedence",
+      "factions": [
+        {
+          "id": "quarantine",
+          "name": "Quarantine refuge",
+          "goal": "Protect inhabitants with voluntary safeguards"
+        },
+        {
+          "id": "terrace",
+          "name": "Salt custodians",
+          "goal": "Favor strict containment and measurement"
+        },
+        {
+          "id": "works",
+          "name": "Mineral works collective",
+          "goal": "Restore failing infrastructure"
+        },
+        {
+          "id": "keepers",
+          "name": "Abyssal custodians",
+          "goal": "Disagree over the proper order of the realm"
+        }
+      ],
+      "actors": [
+        {
+          "id": "iven",
+          "name": "Iven Dreth",
+          "faction": "quarantine",
+          "home": "shrine",
+          "role": "Mortal investigator of fictional affliction"
+        },
+        {
+          "id": "svala",
+          "name": "Svala Renn",
+          "faction": "quarantine",
+          "home": "refuge",
+          "role": "Refuge steward balancing limited supplies"
+        },
+        {
+          "id": "mereth",
+          "name": "Mereth Vale",
+          "faction": "terrace",
+          "home": "salt",
+          "role": "Custodian who prioritizes isolation"
+        },
+        {
+          "id": "tovan",
+          "name": "Tovan Glass",
+          "faction": "works",
+          "home": "pump",
+          "role": "Mechanic who wants access to flooded works"
+        },
+        {
+          "id": "hessa",
+          "name": "Hessa Moor",
+          "faction": "quarantine",
+          "home": "fungus",
+          "role": "Herbalist cataloging environmental effects"
+        },
+        {
+          "id": "keld",
+          "name": "Keld Windscar",
+          "faction": "keepers",
+          "home": "ledge",
+          "role": "Guide who challenges imposed rules"
+        },
+        {
+          "id": "naris",
+          "name": "Naris Venn",
+          "faction": "keepers",
+          "home": "gate",
+          "role": "Gatekeeper demanding proof of containment"
+        },
+        {
+          "id": "orl",
+          "name": "Orl Silt",
+          "faction": "works",
+          "home": "foundry",
+          "role": "Worker arguing for restoration rather than abandonment"
+        }
+      ],
+      "locations": [
+        {
+          "id": "shrine",
+          "name": "Mortal entry shrine",
+          "type": "transition",
+          "region": "slice",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "refuge",
+          "name": "Quarantine refuge",
+          "type": "hub",
+          "region": "slice",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "terrace",
+          "name": "Toxic terrace",
+          "type": "exterior",
+          "region": "slice",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "gate",
+          "name": "Descent gate",
+          "type": "transition",
+          "region": "slice",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "hazard",
+          "name": "Hazard dungeon",
+          "type": "interior",
+          "region": "slice",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "salt",
+          "name": "Salt terraces",
+          "type": "exterior",
+          "region": "salt",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "lab",
+          "name": "Salt assay hall",
+          "type": "interior",
+          "region": "salt",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "cistern",
+          "name": "White cistern",
+          "type": "interior",
+          "region": "salt",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "ash",
+          "name": "Ash channels",
+          "type": "exterior",
+          "region": "ash",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "kiln",
+          "name": "Ash kiln",
+          "type": "interior",
+          "region": "ash",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "bridge",
+          "name": "Obsidian bridge",
+          "type": "exterior",
+          "region": "ash",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "fungus",
+          "name": "Fungal galleries",
+          "type": "exterior",
+          "region": "fungal",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "hollow",
+          "name": "Spore hollow",
+          "type": "interior",
+          "region": "fungal",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "garden",
+          "name": "Sealed garden",
+          "type": "interior",
+          "region": "fungal",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "works",
+          "name": "Drowned mineral works",
+          "type": "exterior",
+          "region": "drowned",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "pump",
+          "name": "Pump station",
+          "type": "interior",
+          "region": "drowned",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "foundry",
+          "name": "Mineral foundry",
+          "type": "interior",
+          "region": "drowned",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "ledge",
+          "name": "Wind-cut ledges",
+          "type": "exterior",
+          "region": "wind",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "spire",
+          "name": "Wind spire",
+          "type": "interior",
+          "region": "wind",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "shelter",
+          "name": "Cliff shelter",
+          "type": "interior",
+          "region": "wind",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "clinic",
+          "name": "Refuge treatment hall",
+          "type": "interior",
+          "region": "quarantine",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "stores",
+          "name": "Refuge stores",
+          "type": "interior",
+          "region": "quarantine",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "rim",
+          "name": "Central abyss rim",
+          "type": "exterior",
+          "region": "core",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "core",
+          "name": "Abyssal regulator",
+          "type": "interior",
+          "region": "core",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "exit",
+          "name": "Return portal",
+          "type": "transition",
+          "region": "core",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        }
+      ],
+      "quests": [
+        {
+          "id": "PT_MQ01",
+          "title": "A Measure of Disorder",
+          "kind": "main",
+          "requires": [],
+          "locations": [
+            "shrine",
+            "refuge"
+          ],
+          "actors": [
+            "iven",
+            "svala"
+          ],
+          "objective": "Investigate affliction and enter realm",
+          "resolutions": [
+            "trace clues or aid refuge"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "PT_MQ02",
+          "title": "The Air Below",
+          "kind": "main",
+          "requires": [
+            "PT_MQ01"
+          ],
+          "locations": [
+            "terrace",
+            "gate",
+            "hazard"
+          ],
+          "actors": [
+            "naris",
+            "hessa"
+          ],
+          "objective": "Learn hazard rules and reach descent gate",
+          "resolutions": [
+            "protective equipment or safe detour"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "PT_MQ03",
+          "title": "Salt and Ash",
+          "kind": "main",
+          "requires": [
+            "PT_MQ02"
+          ],
+          "locations": [
+            "salt",
+            "lab",
+            "ash"
+          ],
+          "actors": [
+            "mereth"
+          ],
+          "objective": "Determine why containment fails",
+          "resolutions": [
+            "test fictional samples or recover records"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "PT_MQ04",
+          "title": "The Drowned Works",
+          "kind": "main",
+          "requires": [
+            "PT_MQ03"
+          ],
+          "locations": [
+            "works",
+            "pump",
+            "foundry"
+          ],
+          "actors": [
+            "tovan",
+            "orl"
+          ],
+          "objective": "Restore or isolate damaged infrastructure",
+          "resolutions": [
+            "repair, reroute or close works"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "PT_MQ05",
+          "title": "Six Measures",
+          "kind": "main",
+          "requires": [
+            "PT_MQ04"
+          ],
+          "locations": [
+            "fungus",
+            "ledge",
+            "clinic"
+          ],
+          "actors": [
+            "hessa",
+            "keld",
+            "svala"
+          ],
+          "objective": "Reconcile competing custodians",
+          "resolutions": [
+            "consult witnesses or negotiate district protections"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "PT_MQ06",
+          "title": "At the Rim",
+          "kind": "main",
+          "requires": [
+            "PT_MQ05"
+          ],
+          "locations": [
+            "rim",
+            "core"
+          ],
+          "actors": [
+            "naris",
+            "mereth",
+            "keld"
+          ],
+          "objective": "Choose regulator policy",
+          "resolutions": [
+            "contain, redirect or dismantle with consequences"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "PT_MQ07",
+          "title": "The Last Measure",
+          "kind": "main",
+          "requires": [
+            "PT_MQ06"
+          ],
+          "locations": [
+            "exit",
+            "refuge"
+          ],
+          "actors": [
+            "iven",
+            "svala"
+          ],
+          "objective": "Return and observe fictional affliction outcome",
+          "resolutions": [
+            "report outcome or remain to aid restoration"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "PT_SQ01",
+          "title": "A Breath of Relief",
+          "kind": "side",
+          "requires": [
+            "PT_MQ02"
+          ],
+          "locations": [
+            "clinic",
+            "stores"
+          ],
+          "actors": [
+            "svala"
+          ],
+          "objective": "Restore protective supply",
+          "resolutions": [
+            "craft or recover gear"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "PT_SQ02",
+          "title": "The White Ledger",
+          "kind": "side",
+          "requires": [
+            "PT_MQ03"
+          ],
+          "locations": [
+            "cistern",
+            "lab"
+          ],
+          "actors": [
+            "mereth"
+          ],
+          "objective": "Find missing measurement records",
+          "resolutions": [
+            "recover journal or question worker"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "PT_SQ03",
+          "title": "A Place Above",
+          "kind": "side",
+          "requires": [
+            "PT_MQ04"
+          ],
+          "locations": [
+            "spire",
+            "shelter"
+          ],
+          "actors": [
+            "keld"
+          ],
+          "objective": "Establish safe trail along ledges",
+          "resolutions": [
+            "clear route or signal alternate"
+          ],
+          "status": "outline"
+        }
+      ],
+      "initial_slice": [
+        "shrine",
+        "refuge",
+        "terrace",
+        "gate",
+        "hazard"
+      ],
+      "release_gate": "Native records, scripts, assets, navigation, independent retail runtime and save/load verification required."
+    },
+    {
+      "id": "baltimore",
+      "game": "fallout3",
+      "title": "Fallout: Baltimore",
+      "canon_status": "proposed; existing creator-approved canon takes precedence",
+      "factions": [
+        {
+          "id": "docks",
+          "name": "Harbor Cooperative",
+          "goal": "Maintain shared docking and water access"
+        },
+        {
+          "id": "crew",
+          "name": "Breakwater Crew",
+          "goal": "Charge for protection and control transit chokepoints"
+        },
+        {
+          "id": "row",
+          "name": "Rowhouse Assembly",
+          "goal": "Preserve residential autonomy and utilities"
+        },
+        {
+          "id": "salvage",
+          "name": "Eastworks Salvagers",
+          "goal": "Keep industry functioning; divided over exclusive contracts"
+        }
+      ],
+      "actors": [
+        {
+          "id": "mara",
+          "name": "Mara Bell",
+          "faction": "docks",
+          "home": "market",
+          "role": "Dock organizer defending shared access"
+        },
+        {
+          "id": "reed",
+          "name": "Reed Knox",
+          "faction": "crew",
+          "home": "checkpoint",
+          "role": "Protection captain negotiating leverage"
+        },
+        {
+          "id": "nia",
+          "name": "Nia Mercer",
+          "faction": "row",
+          "home": "refuge",
+          "role": "Community steward seeking potable supply"
+        },
+        {
+          "id": "ellis",
+          "name": "Ellis Ward",
+          "faction": "salvage",
+          "home": "yard",
+          "role": "Mechanic tracing failed transit hardware"
+        },
+        {
+          "id": "jo",
+          "name": "Jo Pike",
+          "faction": "docks",
+          "home": "warehouse",
+          "role": "Warehouse clerk tracking missing provisions"
+        },
+        {
+          "id": "cal",
+          "name": "Cal Henson",
+          "faction": "row",
+          "home": "clinic",
+          "role": "Medic prioritizing independent routes"
+        },
+        {
+          "id": "del",
+          "name": "Del Finch",
+          "faction": "crew",
+          "home": "bridge",
+          "role": "Guard willing to change terms"
+        },
+        {
+          "id": "ada",
+          "name": "Ada Wynn",
+          "faction": "salvage",
+          "home": "plant",
+          "role": "Engineer seeking a stable utility network"
+        }
+      ],
+      "locations": [
+        {
+          "id": "arrival",
+          "name": "Arrival approach",
+          "type": "transition",
+          "region": "slice",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "market",
+          "name": "Harbor market",
+          "type": "hub",
+          "region": "slice",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "warehouse",
+          "name": "Harbor warehouse",
+          "type": "interior",
+          "region": "slice",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "tunnel",
+          "name": "Service tunnel",
+          "type": "interior",
+          "region": "slice",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "refuge",
+          "name": "Rowhouse refuge",
+          "type": "hub",
+          "region": "slice",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "yard",
+          "name": "Eastworks salvage yard",
+          "type": "hub",
+          "region": "east",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "plant",
+          "name": "Utility plant",
+          "type": "interior",
+          "region": "east",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "rail",
+          "name": "Industrial rail spur",
+          "type": "exterior",
+          "region": "east",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "crane",
+          "name": "Crane platform",
+          "type": "exterior",
+          "region": "east",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "canal",
+          "name": "Industrial basin",
+          "type": "exterior",
+          "region": "east",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "checkpoint",
+          "name": "Protection checkpoint",
+          "type": "hub",
+          "region": "downtown",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "station",
+          "name": "Inland transit station",
+          "type": "hub",
+          "region": "downtown",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "arcade",
+          "name": "Damaged shopping arcade",
+          "type": "interior",
+          "region": "downtown",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "roof",
+          "name": "Downtown rooftop route",
+          "type": "exterior",
+          "region": "downtown",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "subway",
+          "name": "Abandoned transit tunnel",
+          "type": "interior",
+          "region": "downtown",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "clinic",
+          "name": "Residential clinic",
+          "type": "interior",
+          "region": "west",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "rowblock",
+          "name": "Rowhouse block",
+          "type": "exterior",
+          "region": "west",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "school",
+          "name": "Shelter school",
+          "type": "interior",
+          "region": "west",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "water",
+          "name": "Water distribution node",
+          "type": "interior",
+          "region": "west",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "park",
+          "name": "Overgrown neighborhood park",
+          "type": "exterior",
+          "region": "west",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "bridge",
+          "name": "Harbor crossing approach",
+          "type": "exterior",
+          "region": "south",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "ferry",
+          "name": "Ferry slip",
+          "type": "exterior",
+          "region": "south",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "drydock",
+          "name": "Dry dock",
+          "type": "interior",
+          "region": "south",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "switch",
+          "name": "Transit switching room",
+          "type": "interior",
+          "region": "core",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "exit",
+          "name": "Capital Wasteland return",
+          "type": "transition",
+          "region": "core",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        }
+      ],
+      "quests": [
+        {
+          "id": "BL_MQ01",
+          "title": "A Closed Harbor",
+          "kind": "main",
+          "requires": [],
+          "locations": [
+            "arrival",
+            "market"
+          ],
+          "actors": [
+            "mara"
+          ],
+          "objective": "Find why transit failed",
+          "resolutions": [
+            "offer aid or trade for information"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "BL_MQ02",
+          "title": "Under the Street",
+          "kind": "main",
+          "requires": [
+            "BL_MQ01"
+          ],
+          "locations": [
+            "warehouse",
+            "tunnel",
+            "refuge"
+          ],
+          "actors": [
+            "jo",
+            "nia"
+          ],
+          "objective": "Restore a supply route to refuge",
+          "resolutions": [
+            "repair, negotiate or use alternate path"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "BL_MQ03",
+          "title": "The Price of Passage",
+          "kind": "main",
+          "requires": [
+            "BL_MQ02"
+          ],
+          "locations": [
+            "checkpoint",
+            "station",
+            "bridge"
+          ],
+          "actors": [
+            "reed",
+            "del"
+          ],
+          "objective": "Expose competing claims on transit",
+          "resolutions": [
+            "bargain, collect records or bypass toll"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "BL_MQ04",
+          "title": "East of the Water",
+          "kind": "main",
+          "requires": [
+            "BL_MQ03"
+          ],
+          "locations": [
+            "yard",
+            "plant",
+            "rail"
+          ],
+          "actors": [
+            "ellis",
+            "ada"
+          ],
+          "objective": "Diagnose infrastructure failure",
+          "resolutions": [
+            "repair with parts or arrange alternative supply"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "BL_MQ05",
+          "title": "A City of Blocks",
+          "kind": "main",
+          "requires": [
+            "BL_MQ04"
+          ],
+          "locations": [
+            "rowblock",
+            "clinic",
+            "water"
+          ],
+          "actors": [
+            "nia",
+            "cal"
+          ],
+          "objective": "Secure residential agreement",
+          "resolutions": [
+            "aid clinic or present reliable trade plan"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "BL_MQ06",
+          "title": "The Harbor Accord",
+          "kind": "main",
+          "requires": [
+            "BL_MQ05"
+          ],
+          "locations": [
+            "switch",
+            "market",
+            "drydock"
+          ],
+          "actors": [
+            "mara",
+            "reed",
+            "ada"
+          ],
+          "objective": "Choose transit governance",
+          "resolutions": [
+            "shared access, negotiated tolls or decentralized routes"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "BL_MQ07",
+          "title": "Open Passage",
+          "kind": "main",
+          "requires": [
+            "BL_MQ06"
+          ],
+          "locations": [
+            "ferry",
+            "exit"
+          ],
+          "actors": [
+            "mara",
+            "nia"
+          ],
+          "objective": "Leave or continue local work",
+          "resolutions": [
+            "report results and preserve original game endings"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "BL_SQ01",
+          "title": "The Missing Crate",
+          "kind": "side",
+          "requires": [
+            "BL_MQ02"
+          ],
+          "locations": [
+            "warehouse",
+            "arcade"
+          ],
+          "actors": [
+            "jo"
+          ],
+          "objective": "Trace a missing shipment",
+          "resolutions": [
+            "return goods or compensate owners"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "BL_SQ02",
+          "title": "Above the Grid",
+          "kind": "side",
+          "requires": [
+            "BL_MQ03"
+          ],
+          "locations": [
+            "roof",
+            "subway"
+          ],
+          "actors": [
+            "del"
+          ],
+          "objective": "Find alternate safe crossing",
+          "resolutions": [
+            "survey roof or tunnel"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "BL_SQ03",
+          "title": "A Light in the Row",
+          "kind": "side",
+          "requires": [
+            "BL_MQ04"
+          ],
+          "locations": [
+            "school",
+            "water"
+          ],
+          "actors": [
+            "cal"
+          ],
+          "objective": "Restore neighborhood utility",
+          "resolutions": [
+            "repair or share generator"
+          ],
+          "status": "outline"
+        }
+      ],
+      "initial_slice": [
+        "arrival",
+        "market",
+        "warehouse",
+        "tunnel",
+        "refuge"
+      ],
+      "release_gate": "Native records, scripts, assets, navigation, independent retail runtime and save/load verification required."
+    },
+    {
+      "id": "nautica",
+      "game": "fallout4",
+      "title": "Fallout Nautica",
+      "canon_status": "proposed; existing creator-approved canon takes precedence",
+      "factions": [
+        {
+          "id": "harbor",
+          "name": "Harbor Cooperative",
+          "goal": "Share marine supply access and keep harbor safe"
+        },
+        {
+          "id": "flotilla",
+          "name": "Salvage Flotilla",
+          "goal": "Claim wreck cargo; disputes over obligations"
+        },
+        {
+          "id": "inland",
+          "name": "Inland Refuge",
+          "goal": "Keep food and water supplies independent"
+        },
+        {
+          "id": "beacon",
+          "name": "Beacon Keepers",
+          "goal": "Maintain navigation stations and rescue obligations"
+        }
+      ],
+      "actors": [
+        {
+          "id": "iris",
+          "name": "Iris Coffin",
+          "faction": "harbor",
+          "home": "dock",
+          "role": "Harbor dispatcher investigating missing cargo"
+        },
+        {
+          "id": "wade",
+          "name": "Wade Sloane",
+          "faction": "flotilla",
+          "home": "slip",
+          "role": "Salvage captain torn between debt and rescue"
+        },
+        {
+          "id": "mabel",
+          "name": "Mabel Finch",
+          "faction": "inland",
+          "home": "crossroads",
+          "role": "Refuge organizer seeking reliable supplies"
+        },
+        {
+          "id": "otto",
+          "name": "Otto Pike",
+          "faction": "beacon",
+          "home": "beacon",
+          "role": "Station keeper protecting navigation records"
+        },
+        {
+          "id": "june",
+          "name": "June Reed",
+          "faction": "harbor",
+          "home": "boathouse",
+          "role": "Mechanic who can restore marine hardware"
+        },
+        {
+          "id": "silas",
+          "name": "Silas Marsh",
+          "faction": "inland",
+          "home": "farm",
+          "role": "Grower defending local water supply"
+        },
+        {
+          "id": "bea",
+          "name": "Bea Vale",
+          "faction": "flotilla",
+          "home": "wreck",
+          "role": "Diver who disputes ownership claims"
+        },
+        {
+          "id": "ruth",
+          "name": "Ruth Hale",
+          "faction": "beacon",
+          "home": "east",
+          "role": "Rescue volunteer tracking missing boats"
+        }
+      ],
+      "locations": [
+        {
+          "id": "dock",
+          "name": "Arrival dock",
+          "type": "transition",
+          "region": "slice",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "street",
+          "name": "Harbor main street",
+          "type": "exterior",
+          "region": "slice",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "lane",
+          "name": "Town side lane",
+          "type": "exterior",
+          "region": "slice",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "boathouse",
+          "name": "Boathouse workshop",
+          "type": "interior",
+          "region": "slice",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "marsh",
+          "name": "Marsh path",
+          "type": "exterior",
+          "region": "slice",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "beacon",
+          "name": "Beacon station",
+          "type": "hub",
+          "region": "slice",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "market",
+          "name": "Town harbor market",
+          "type": "hub",
+          "region": "town",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "slip",
+          "name": "Salvage slip",
+          "type": "hub",
+          "region": "town",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "warehouse",
+          "name": "Cargo warehouse",
+          "type": "interior",
+          "region": "town",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "cistern",
+          "name": "Town cistern",
+          "type": "interior",
+          "region": "town",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "crossroads",
+          "name": "Inland crossroads",
+          "type": "hub",
+          "region": "inland",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "farm",
+          "name": "Refuge farm",
+          "type": "hub",
+          "region": "inland",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "moor",
+          "name": "Open moor",
+          "type": "exterior",
+          "region": "inland",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "pond",
+          "name": "Freshwater pond",
+          "type": "exterior",
+          "region": "inland",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "bunker",
+          "name": "Old utility bunker",
+          "type": "interior",
+          "region": "inland",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "west",
+          "name": "Madaket-inspired fishing community",
+          "type": "hub",
+          "region": "west",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "dunes",
+          "name": "Western dune trail",
+          "type": "exterior",
+          "region": "west",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "surf",
+          "name": "Surfside-inspired beach",
+          "type": "exterior",
+          "region": "south",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "wreck",
+          "name": "Grounded wreck",
+          "type": "interior",
+          "region": "south",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "cove",
+          "name": "Sheltered cove",
+          "type": "exterior",
+          "region": "south",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "east",
+          "name": "Eastern coastal station",
+          "type": "hub",
+          "region": "east",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "polpis",
+          "name": "Polpis-inspired road junction",
+          "type": "exterior",
+          "region": "east",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "cliff",
+          "name": "Eastern bluff",
+          "type": "exterior",
+          "region": "east",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "relay",
+          "name": "Navigation relay",
+          "type": "interior",
+          "region": "core",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "exit",
+          "name": "Mainland return crossing",
+          "type": "transition",
+          "region": "core",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        }
+      ],
+      "quests": [
+        {
+          "id": "NA_MQ01",
+          "title": "The Broken Crossing",
+          "kind": "main",
+          "requires": [],
+          "locations": [
+            "dock",
+            "street",
+            "lane"
+          ],
+          "actors": [
+            "iris"
+          ],
+          "objective": "Survive arrival and learn supply failure",
+          "resolutions": [
+            "offer help or exchange information"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "NA_MQ02",
+          "title": "A Light in the Fog",
+          "kind": "main",
+          "requires": [
+            "NA_MQ01"
+          ],
+          "locations": [
+            "boathouse",
+            "marsh",
+            "beacon"
+          ],
+          "actors": [
+            "june",
+            "otto"
+          ],
+          "objective": "Restore local signal and locate missing cargo route",
+          "resolutions": [
+            "repair, retrieve parts or bargain"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "NA_MQ03",
+          "title": "Claims on the Tide",
+          "kind": "main",
+          "requires": [
+            "NA_MQ02"
+          ],
+          "locations": [
+            "slip",
+            "warehouse",
+            "wreck"
+          ],
+          "actors": [
+            "wade",
+            "bea"
+          ],
+          "objective": "Investigate contested wreck cargo",
+          "resolutions": [
+            "recover manifest or negotiate salvage rights"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "NA_MQ04",
+          "title": "Beyond the Harbor",
+          "kind": "main",
+          "requires": [
+            "NA_MQ03"
+          ],
+          "locations": [
+            "crossroads",
+            "farm",
+            "pond"
+          ],
+          "actors": [
+            "mabel",
+            "silas"
+          ],
+          "objective": "Secure inland supply agreement",
+          "resolutions": [
+            "restore water or arrange transport"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "NA_MQ05",
+          "title": "The Eastern Signal",
+          "kind": "main",
+          "requires": [
+            "NA_MQ04"
+          ],
+          "locations": [
+            "east",
+            "polpis",
+            "relay"
+          ],
+          "actors": [
+            "ruth",
+            "otto"
+          ],
+          "objective": "Locate missing vessels and restore network",
+          "resolutions": [
+            "repair relay or establish alternate signal"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "NA_MQ06",
+          "title": "Who Owns the Water",
+          "kind": "main",
+          "requires": [
+            "NA_MQ05"
+          ],
+          "locations": [
+            "market",
+            "slip",
+            "west"
+          ],
+          "actors": [
+            "iris",
+            "wade",
+            "mabel"
+          ],
+          "objective": "Decide maritime supply governance",
+          "resolutions": [
+            "cooperative, regulated salvage or decentralized routes"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "NA_MQ07",
+          "title": "A Safe Crossing",
+          "kind": "main",
+          "requires": [
+            "NA_MQ06"
+          ],
+          "locations": [
+            "beacon",
+            "exit"
+          ],
+          "actors": [
+            "ruth",
+            "iris"
+          ],
+          "objective": "Return or stay; show network consequences",
+          "resolutions": [
+            "leave with safe passage or continue settlement work"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "NA_SQ01",
+          "title": "A Boat for Two",
+          "kind": "side",
+          "requires": [
+            "NA_MQ02"
+          ],
+          "locations": [
+            "boathouse",
+            "cove"
+          ],
+          "actors": [
+            "june"
+          ],
+          "objective": "Repair rescue craft as authored travel point",
+          "resolutions": [
+            "repair or source replacement parts"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "NA_SQ02",
+          "title": "The Dry Well",
+          "kind": "side",
+          "requires": [
+            "NA_MQ04"
+          ],
+          "locations": [
+            "farm",
+            "cistern"
+          ],
+          "actors": [
+            "silas"
+          ],
+          "objective": "Restore community water supply",
+          "resolutions": [
+            "repair or barter"
+          ],
+          "status": "outline"
+        },
+        {
+          "id": "NA_SQ03",
+          "title": "The Lost Watch",
+          "kind": "side",
+          "requires": [
+            "NA_MQ03"
+          ],
+          "locations": [
+            "cliff",
+            "east"
+          ],
+          "actors": [
+            "ruth"
+          ],
+          "objective": "Investigate missing rescue watch",
+          "resolutions": [
+            "follow signs or recover log"
+          ],
+          "status": "outline"
+        }
+      ],
+      "initial_slice": [
+        "dock",
+        "street",
+        "lane",
+        "boathouse",
+        "marsh",
+        "beacon"
+      ],
+      "release_gate": "Native records, scripts, assets, navigation, independent retail runtime and save/load verification required."
+    }
+  ]
+}
