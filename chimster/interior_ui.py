@@ -26,7 +26,8 @@ def mount(parent):
     def select(key):
         nonlocal selection
         if key not in rows:return
-        selection=key;tree.selection_set(key)
+        selection=key
+        if tree.selection()!=(key,):tree.selection_set(key)
         props.delete("1.0","end");props.insert("1.0",json.dumps(rows[key][1],indent=2))
     def draw(*_):
         nonlocal transform
@@ -95,6 +96,11 @@ def mount(parent):
         p=filedialog.asksaveasfilename(defaultextension=".json")
         if p:
             with Path(p).open("x",encoding="utf-8") as f:json.dump(h.current,f,indent=2)
+    def diagnose():
+        from .interior_diagnostics import audit
+        report=audit(h.current)
+        win=tk.Toplevel(parent);win.title("Connectivity diagnostics")
+        out=tk.Text(win,width=85,height=28,wrap="word");out.pack(fill="both",expand=True);out.insert("1.0",json.dumps(report,indent=2));out.configure(state="disabled")
     def export():
         from .fnv_interior import export as native
         path=filedialog.asksaveasfilename(defaultextension=".esp")
@@ -102,7 +108,7 @@ def mount(parent):
         masters=filedialog.askopenfilenames(title="Optional masters in load order")
         result=native(h.current,path,masters)
         status.set(json.dumps(result))
-    for label,fn in (("Open",open_project),("Save new",save),("Room",add_room),("Portal",add_portal),("Place",add_placement),("Bind door",bind),("Apply properties",apply),("Undo",lambda:(h.undo(),draw())),("Redo",lambda:(h.redo(),draw())),("Export FNV",export)):
+    for label,fn in (("Open",open_project),("Save new",save),("Room",add_room),("Portal",add_portal),("Place",add_placement),("Bind door",bind),("Apply properties",apply),("Undo",lambda:(h.undo(),draw())),("Redo",lambda:(h.redo(),draw())),("Diagnostics",diagnose),("Export FNV",export)):
         ttk.Button(bar,text=label,command=lambda fn=fn:guard(fn)).pack(side="left")
     def pick(e):
         items=canvas.find_overlapping(e.x-3,e.y-3,e.x+3,e.y+3)
