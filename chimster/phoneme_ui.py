@@ -71,6 +71,7 @@ def launch(parent):
         for b in buttons:b.configure(state="normal")
         if kind=="error":status.set(value);return
         if kind=="alignment":state["rows"]=value;refresh()
+        elif kind=="native":status.set("Experimental native LIP and receipt saved; verify in game.")
         else:status.set("Calibration probes created; observe them in-game and fill observations.json.")
     def start(kind,fn):
         if busy[0]:return
@@ -102,6 +103,23 @@ def launch(parent):
         data=mc.preview(state["rows"],duration,json.loads(Path(p).read_text(encoding="utf-8")))
         out=filedialog.asksaveasfilename(parent=win,defaultextension=".json")
         if out:audio.publish(Path(out),json.dumps(data,indent=2,ensure_ascii=False).encode())
+    def profile_editor():
+        from .morph_profile_ui import launch as launch_profile
+        launch_profile(win)
+    def native_export():
+        require()
+        p=filedialog.askopenfilename(parent=win,title="Observed morph profile",filetypes=[("JSON","*.json")])
+        if not p:return
+        cal=json.loads(Path(p).read_text(encoding="utf-8"))
+        out=filedialog.asksaveasfilename(parent=win,title="Choose NEW output directory name")
+        if not out:return
+        if not messagebox.askyesno("Experimental native export","Generate a Skyrim LIP from the observed slot mapping? In-game verification is required.",parent=win):return
+        from .phoneme_synthesis import build
+        rows=list(state["rows"]);source=state["wav"]
+        start("native",lambda:build(source,rows,cal,out,experimental=True))
+    tools=ttk.Frame(win);tools.pack(fill="x")
+    for label,fn in (("Edit morph profile",profile_editor),("Export native Skyrim LIP",native_export)):
+        b=ttk.Button(tools,text=label,command=guard(fn));b.pack(side="left");buttons.append(b)
     for label,fn in (("Open WAV",wav),("Import phonemes",imported),("Save timeline",save),("MFA align",align),("Generate probes",probes),("Mapped preview",preview)):
         b=ttk.Button(bar,text=label,command=guard(fn));b.pack(side="left");buttons.append(b)
     for label,mode in (("Add","add"),("Edit","edit"),("Delete","remove")):
