@@ -18,7 +18,7 @@ def schema(properties=None, required=()):
             "required": list(required), "additionalProperties": False}
 
 class Bridge:
-    def __init__(self, project=None, allow_create=False, allow_edit=False, allow_native=False):
+    def __init__(self, project=None, allow_create=False, allow_edit=False, allow_native=False, allow_ui=False):
         self.project = project
         self.creation = CreationSession(project, allow_create, allow_edit) if project is not None else None
         if allow_native and (not allow_edit or project is None or project.read()["game"]!="newvegas"):
@@ -28,11 +28,17 @@ class Bridge:
         self.initialized = False
         self.ready = False
         self.transport="stdio"
+        self.allow_ui=bool(allow_ui and project is not None)
         self.registry = {}
         self.subscriptions=Subscriptions(self.read_resource)
         self.register("chimster_capabilities", "Discover available Chimster commands and their scope.", schema(), self.capabilities)
         if project is not None:
             self.register("editor_context","Read active dashboard instance and selection for this explicitly scoped project.",schema(),self.editor_context)
+            if self.allow_ui:
+                self.register("editor_request","Queue a dashboard refresh or artifact selection; no file writes or arbitrary UI events.",
+                              schema({"instance":{"type":"string","maxLength":32},"action":{"type":"string","maxLength":16},
+                                      "revision":{"type":"integer","minimum":0},"artifact":{"type":"string","maxLength":80}},
+                                     ["instance","action","revision"]),self.editor_request,write=True)
             self.register("project_status", "Read selected project name, game, revision and artifact count.", schema(), self.status)
             self.register("project_artifacts", "List selected project's artifact metadata, with pagination.",
                           schema({"offset": {"type": "integer", "minimum": 0}, "limit": {"type": "integer", "minimum": 1, "maximum": 100}}), self.artifacts)
@@ -120,7 +126,11 @@ class Bridge:
     def capabilities(self):
         return {"application": "Chimster", "api_version": 1, "transport": self.transport,
                 "access": ("create-and-edit" if self.creation.enabled else "edit-only") if self.creation and self.creation.allow_edit else "create-only" if self.creation and self.creation.enabled else "read-only", "project_selected": self.project is not None,
-                "tools": sorted(self.registry), "native_write_granted": bool(self.native and self.native.enabled), "live_ui": False, "dashboard_context": self.project is not None}
+                "tools": sorted(self.registry), "native_write_granted": bool(self.native and self.native.enabled), "live_ui": self.allow_ui, "dashboard_context": self.project is not None}
+    def editor_request(self,instance,action,revision,artifact=None):
+        from .editor_commands import submit
+        if not self.allow_ui or self.transport!="stdio":raise ValueError("local UI permission required")
+        return submit(self.project,instance,action,revision,artifact)
     def editor_context(self):
         from .editor_presence import discover
         rows=[{"id":row["id"],"revision":row["revision"],"selected":row["selected"]}
@@ -301,6 +311,7 @@ def main(argv=None):
     parser.add_argument("--http", type=int, metavar="PORT", help="Start authenticated read-only loopback HTTP; 0 selects an available port")
     parser.add_argument("--token-file", help="Private bearer token file for local HTTP")
     parser.add_argument("--create-token", metavar="PATH", help="Create a new private token file and exit")
+    parser.add_argument("--allow-ui", action="store_true", help="Grant local dashboard selection and refresh only; explicit project required")
     parser.add_argument("--allow-native-edit", action="store_true", help="Grant staged FNV ESP record editing; requires --allow-edit")
     parser.add_argument("--allow-edit", action="store_true", help="Explicitly allow trusted client draft replacement and session undo/redo")
     parser.add_argument("--allow-create", action="store_true", help="Explicitly allow the trusted client to create new project text artifacts")
@@ -311,14 +322,14 @@ def main(argv=None):
     try:
         from .editor_presence import discover, select
         if args.create_token:
-            if any((args.project,args.active,args.active_instance,args.discover_active,args.allow_create,args.allow_edit,args.allow_native_edit,args.describe,args.client_config,args.register_client_config,args.http is not None,args.token_file)):
+            if any((args.project,args.active,args.active_instance,args.discover_active,args.allow_create,args.allow_edit,args.allow_native_edit,args.allow_ui,args.describe,args.client_config,args.register_client_config,args.http is not None,args.token_file)):
                 raise ValueError("token creation must be standalone")
             from .mcp_http import create_token
             create_token(args.create_token)
             print(json.dumps({"created":True,"token_file":args.create_token}))
             return
         if args.http is not None:
-            if not args.project or not args.token_file or not 0<=args.http<=65535 or any((args.allow_create,args.allow_edit,args.allow_native_edit,args.describe,args.client_config,args.register_client_config)):
+            if not args.project or not args.token_file or not 0<=args.http<=65535 or any((args.allow_create,args.allow_edit,args.allow_native_edit,args.allow_ui,args.describe,args.client_config,args.register_client_config)):
                 raise ValueError("HTTP requires explicit project and token file; read-only")
             from .mcp_http import run
             run(Project(args.project),args.token_file,args.http)
@@ -326,7 +337,7 @@ def main(argv=None):
         if args.token_file:
             raise ValueError("token file requires HTTP")
         if args.discover_active:
-            if args.allow_create or args.allow_edit or args.allow_native_edit or args.describe or args.client_config or args.register_client_config:
+            if args.allow_create or args.allow_edit or args.allow_native_edit or args.allow_ui or args.describe or args.client_config or args.register_client_config:
                 raise ValueError("discovery is a standalone read-only operation")
             print(json.dumps(discover(),indent=2))
             return
@@ -338,11 +349,11 @@ def main(argv=None):
             if len(instances)!=1:
                 raise ValueError("exactly one active instance required")
             project=select(instances[0]["id"])
-        if (args.allow_create or args.allow_edit or args.allow_native_edit) and (project is None or not args.project):
+        if (args.allow_create or args.allow_edit or args.allow_native_edit or args.allow_ui) and (project is None or not args.project):
             raise ValueError("write permission requires an explicit project path")
-        if args.register_client_config and (args.allow_create or args.allow_edit or args.allow_native_edit or args.describe or args.client_config or not args.project):
+        if args.register_client_config and (args.allow_create or args.allow_edit or args.allow_native_edit or args.allow_ui or args.describe or args.client_config or not args.project):
             raise ValueError("registration requires an explicit read-only project")
-        bridge = Bridge(project, args.allow_create, args.allow_edit, args.allow_native_edit)
+        bridge = Bridge(project, args.allow_create, args.allow_edit, args.allow_native_edit,args.allow_ui)
     except (ValueError, OSError, KeyError, TypeError):
         parser.exit(2, "Invalid or unavailable Chimster project\n")
     if args.client_config or args.register_client_config:
@@ -363,6 +374,8 @@ def main(argv=None):
             command_args.append("--allow-edit")
         if args.allow_native_edit:
             command_args.append("--allow-native-edit")
+        if args.allow_ui:
+            command_args.append("--allow-ui")
         config={"mcpServers":{"chimster":{"command":executable,"args":command_args}}}
         if args.register_client_config:
             from .mcp_registration import register_config
