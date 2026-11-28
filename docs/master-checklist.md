@@ -92,6 +92,9 @@ Generated FNV interior exports accept DOOR bases, reciprocal persistent XTEL doo
 
 Format reference: https://tes5edit.github.io/fopdoc/FalloutNV/Records/REFR.html and https://tes5edit.github.io/fopdoc/FalloutNV/Records/DOOR.html .
 
+### Follow-up: template-derived native room and portal markers
+New Vegas REFR marker codec validates documented XPRM, XTRI, XRMR/XLRM, XPOD/XPTL and XNDP field sizes and types, preserving unknown bytes. Exact supported layouts share multi-offset references with the graph/remapper, inspector and validator. Native interior export accepts explicit locally supplied RoomMarker/PortalMarker STAT master references and raw template geometry, binds markers to portable room/portal IDs, allocates stable FormIDs and checks topology. Optional explicit quaternion/plane/extent conventions compare native portal corners to the portable layout; no default convention is assumed. Native marker and navigation-link validation is limited; generated native markers and door visibility preview remain separate from live engine state. Synthetic regression fixtures committed but not executed. Independent GECK/game validation, actual navmesh writing, engine-specific room extent conventions and live door/portal integration remain open. Existing five milestone estimates unchanged (65/60/60/60/60).
+
 ## Critical path
 1. Stable project FormID allocation, typed native record schema and dependency-safe edits.
 2. Integrated native interior cells, architectural assets, room/portal/trigger volumes, placed references and collision.
