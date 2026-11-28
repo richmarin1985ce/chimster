@@ -636,35 +636,15 @@ def mount(parent, game, open_preview=None, viewport_drop=None):
     def native_lod():
         index=state["index"];world=state["world"]
         if index is None or world is None:return
-        from .world_lod_native import prepare,launch,audit,world_name
-        from .xedit import Workspace
-        profile=filedialog.askopenfilename(title="Select staged LOD workspace JSON",filetypes=[("Workspace JSON","*.json")])
-        if not profile:return
-        executable=filedialog.askopenfilename(title="Select trusted xLODGen executable")
-        if not executable:return
+        folder=filedialog.askdirectory(title="Choose parent directory for built-in LOD candidates")
+        if not folder:return
         try:
-            workspace=Workspace.load(profile)
-            plan=prepare(index,world,workspace,executable)
-            show(plan)
-            if plan["settings_missing"]:
-                messagebox.showwarning("LODSettings missing","Create the matching LODSettings in a disposable game workspace, then retry.",parent=parent)
-                return
-            if not messagebox.askyesno("Native LOD","Launch xLODGen against the staged load order? Select "+plan["world"]+" in the external tool. Output is separate from Data.",parent=parent):return
-            proc,plan=launch(index,world,workspace,executable)
-            status.set("xLODGen running; finish generation in the external tool.")
-            def poll():
-                code=proc.poll()
-                if code is None:
-                    parent.after(1000,poll);return
-                if code:
-                    status.set("xLODGen exited with code "+str(code));return
-                try:
-                    report=audit(plan["output"],plan["world"],plan["game"]);show(report)
-                    status.set("Native output audited; review before installation.")
-                except (OSError,ValueError) as exc:status.set("LOD output: "+str(exc))
-            parent.after(1000,poll)
-        except (OSError,ValueError,KeyError,TypeError) as exc:messagebox.showerror("Native LOD",str(exc),parent=parent)
-    ttk.Button(nav,text="Native LOD",command=native_lod).pack(side="left")
+            from .world_lod_builtin import export
+            out=Path(folder)/("native_lod_"+world.origin.replace(".","_")+"_"+format(world.local,"06x"))
+            show(export(index,world,out))
+            status.set("Built-in native LOD candidates exported. Runtime verification pending.")
+        except (ValueError,OSError,TypeError,KeyError) as exc:messagebox.showerror("Built-in LOD",str(exc),parent=parent)
+    ttk.Button(nav,text="Build native LOD",command=native_lod).pack(side="left")
     def audit_lod():
         index=state["index"];world=state["world"]
         if index is None or world is None:return
