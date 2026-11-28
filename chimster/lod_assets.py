@@ -52,7 +52,7 @@ def simplify(mesh,cell,uv_bins=64):
         keys=[]
         for i in tri:
             p=mesh.vertices[i];uv=mesh.uv[i]
-            k=(mat,*(math.floor(v/cell) for v in p),*(round(v*uv_bins) for v in uv))
+            k=(mat,*(math.floor(v/cell) for v in p),*(round(v*uv_bins) for v in uv),*(mesh.colors[i] if getattr(mesh,"colors",[]) else ()))
             groups.setdefault(k,set()).add(i);keys.append(k)
         face_keys.append((keys,mat))
     out=Mesh();idx={}
@@ -60,6 +60,7 @@ def simplify(mesh,cell,uv_bins=64):
         ids=sorted(ids);idx[k]=len(out.vertices)
         out.vertices.append(tuple(sum(mesh.vertices[j][a] for j in ids)/len(ids) for a in range(3)))
         out.uv.append(tuple(sum(mesh.uv[j][a] for j in ids)/len(ids) for a in range(2)))
+        if getattr(mesh,"colors",[]):out.colors.append(mesh.colors[ids[0]])
     seen=set()
     for ks,mat in face_keys:
         tri=tuple(idx[k] for k in ks)
