@@ -31,6 +31,8 @@ def export_esp(draft, output):
     wanted=set(draft.rows)
     cells={k for k,r in draft.rows.items() if r["signature"]=="CELL"}
     refs=[r for r in draft.rows.values() if r["signature"]=="REFR"]
+    lands=[r for r in draft.rows.values() if r["signature"]=="LAND"]
+    cells.update(r["cell"] for r in lands)
     cells.update(r["cell"] for r in refs)
     worlds={index.active[k]["world"] for k in cells if index.active[k]["world"] is not None}
     worlds.update(k for k,r in draft.rows.items() if r["signature"]=="WRLD")
@@ -100,6 +102,13 @@ def export_esp(draft, output):
         else:
             raw=preserved(key,row["editor_id"] if key in draft.rows else None)
         placed=[]
+        for land in lands:
+            if land["cell"]!=key:continue
+            if land["key"].origin!=draft.name or len(land["height_raw"])!=1096:
+                raise ValueError("Only new starter LAND is supported")
+            payload=sub(b"DATA",struct.pack("<I",3))+sub(b"VNML",bytes((0,0,127))*1089)+sub(b"VHGT",land["height_raw"])+sub(b"VCLR",bytes([255])*3267)
+            placed.append(record(b"LAND",payload,slots.encode(land["key"])))
+            records+=1
         for ref in sorted(refs,key=lambda r:r["key"]):
             if ref["cell"]!=key:continue
             if ref["key"].origin!=draft.name:
@@ -166,6 +175,8 @@ def export_esp(draft, output):
             actual=merged.active.get(key)
             if actual is None or any(actual.get(f)!=row.get(f) for f in ("signature","world","cell","grid","editor_id","base","name")):
                 raise ValueError("Native world edit roundtrip mismatch")
+            if row["signature"]=="LAND" and actual.get("height_raw")!=row.get("height_raw"):
+                raise ValueError("Native starter terrain roundtrip mismatch")
             if row["signature"]=="WRLD" and actual.get("environment",{})!=row.get("environment",{}):
                 raise ValueError("Native environment roundtrip mismatch")
             if row["signature"]=="CELL" and bool(actual.get("persistent_cell"))!=bool(row.get("persistent_cell")):
