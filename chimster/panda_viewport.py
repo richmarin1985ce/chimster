@@ -120,13 +120,56 @@ class Preview:
         sun=DirectionalLight("sun");sun.set_color((.8,.8,.8,1))
         a=self.root.attach_new_node(ambient);s=self.root.attach_new_node(sun)
         s.set_hpr(-35,-50,0);self.root.set_light(a);self.root.set_light(s)
+        self.ambient=a;self.sun=s;self.effect_nodes=[];self.effects_key=None;self.water=None
+    def configure_effects(self,effects,settings,center,eye):
+        from panda3d.core import Fog,PointLight,Vec3
+        from .panda_water import create_water
+        from time import monotonic
+        key=(effects,settings.light)
+        if key!=self.effects_key:
+            for node in self.effect_nodes:
+                self.root.clear_light(node);node.remove_node()
+            self.effect_nodes=[]
+            if self.water is not None:self.water.remove_node();self.water=None
+            self.ambient.node().set_color((*([effects.ambient]*3),1))
+            self.sun.node().set_color((*([effects.sun_intensity]*3),1))
+            self.sun.node().set_shadow_caster(bool(effects.shadow_size),max(1,effects.shadow_size),max(1,effects.shadow_size))
+            if effects.shadow_size:
+                lens=self.sun.node().get_lens()
+                lens.set_film_size(effects.shadow_extent*2)
+                lens.set_near_far(.1,effects.shadow_extent*4)
+            for i,light in enumerate(effects.lights):
+                source=PointLight(f"preview-point-{i}")
+                source.set_color(tuple(x*light.intensity for x in light.color)+(1,))
+                source.set_attenuation((1,0,4/(light.radius*light.radius)))
+                node=self.root.attach_new_node(source);node.set_pos(*light.position)
+                self.root.set_light(node);self.effect_nodes.append(node)
+            if effects.fog_density:
+                fog=Fog("preview-haze")
+                fog.set_color(*effects.fog_color);fog.set_exp_density(effects.fog_density)
+                self.root.set_fog(fog)
+            else:self.root.clear_fog()
+            if effects.shadow_size:self.root.set_shader_auto()
+            else:self.root.clear_shader()
+            if effects.water_level is not None:self.water=create_water(self.root,effects)
+            self.effects_key=key
+        direction=Vec3(*settings.light);direction.normalize()
+        self.sun.set_pos(*(center[i]+direction[i]*effects.shadow_extent for i in range(3)))
+        self.sun.look_at(*center)
+        if self.water is not None:
+            self.water.set_shader_input("eye",eye)
+            self.water.set_shader_input("sun",settings.light)
+            self.water.set_shader_input("time",monotonic()%3600)
+
     def configure_visibility(self,layout=None,membership=None,occluders=()):
         from copy import deepcopy
         self.visibility_spec=deepcopy((layout,membership or {},tuple(occluders))) if layout is not None else None
         self.key=None
-    def render(self,scene,camera,w,h,materials=None,settings=None):
+    def render(self,scene,camera,w,h,materials=None,settings=None,effects=None):
         from panda3d.core import FrameBufferProperties,WindowProperties,GraphicsPipe,Texture,GraphicsOutput
         from .gpu_viewport import basis,Settings
+        from .render_effects import Effects
+        effects=(effects or Effects()).validate()
         settings=(settings or Settings()).validate()
         materials=dict(materials or {})
         if not 1<=w<=1280 or not 1<=h<=720:raise ValueError("preview size exceeds limit")
@@ -156,6 +199,7 @@ class Preview:
         self.lens.set_aspect_ratio(w/h);self.lens.set_fov(*lens_fov(settings.fov,w/h));self.lens.set_near_far(settings.near,settings.far)
         self.visibility_report=self.visibility.update(eye) if self.visibility is not None else None
         self.camera.set_pos(*eye);self.camera.look_at(*camera.center)
+        self.configure_effects(effects,settings,camera.center,eye)
         self.engine.render_frame();self.engine.sync_frame()
         raw=bytes(self.texture.get_ram_image_as("RGBA"))
         if len(raw)!=w*h*4:raise RuntimeError("Incomplete framebuffer")

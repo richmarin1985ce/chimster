@@ -7,7 +7,10 @@ from .scene import Scene,Instance,Camera,frame,demo_scene,load_obj
 
 def mount(parent):
     from .gpu_viewport import Renderer, Settings, make_demo, load_materials
+    from .render_effects import preset
     scene,materials=make_demo();camera=Camera();selected=None;drag=None
+    effect_name=tk.StringVar(value="Off");water_enabled=tk.BooleanVar(value=False)
+    point_enabled=tk.BooleanVar(value=False)
     renderer=None;panda=None;photo=None;render_size=(1,1);settings=Settings();failure=''
     backend=tk.StringVar(value='Panda3D');lod_text=tk.StringVar(value='22,45,90')
     toolbar=ttk.Frame(parent);toolbar.pack(fill="x")
@@ -23,6 +26,8 @@ def mount(parent):
     def draw():
         nonlocal renderer,panda,photo,render_size,failure
         canvas.delete("mesh");canvas.delete("gl")
+        from .render_effects import LocalLight
+        effects=replace(preset(effect_name.get()),water_level=0. if water_enabled.get() else None,lights=(LocalLight(position=(2.,2.,5.)),) if point_enabled.get() else ())
         if backend.get()=="Panda3D" and canvas.winfo_width()>4 and canvas.winfo_height()>4:
             try:
                 from .panda_viewport import Preview
@@ -30,10 +35,10 @@ def mount(parent):
                 if panda is None:panda=Preview()
                 w,h=canvas.winfo_width(),canvas.winfo_height()
                 factor=min(1,1280/w,720/h);rw,rh=max(1,int(w*factor)),max(1,int(h*factor))
-                raw=panda.render(scene,replace(camera,zoom=camera.zoom*factor),rw,rh,materials,settings)
+                raw=panda.render(scene,replace(camera,zoom=camera.zoom*factor),rw,rh,materials,settings,effects)
                 photo=ImageTk.PhotoImage(Image.frombytes("RGBA",(rw,rh),raw).resize((w,h)))
                 canvas.create_image(0,0,image=photo,anchor="nw",tags=("gl",))
-                status.set("Panda3D | textured mesh LOD | select objects in sidebar")
+                status.set("Panda3D | shadows / fog / water | AO: ModernGL only | select objects in sidebar")
                 return
             except Exception as e:
                 failure="Panda3D: "+str(e)[:150];backend.set("ModernGL")
@@ -49,7 +54,7 @@ def mount(parent):
                 factor=min(1,1280/w,720/h);rw,rh=max(1,int(w*factor)),max(1,int(h*factor))
                 # Keep camera magnification consistent with the canvas.
                 scaled=replace(camera,zoom=camera.zoom*factor)
-                raw,stats=renderer.render(scene,scaled,rw,rh,materials,settings,selected)
+                raw,stats=renderer.render(scene,scaled,rw,rh,materials,settings,selected,effects)
                 image=Image.frombytes("RGBA",(rw,rh),raw)
                 if (rw,rh)!=(w,h):image=image.resize((w,h),Image.Resampling.BILINEAR)
                 photo=ImageTk.PhotoImage(image);render_size=(rw,rh)
@@ -191,6 +196,17 @@ def mount(parent):
     ttk.Entry(controls,textvariable=lod_text,width=15).pack(side="left")
     ttk.Button(controls,text="Apply LOD",command=set_lod).pack(side="left")
     ttk.Button(controls,text="Load materials",command=import_materials).pack(side="left")
+    fxbar=ttk.Frame(parent);fxbar.pack(fill="x",before=pane)
+    ttk.Label(fxbar,text="Effects").pack(side="left")
+    fxchoice=ttk.Combobox(fxbar,textvariable=effect_name,values=("Off","Low","Medium","High"),state="readonly",width=9)
+    fxchoice.pack(side="left");fxchoice.bind("<<ComboboxSelected>>",lambda e:draw())
+    ttk.Checkbutton(fxbar,text="Preview water (Panda)",variable=water_enabled,command=draw).pack(side="left")
+    ttk.Checkbutton(fxbar,text="Point light (Panda)",variable=point_enabled,command=draw).pack(side="left")
+    def tick_water():
+        if parent.winfo_exists():
+            if water_enabled.get() and backend.get()=="Panda3D":draw()
+            parent.after(150,tick_water)
+    parent.after(150,tick_water)
     for label,cmd in [("Open scene",open_scene),("Save scene",save_scene),("Import OBJ",import_mesh),("Fit",fit),("Add tree",add),("Delete",delete),("Undo",lambda:(scene.undo(),sync())),("Redo",lambda:(scene.redo(),sync()))]:
         ttk.Button(toolbar,text=label,command=cmd).pack(side="left")
     ttk.Button(side,text="Apply transform",command=apply).pack(fill="x")

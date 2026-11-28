@@ -184,7 +184,7 @@ class Renderer:
         self.program=self.ctx.program(vertex_shader=VERTEX,fragment_shader=FRAGMENT)
         self.program["albedo"].value=0;self.program["normalmap"].value=1;self.program["specmap"].value=2
         self.instance_buffer=self.ctx.buffer(reserve=5000*40,dynamic=True)
-        self.spatial_key=None;self.spatial_root=None;self.spatial_entries=()
+        self.ao=None;self.spatial_key=None;self.spatial_root=None;self.spatial_entries=()
         self.meshes={};self.radii={};self.textures={};self.targets=None;self.ids={};self.size=(0,0)
         self.white=ImageMap(1,1,b"\xff\xff\xff\xff");self.flat=ImageMap(1,1,bytes((128,128,255,255)))
     def radius(self,m):
@@ -215,7 +215,7 @@ class Renderer:
         if self.targets:
             for obj in reversed(self.targets):obj.release()
         a=self.ctx.texture((w,h),4);b=self.ctx.texture((w,h),4)
-        depth=self.ctx.depth_renderbuffer((w,h));fbo=self.ctx.framebuffer([a,b],depth)
+        depth=self.ctx.depth_texture((w,h));depth.compare_func="";depth.filter=(self.gl.NEAREST,self.gl.NEAREST);depth.repeat_x=False;depth.repeat_y=False;fbo=self.ctx.framebuffer([a,b],depth)
         self.targets=(a,b,depth,fbo);self.size=(w,h)
     def prune(self,scene,materials):
         active={id(m) for m in scene.assets.values()}
@@ -231,7 +231,9 @@ class Renderer:
             active_tex.update(id(i) for i in (m.diffuse,m.normal,m.specular) if i is not None)
         for key in list(self.textures):
             if key not in active_tex:self.textures.pop(key)[1].release()
-    def render(self,scene,camera,w,h,materials=None,settings=None,selected=None):
+    def render(self,scene,camera,w,h,materials=None,settings=None,selected=None,effects=None):
+        from .render_effects import Effects
+        effects=(effects or Effects()).validate()
         start=perf_counter();settings=(settings or Settings()).validate();materials=materials or {}
         if not isinstance(w,int) or not isinstance(h,int) or not 1<=w<=1920 or not 1<=h<=1080:raise ValueError("viewport size out of range")
         self.prune(scene,materials);self.resize(w,h);a,b,depth,fbo=self.targets
@@ -282,7 +284,12 @@ class Renderer:
                     self.texture(m.diffuse or self.white).use(0);self.texture(m.normal or self.flat).use(1);self.texture(m.specular or self.white).use(2)
                     for key,value in {"tint":m.tint,"alpha_cut":m.cutout,"normal_strength":m.normal_strength if m.normal else 0.,"normal_y":-1. if m.directx else 1.,"spec_strength":m.spec_strength,"gloss":m.gloss}.items():p[key].value=value
                     vao.render(self.gl.TRIANGLES,instances=len(chunk));stats["triangles"]+=count*len(chunk);stats["draw_calls"]+=1
-        raw=a.read(alignment=1);stride=w*4
+        output=a
+        if effects.ao_strength:
+            from .screen_occlusion import Occlusion
+            if self.ao is None:self.ao=Occlusion(self.ctx)
+            output=self.ao.render(a,depth,w,h,settings,effects,1/ty)
+        raw=output.read(alignment=1);stride=w*4
         raw=b"".join(raw[y:y+stride] for y in range((h-1)*stride,-1,-stride))
         stats["frame_ms"]=(perf_counter()-start)*1000;stats["renderer"]=self.ctx.info.get("GL_RENDERER","unknown")
         return raw,stats
@@ -299,6 +306,7 @@ class Renderer:
         if self.targets:
             for obj in reversed(self.targets):obj.release()
         self.meshes.clear();self.radii.clear();self.textures.clear();self.targets=None
+        if self.ao is not None:self.ao.close();self.ao=None
         self.instance_buffer.release();self.program.release();self.ctx.release()
 
 def load_materials(path):
