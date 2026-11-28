@@ -171,14 +171,20 @@ def mount(frame, game):
         if p:
             try:status.set("Exported "+export(language.get(),p))
             except (OSError,ValueError) as exc:messagebox.showerror("Export syntax",str(exc))
-    def compile_script():
+    def compile_script(project=False):
         if busy[0]:return
-        if language.get()!="papyrus" or saved["path"] is None or saved["text"]!=source():
+        if language.get()!="papyrus" or (not project and (saved["path"] is None or saved["text"]!=source())):
             messagebox.showinfo("Compile","Select Papyrus and open or save the exact source first.");return
         from .papyrus_build import build, family
+        from .papyrus_batch import batch
         from tkinter import simpledialog
         try:family(game.get())
         except ValueError as exc:messagebox.showerror("Compile",str(exc));return
+        if project:
+            if source()!=saved["text"] and source() and not messagebox.askyesno("Unsaved editor changes","Batch uses saved files on disk only. Continue?"):return
+            target=filedialog.askdirectory(title="Select flat project PSC directory")
+            if not target:return
+        else:target=saved["path"]
         backend=simpledialog.askstring("Compiler","Backend: ck or caprica",initialvalue="ck",parent=frame)
         if backend is None:return
         if backend not in ("ck","caprica"):messagebox.showerror("Compiler","Choose ck or caprica");return
@@ -195,19 +201,20 @@ def mount(frame, game):
         out=filedialog.asksaveasfilename(title="Name a NEW build directory")
         if not out:return
         if not messagebox.askyesno("Run trusted compiler","Execute this local binary? It is not sandboxed."):return
-        args=(game.get(),backend,exe,saved["path"],flags,imports,out)
+        args=(game.get(),backend,exe,target,flags,imports,out)
         try:
-            if saved["path"].read_text(encoding="utf-8-sig")!=saved["text"]:raise ValueError("Source changed on disk; reopen it before compilation")
+            if not project and saved["path"].read_text(encoding="utf-8-sig")!=saved["text"]:raise ValueError("Source changed on disk; reopen it before compilation")
         except (OSError,ValueError) as exc:messagebox.showerror("Compile",str(exc));return
         q=queue.Queue();busy[0]=True;status.set("Compiling...")
         def worker():
-            try:q.put(build(*args,execute=True))
+            try:q.put((batch if project else build)(*args,execute=True))
             except Exception as exc:q.put({"status":"error","message":str(exc)})
         def poll():
             try:r=q.get_nowait()
             except queue.Empty:editor.after(100,poll);return
             busy[0]=False;report(r);status.set(r.get("status","Compiler finished"))
         threading.Thread(target=worker,daemon=True).start();editor.after(100,poll)
+    ttk.Button(api_bar,text="Build project",command=lambda:compile_script(True)).pack(side="left")
     for label,fn in [("Open",open_source),("Save new copy",save_copy),("Check",lint),("Compile Papyrus",compile_script),("Export Sublime syntax",export_syntax)]:
         ttk.Button(bar,text=label,command=fn).pack(side="left")
     def undo(_=None):
