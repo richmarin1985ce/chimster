@@ -88,9 +88,21 @@ def mount(parent,game=None):
         if query is None:return None
         matches=[name for name in entries if query.casefold().replace("\\\\","/") in name]
         return {"archive":archive_path,"total":len(entries),"matches":len(matches),"members":matches[:500]}
+    def export_member():
+        from .archive_reader import read
+        from tkinter import simpledialog
+        source=filedialog.askopenfilename(filetypes=[("Archives","*.bsa *.ba2")])
+        if not source:return
+        name=simpledialog.askstring("Archive member","Exact relative member path")
+        if not name:return
+        data=read(source,name)
+        target=filedialog.asksaveasfilename(initialfile=Path(name.replace(chr(92),"/")).name)
+        if target:
+            with open(target,"xb") as stream:stream.write(data)
+            return {"exported":target,"bytes":len(data)}
     actions=ttk.Frame(parent);actions.pack(fill="x")
     for label,fn in [
-        ("Packed assets",packed_assets),("Asset lookup",assets),("Installation",root),("Capabilities",lambda:capabilities(profile.get())),
+        ("Export member",export_member),("Packed assets",packed_assets),("Asset lookup",assets),("Installation",root),("Capabilities",lambda:capabilities(profile.get())),
         ("Plugin",lambda:choose(lambda p,d:audit(profile.get(),d))),
         ("Dependencies",dependencies),("Archive header",lambda:choose(lambda p,d:archive(d),36)),
         ("NIF header",lambda:choose(lambda p,d:nif(d),256)),
