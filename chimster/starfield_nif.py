@@ -58,10 +58,10 @@ def geometry(data,units=1.,bind_pose=False):
             if kind=="BSOrderedNode":r.take(17)
             elif kind=="BSMultiBoundNode":r.take(8)
             elif kind in ("NiSwitchNode","NiLODNode"):
-                switch,index=r.read("<HI")
+                switch,active_child=r.read("<HI")
                 if kind=="NiLODNode":r.take(4)
-                if index>=len(children):raise ValueError("Invalid active NIF child")
-                children=children[index:index+1]
+                if active_child>=len(children):raise ValueError("Invalid active NIF child")
+                children=children[active_child:active_child+1]
             elif kind in ("BSRangeNode","BSBlastNode","BSDamageStage"):r.take(3)
             for child in children:
                 if child!=-1:visit(child,chain,depth+1)

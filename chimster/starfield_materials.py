@@ -26,7 +26,7 @@ class PreviewMaterials:
         for name,row in raw["materials"].items():
             name=key(name)
             if name in self.rows or not isinstance(row,dict):raise ValueError("Invalid material row")
-            if set(row)-{"diffuse","normal","specular","tint","cutout","normal_strength","directx","spec_strength","gloss","reflectivity","metallic","roughness"}:raise ValueError("Unknown material field")
+            if set(row)-{"diffuse","normal","specular","tint","cutout","normal_strength","directx","spec_strength","gloss","reflectivity","metallic","roughness","opacity_map","roughness_map","metallic_map"}:raise ValueError("Unknown material field")
             self.rows[name]=row
     def image(self,path):
         from PIL import Image
@@ -47,6 +47,29 @@ class PreviewMaterials:
             row=dict(self.rows[name])
             for field in ("diffuse","normal","specular"):
                 if row.get(field) is not None:row[field]=self.image(row[field])
+            opacity=row.pop("opacity_map",None)
+            if opacity:
+                mask=self.image(opacity)
+                base=row.get("diffuse")
+                # Preserve the diffuse RGB and multiply existing alpha by the
+                # single-channel opacity texture using nearest resampling.
+                w,h=(base.width,base.height) if base else (mask.width,mask.height)
+                if self.bytes+4*w*h>64*1024*1024:raise ValueError("Preview texture budget")
+                rgba=bytearray(base.rgba if base else bytes((255,255,255,255))*w*h)
+                for y in range(h):
+                    for x in range(w):
+                        a=4*(y*w+x)+3
+                        b=4*((y*mask.height//h)*mask.width+x*mask.width//w)
+                        rgba[a]=(rgba[a]*mask.rgba[b]+127)//255
+                row["diffuse"]=ImageMap(w,h,bytes(rgba));self.bytes+=4*w*h
+            # The current portable shaders have scalar metalness/roughness,
+            # not per-pixel inputs. Use mean red channel only as a preview.
+            for field in ("roughness","metallic"):
+                texture=row.pop(field+"_map",None)
+                if texture and field not in row:
+                    image=self.image(texture)
+                    mean=sum(image.rgba[0::4])/(255*image.width*image.height)
+                    row[field]=max(.04,mean) if field=="roughness" else mean
             if "tint" in row:row["tint"]=tuple(row["tint"])
             # Derive legacy specular gloss for the ModernGL fallback.
             if "roughness" in row and "gloss" not in row:
@@ -93,7 +116,7 @@ def native_row(raw):
     material=follow(layer,"MaterialID")
     tex=follow(material,"TextureSetID")
     row={}
-    for i,field in ((0,"diffuse"),(1,"normal")):
+    for i,field in ((0,"diffuse"),(1,"normal"),(2,"opacity_map"),(3,"roughness_map"),(4,"metallic_map")):
         value=(get(tex,"MRTextureFile",i) or get(tex,"TextureFile",i)).get("FileName")
         if isinstance(value,str) and value:
             value=normalize(value)

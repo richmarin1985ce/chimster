@@ -154,3 +154,21 @@ class StarfieldPreviewTests(unittest.TestCase):
         self.assertEqual(row["normal_strength"],.8)
         doc["Objects"].pop()
         with self.assertRaises(ValueError):native_row(json.dumps(doc).encode())
+
+    def test_native_preview_channel_maps(self):
+        from chimster.starfield_materials import PreviewMaterials
+        from chimster.gpu_viewport import ImageMap
+        import json
+        with tempfile.TemporaryDirectory() as directory:
+            p=Path(directory)/"maps.json"
+            p.write_text(json.dumps({"version":1,"materials":{"test.mat":{"diffuse":"textures/d.dds","opacity_map":"textures/a.dds","roughness_map":"textures/r.dds","metallic_map":"textures/m.dds"}}}))
+            preview=PreviewMaterials(p,None)
+            images={"textures/d.dds":ImageMap(2,1,bytes((10,20,30,255,40,50,60,128))),
+                    "textures/a.dds":ImageMap(1,1,bytes((128,128,128,255))),
+                    "textures/r.dds":ImageMap(1,1,bytes((64,64,64,255))),
+                    "textures/m.dds":ImageMap(1,1,bytes((192,192,192,255)))}
+            preview.image=lambda path:images[path]
+            result=preview("test.mat")
+            self.assertEqual(result.diffuse.rgba,bytes((10,20,30,128,40,50,60,64)))
+            self.assertAlmostEqual(result.roughness,64/255)
+            self.assertAlmostEqual(result.metallic,192/255)
