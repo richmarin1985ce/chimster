@@ -88,10 +88,14 @@ def mount(frame, game):
             saved.update(path=Path(p),text=content);status.set("Saved "+p)
         except OSError as exc:messagebox.showerror("Save new copy",str(exc))
     def lint():
-        if language.get()!="papyrus":
-            report({"scope":"syntax highlighting only for this language; native compiler not integrated"})
-            return
-        report(check(source()))
+        if language.get()=="papyrus":report(check(source()));return
+        if language.get() in ("geck","oblivion","morrowind"):
+            from .legacy_compile import lint as legacy_lint
+            from .script_syntax import PROFILE
+            if PROFILE.get(game.get())!=language.get():
+                status.set("Select matching legacy game profile");return
+            report(legacy_lint(source(),game.get()));return
+        report({"scope":"Use Lua check with a locally installed Lua 5.1 compiler"})
     # Explicit extender opt-in: API availability is not inferred from game files.
     from .script_symbols import complete, lookup, index_papyrus_library
     from dataclasses import asdict
@@ -171,6 +175,48 @@ def mount(frame, game):
         if p:
             try:status.set("Exported "+export(language.get(),p))
             except (OSError,ValueError) as exc:messagebox.showerror("Export syntax",str(exc))
+    diagnostic_items=[]
+    def show_build(r):
+        from .compiler_diagnostics import collect,summarize
+        diagnostic_items[:]=collect(r)
+        report({**r,"diagnostic_summary":summarize(diagnostic_items)})
+    def jump_diagnostic():
+        from .compiler_diagnostics import navigation
+        if saved["path"] is None or saved["text"]!=source():
+            status.set("Open the unchanged source before navigating diagnostics");return
+        matches=[(item,navigation(item,saved["path"],source())) for item in diagnostic_items]
+        matches=[(item,index) for item,index in matches if index]
+        if not matches:status.set("No diagnostics for the current saved file");return
+        popup=tk.Toplevel(frame);popup.title("Compiler diagnostics")
+        listing=tk.Listbox(popup,width=100,height=min(15,len(matches)));listing.pack(fill="both",expand=True)
+        for item,index in matches:listing.insert("end",f"{item['severity']} | line {item['line']} | {item['message']}")
+        listing.selection_set(0)
+        def choose(_=None):
+            if listing.curselection():
+                index=matches[listing.curselection()[0]][1]
+                editor.mark_set("insert",index);editor.see(index);editor.focus_set()
+            popup.destroy()
+        listing.bind("<Return>",choose);listing.bind("<Double-Button-1>",choose)
+        ttk.Button(popup,text="Go to line",command=choose).pack(fill="x")
+    def check_lua():
+        if busy[0]:return
+        if game.get()!="openmw" or language.get()!="lua" or saved["path"] is None or saved["text"]!=source():
+            status.set("Select OpenMW and save the unchanged Lua source first");return
+        from .lua_compile import check as lua_check
+        exe=filedialog.askopenfilename(title="Choose trusted installed Lua 5.1 compiler")
+        if not exe or not messagebox.askyesno("Run compiler","Execute the selected trusted compiler? Source will be parsed, not run."):return
+        try:
+            if saved["path"].read_text(encoding="utf-8-sig")!=saved["text"]:raise ValueError("Source changed on disk")
+        except (OSError,ValueError) as exc:messagebox.showerror("Lua check",str(exc));return
+        path=saved["path"];q=queue.Queue();busy[0]=True
+        def worker():
+            try:q.put(lua_check(exe,path,execute=True))
+            except Exception as exc:q.put({"status":"error","message":str(exc)})
+        def poll():
+            try:r=q.get_nowait()
+            except queue.Empty:editor.after(100,poll);return
+            busy[0]=False;show_build(r);status.set(r.get("status","Lua check complete"))
+        threading.Thread(target=worker,daemon=True).start();editor.after(100,poll)
     def compile_script(project=False):
         if busy[0]:return
         if language.get()!="papyrus" or (not project and (saved["path"] is None or saved["text"]!=source())):
@@ -212,8 +258,10 @@ def mount(frame, game):
         def poll():
             try:r=q.get_nowait()
             except queue.Empty:editor.after(100,poll);return
-            busy[0]=False;report(r);status.set(r.get("status","Compiler finished"))
+            busy[0]=False;show_build(r);status.set(r.get("status","Compiler finished"))
         threading.Thread(target=worker,daemon=True).start();editor.after(100,poll)
+    ttk.Button(api_bar,text="Diagnostics",command=jump_diagnostic).pack(side="left")
+    ttk.Button(api_bar,text="Lua check",command=check_lua).pack(side="left")
     ttk.Button(api_bar,text="Build project",command=lambda:compile_script(True)).pack(side="left")
     for label,fn in [("Open",open_source),("Save new copy",save_copy),("Check",lint),("Compile Papyrus",compile_script),("Export Sublime syntax",export_syntax)]:
         ttk.Button(bar,text=label,command=fn).pack(side="left")
