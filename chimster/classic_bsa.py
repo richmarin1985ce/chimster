@@ -13,7 +13,7 @@ def directory(stream):
     stream.seek(0,2);size=stream.tell();stream.seek(0)
     magic,version,offset,flags,folders,files,folder_names,file_names,_=struct.unpack("<4s8I",exact(stream,36))
     if magic!=b"BSA\0" or version not in (103,104,105):raise ValueError("Unsupported BSA version")
-    if flags&3!=3 or flags&0x100 or flags&0x40:raise ValueError("Unsupported name configuration")
+    if flags&3!=3 or flags&0x40 or (version==103 and flags&0x100):raise ValueError("Unsupported name configuration")
     stride=24 if version==105 else 16
     if folders>1000000 or files>1000000 or file_names>64*1024*1024 or offset<36 or offset+stride*folders>size:raise ValueError("Invalid directory")
     stream.seek(offset)
@@ -38,13 +38,16 @@ def directory(stream):
     for (folder,pos,length,compressed),name in zip(rows,names):
         key=normalize((folder+"/" if folder else "")+name.decode("cp1252"))
         if key in result or pos<end or pos+length>size:raise ValueError("Invalid member")
-        result[key]=(pos,length,compressed,version)
+        result[key]=(pos,length,compressed,version,bool(flags&0x100))
     return result
 
 def read(stream,entry,limit=64*1024*1024):
-    pos,length,compressed,version=entry
+    pos,length,compressed,version,embedded=entry
     if pos<0 or not 0<=length<=limit:raise ValueError("Invalid member size")
     stream.seek(pos);raw=exact(stream,length)
+    if embedded:
+        if not raw or 1+raw[0]>len(raw):raise ValueError("Invalid embedded filename")
+        raw=raw[1+raw[0]:]
     if not compressed:return raw
     if len(raw)<4:raise ValueError("Missing uncompressed size")
     expected=struct.unpack_from("<I",raw)[0]
