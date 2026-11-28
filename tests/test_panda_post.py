@@ -303,3 +303,24 @@ class PostTests(unittest.TestCase):
             save(path,probes);restored=load(path)
             self.assertEqual(restored[0].center,a.center)
             self.assertEqual(cubemap_data(restored[1].environment),cubemap_data(y))
+
+    def test_panda_cascaded_shadows(self):
+        import os
+        if not os.environ.get("CHIMSTER_TEST_PANDA_GL"):self.skipTest("Optional framebuffer test")
+        from panda3d.core import load_prc_file_data
+        load_prc_file_data("chimster-test","load-display p3headlessgl\naudio-library-name null")
+        from chimster.panda_viewport import Preview
+        from chimster.gpu_viewport import make_demo
+        from chimster.scene import Camera
+        from chimster.render_effects import Effects
+        scene,materials=make_demo();preview=Preview("pbr")
+        try:
+            fx=Effects(shadow_size=512,shadow_cascades=2,fog_density=.02,scatter_strength=.5)
+            a=preview.render(scene,Camera(zoom=4),96,72,materials,effects=fx)
+            self.assertIsNone(preview.post_error)
+            self.assertEqual(len(preview.post.cascades.buffers),2)
+            self.assertIs(preview.post.volume_post.cascades,preview.post.cascades)
+            self.assertEqual(len(a),96*72*4)
+            b=preview.render(scene,Camera(zoom=4,yaw=70),96,72,materials,effects=fx)
+            self.assertNotEqual(a,b)
+        finally:preview.close()

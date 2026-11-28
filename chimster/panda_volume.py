@@ -1,5 +1,6 @@
 """Panda bindings for the shared volumetric scattering shader and sun depth pass."""
 from . import gpu_lighting,gpu_volume
+from .panda_cascades import GLSL as CASCADE_GLSL
 
 # Explicit named uniforms avoid driver differences in Panda array input handling.
 def expand_arrays(source):
@@ -18,6 +19,7 @@ uniform int volume_shadow_enabled;
 uniform vec3 volume_shadow_origin,volume_shadow_right,volume_shadow_up,volume_shadow_forward;
 uniform float volume_shadow_extent,volume_shadow_near,volume_shadow_far,volume_shadow_bias;
 float sun_visibility(vec3 p,float slope,bool soft){
+ if(chimster_csm_enabled!=0)return chimster_csm(p,soft);
  if(volume_shadow_enabled==0)return 1.0;
  vec3 d=p-volume_shadow_origin;
  vec2 q=vec2(dot(d,volume_shadow_right),dot(d,volume_shadow_up))/(2.0*volume_shadow_extent)+.5;
@@ -41,7 +43,7 @@ float local_visibility(int i,vec3 p){
  return step(depth-volume_shadow_bias,texture(volume_spot_depth,q).r);
 }
 """
-GLSL=expand_arrays(gpu_lighting.GLSL)+SHADOW_GLSL+expand_arrays(gpu_volume.GLSL)
+GLSL=expand_arrays(gpu_lighting.GLSL)+CASCADE_GLSL+SHADOW_GLSL+expand_arrays(gpu_volume.GLSL)
 
 def needs_volume(effects):
     return bool(effects.fog_volumes or effects.fog_density and (effects.scatter_strength or effects.fog_falloff))

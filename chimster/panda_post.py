@@ -15,7 +15,7 @@ class ManualTasks:
 class PBR:
     def __init__(self,preview,effects):
         import simplepbr
-        self.preview=preview;self.tasks=ManualTasks();self.volume_post=None
+        self.preview=preview;self.tasks=ManualTasks();self.volume_post=None;self.cascades=None
         # Use the preview's own engine, not the global ShowBase engine.
         class Pipeline(simplepbr.Pipeline):
             def get_all_casters(self):
@@ -31,9 +31,16 @@ class PBR:
                 env=environment(tuple(effects.fog_color),effects.environment_strength)
             self.pipeline.__init__(env_map=env,render_node=preview.root,window=preview.output,camera_node=preview.camera,taskmgr=self.tasks,msaa_samples=0,max_lights=6,use_normal_maps=True,use_occlusion_maps=True,enable_fog=bool(effects.fog_density) and not volume,enable_hardware_skinning=False,use_330=True,shadow_bias=effects.shadow_bias)
             self.pipeline.verify_shaders()
+            if effects.shadow_size and effects.shadow_cascades==2:
+                from .panda_cascades import Cascades,shader
+                from panda3d.core import ShaderAttrib
+                self.cascades=Cascades(preview,effects)
+                preview.root.set_attrib(ShaderAttrib.make(shader(self.pipeline)))
+                self.cascades.update();self.cascades.bind(preview.root)
+                self.pipeline.verify_shaders()
             if volume or effects.ao_strength:
                 from .panda_glsl_filters import GLSLFilters
-                self.volume_post=GLSLFilters(preview,effects,pipeline=self.pipeline)
+                self.volume_post=GLSLFilters(preview,effects,pipeline=self.pipeline,cascades=self.cascades)
         except Exception:
             self.close()
             raise
@@ -41,9 +48,11 @@ class PBR:
     def shadow_error(self):return self.volume_post.shadow_error if self.volume_post is not None else None
     def update(self):
         self.tasks.step()
+        if self.cascades is not None:self.cascades.update();self.cascades.bind(self.preview.root)
         if self.volume_post is not None:self.volume_post.update()
     def close(self):
         if self.volume_post is not None:self.volume_post.close();self.volume_post=None
+        if self.cascades is not None:self.cascades.close();self.cascades=None
         self.tasks.remove()
         mgr=getattr(self.pipeline,"_filtermgr",None)
         if mgr is not None:

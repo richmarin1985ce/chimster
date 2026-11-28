@@ -323,7 +323,9 @@ class Preview:
         # Below-water rendering retains the native underwater fog path.
         from .panda_volume import needs_volume
         mode="native" if self.underwater else self.mode
-        if not self.underwater and mode in ("native","filters") and needs_volume(effects):mode="volume"
+        if not self.underwater and mode in ("native","filters"):
+            if effects.shadow_size and effects.shadow_cascades==2:mode="pbr"
+            elif needs_volume(effects):mode="volume"
         key=(mode,effects,bool(self.underwater))
         if key!=self.post_key:
             self.close_post();self.post_key=key
