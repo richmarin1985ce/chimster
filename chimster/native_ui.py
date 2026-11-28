@@ -1,6 +1,7 @@
 """Native record workbench; explicit profile, header-derived master order."""
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+from tkinter import ttk, filedialog, messagebox, simpledialog
+import json
 from pathlib import Path
 from pprint import pformat
 from .native_profiles import PROFILES, capability_manifest, canonical_profile, active_profiles
@@ -67,7 +68,7 @@ def mount(parent, game=None):
     def inspect():
         s=state["session"];path=selected()
         row=s.rows.get(path)
-        show(row if row is not None else {"header":s.node(path).header.hex()})
+        show({**row,"editable_fields":s.typed_fields(path)} if row is not None else {"header":s.node(path).header.hex()})
     def review(reverse):
         path=selected();s=state["session"]
         key=s.rows.get(path,{}).get("key")
@@ -129,13 +130,46 @@ def mount(parent, game=None):
         state["master_report"]=report
         refresh()
         show({"master_index":report,"external_types":len(types),"diagnostics":candidate.validate()})
+    def restore_selection(path):
+        refresh()
+        for item,record_path in state["paths"].items():
+            if record_path==path:
+                tree.selection_set(item);tree.see(item);inspect();break
+    def edit_field():
+        path=selected();s=state["session"]
+        fields=s.typed_fields(path)
+        if not fields:raise ValueError("No supported scalar fields on this record")
+        tags={f["tag"]:f for f in fields}
+        tag=simpledialog.askstring("Typed field","Choose field: "+", ".join(tags),parent=parent)
+        if tag is None:return
+        tag=tag.strip().upper()
+        if tag not in tags:raise ValueError("Unsupported field")
+        field=tags[tag]
+        value=simpledialog.askstring("Edit "+tag,"New "+field["type"]+" value (JSON; quote text):",
+                                    initialvalue=json.dumps(field["value"],ensure_ascii=False),parent=parent)
+        if value is None:return
+        old=s.data
+        s.apply_typed(s.revision,[(path,tag.encode("ascii"),field["occurrence"],{"value":json.loads(value)})])
+        if s.data!=old:
+            state["undo"].append(old);state["undo"]=state["undo"][-8:];state["redo"].clear()
+        restore_selection(path)
+    def history(reverse):
+        s=state["session"]
+        if s is None:raise ValueError("Open a plugin first")
+        source="redo" if reverse else "undo";destination="undo" if reverse else "redo"
+        if not state[source]:raise ValueError("No history in that direction")
+        path=selected() if tree.selection() else ()
+        candidate=NativeSession(s.profile,state[source][-1],s.slots,s.external_types,s.external_records)
+        state[source].pop();state[destination].append(s.data);state["session"]=candidate
+        restore_selection(path)
     def export():
         s=state["session"];source=state["source"]
         if s is None:raise ValueError("Open a plugin first")
         directory=filedialog.askdirectory(title="Choose staging directory")
         if not directory:return
         target=Path(directory)/source.name
-        with target.open("xb") as f:f.write(s.data)
+        from .native_save import save
+        save(s.profile,s.data,target)
         show({"export":str(target),"revision":s.revision})
     ttk.Button(bar,text="Capabilities",command=guard(lambda:show(capability_manifest()))).pack(side="left")
     ttk.Button(bar,text="Open plugin",command=guard(open_file)).pack(side="left")
@@ -143,6 +177,9 @@ def mount(parent, game=None):
     ttk.Button(bar,text="Dependents",command=guard(lambda:review(True))).pack(side="left")
     ttk.Button(bar,text="Load masters",command=guard(load_masters)).pack(side="left")
     ttk.Button(bar,text="Validate",command=guard(validate)).pack(side="left")
+    ttk.Button(bar,text="Edit typed field",command=guard(edit_field)).pack(side="left")
+    ttk.Button(bar,text="Undo",command=guard(lambda:history(False))).pack(side="left")
+    ttk.Button(bar,text="Redo",command=guard(lambda:history(True))).pack(side="left")
     ttk.Button(bar,text="Export staged copy",command=guard(export)).pack(side="left")
     tree.bind("<<TreeviewSelect>>",lambda event:guard(inspect)() if tree.selection() else None)
     from .drop_import import editor_drop
