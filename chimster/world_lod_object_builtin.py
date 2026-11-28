@@ -131,7 +131,9 @@ def export(browser,world,output,assets,limit=512,previous=None,atlas=True):
             x,y=floor(px/16384)*4,floor(py/16384)*4
             groups=tiles[x,y]
             for mesh,d,n,cut in value:
-                combined=groups.setdefault((d,n,cut),Mesh())
+                metadata=getattr(mesh,"lod_shader",());threshold=getattr(mesh,"lod_alpha_threshold",128)
+                combined=groups.setdefault((d,n,cut,metadata,threshold),Mesh())
+                combined.lod_shader=metadata;combined.lod_alpha_threshold=threshold
                 if len(combined.vertices)+len(mesh.vertices)>65535 or len(combined.faces)+len(mesh.faces)>65535:
                     report["skipped"].append({"reference":label(ref["key"]),"reason":"16-bit group budget","material":d});continue
                 offset=len(combined.vertices);c,s=cos(yaw),sin(yaw)
@@ -142,7 +144,7 @@ def export(browser,world,output,assets,limit=512,previous=None,atlas=True):
                 combined.uv.extend(mesh.uv)
                 combined.faces.extend((tuple(i+offset for i in f),"lod") for f,_ in mesh.faces)
         for (x,y),groups in sorted(tiles.items()):
-            active=[(m,*paths) for paths,m in sorted(groups.items()) if m.faces]
+            active=[(m,*paths[:3]) for paths,m in sorted(groups.items()) if m.faces]
             if not active:continue
             path=f"meshes/landscape/lod/{name}/blocks/{name}.level4.x{x}.y{y}.nif"
             stem=f"textures/landscape/lod/{name}/blocks/{name}.level4.x{x}.y{y}"
@@ -164,7 +166,7 @@ def export(browser,world,output,assets,limit=512,previous=None,atlas=True):
                 for p in sorted({p for _,d,n,cut in active if not cut for p in (d,n)}):
                     try:source.get(p)
                     except (ValueError,OSError):source.hashes[p]="unavailable"
-            digest=sha256(json.dumps(["object-lod-v6",browser.profile,name,x,y,atlas,[(m.vertices,m.uv,m.faces,m.colors,d,n,cut) for m,d,n,cut in active],sorted(source.hashes.items())],separators=(",",":"),allow_nan=False).encode()).hexdigest()
+            digest=sha256(json.dumps(["object-lod-v7",browser.profile,name,x,y,atlas,[(m.vertices,m.uv,m.faces,m.colors,d,n,cut,getattr(m,"lod_shader",()),getattr(m,"lod_alpha_threshold",128)) for m,d,n,cut in active],sorted(source.hashes.items())],separators=(",",":"),allow_nan=False).encode()).hexdigest()
             cached=prior.get((x,y),{})
             files=cached.get("files",{})
             if (cached.get("input_sha256")==digest and set(files) in ({path},{path,*texpaths})
@@ -176,8 +178,8 @@ def export(browser,world,output,assets,limit=512,previous=None,atlas=True):
             if atlas:
                 from .world_lod_atlas import build
                 from .textures import mip_dds
-                opaque=[(m,d,n) for m,d,n,cut in active if not cut]
-                foliage=[g for g in active if g[3]]
+                opaque=[(m,d,n) for m,d,n,cut in active if not cut and not getattr(m,"lod_shader",())]
+                foliage=[g for g in active if g[3] or getattr(g[0],"lod_shader",())]
                 result,remaining,issues=build(opaque,source) if opaque else (None,[],[])
                 report["atlas_issues"].extend({"grid":[x,y],**issue} for issue in issues)
                 if result:
