@@ -10,7 +10,8 @@ from .world_browser import label
 from .world_lod_metadata import world_bounds,dirty_tiles,fnv_settings,read_fnv_settings
 from .max_height import decode_land
 from .flora import Mesh
-from .lod_assets import write_dds
+from .textures import mip_dds
+from .world_lod_materials import Baker
 from .fnv_lod_nif import encode,check
 from .world_lod_native import world_name
 
@@ -52,7 +53,7 @@ def macro_mesh(grids,x,y,level):
     if not mesh.faces:raise ValueError("Empty LOD tile")
     return mesh
 
-def textures(grids,x,y,level,size=128):
+def textures(grids,x,y,level,size=128,baker=None,materials=None):
     # Procedural slope-shaded starter maps; not a bake of source LTEX/TXST materials.
     diffuse=bytearray();normal=bytearray()
     for iy in range(size):
@@ -66,20 +67,42 @@ def textures(grids,x,y,level,size=128):
             dy=(h[min(32,v+1)][u]-h[max(0,v-1)][u])/256
             n=(-dx,-dy,1);m=sqrt(sum(t*t for t in n));n=tuple(t/m for t in n)
             shade=max(.35,min(1, .65+.25*n[2]-.1*n[0]))
-            diffuse.extend((*[round(t*shade) for t in (145,120,88)],255))
-            normal.extend((*[round((t+1)*127.5) for t in n],255))
+            fallback=((*[round(t*shade) for t in (145,120,88)],255),(*[round((t+1)*127.5) for t in n],255))
+            layers=(materials or {}).get((x+cx,y+cy))
+            a,b=baker.sample(layers,(gx-cx)*32,(gy-cy)*32,(x+gx)*32,(y+gy)*32,fallback) if baker and layers else fallback
+            diffuse.extend(a);normal.extend(b)
     return diffuse,normal
 
-def export(browser,world,output,levels=LEVELS,size=128):
+def export(browser,world,output,levels=LEVELS,size=128,assets=None,previous=None):
     if browser.profile not in ("new-vegas","fallout3"):raise ValueError("Built-in native candidate writer currently FO3/FNV only")
     if not levels or len(set(levels))!=len(levels) or any(n not in LEVELS for n in levels):raise ValueError("Unsupported LOD tier")
     if size not in (64,128,256):raise ValueError("Unsupported texture size")
     name=world_name(browser,world);grids=collect(browser,world)
+    baker=Baker(browser,assets) if assets is not None else None
+    materials={};material_errors=[]
+    for cell in browser.cells[world]:
+        if "grid" not in cell:continue
+        for land in browser.children[cell["key"]]:
+            if land["signature"]!="LAND":continue
+            if "land_materials" in land:materials[cell["grid"]]=land["land_materials"]
+            if "land_material_error" in land:material_errors.append(land["land_material_error"])
+    if baker:
+        for quadrants in materials.values():
+            for q in quadrants:
+                for key in [q["base"]]+[a["texture"] for a in q["layers"]]:
+                    if key:baker.material(key)
     plan=dirty_tiles(grids,levels)
+    old={};old_root=None
+    if previous is not None:
+        old_root=Path(previous).resolve(strict=True)
+        prior=json.loads((old_root/"manifest.json").read_text(encoding="utf-8"))
+        if prior.get("world")!=name:raise ValueError("Previous package belongs to another world")
+        old={(t["level"],*t["grid"]):t for t in prior["tiles"]}
     if sum(map(len,plan.values()))>4096:raise ValueError("LOD tile budget")
     out=Path(output);out.mkdir(exist_ok=False)
     manifest={"world":name,"bounds":world_bounds(grids),"tiles":[],"native_runtime_assets":False,
-              "external_tools":False,"texture_mode":"procedural fallback; not source texture bake",
+              "external_tools":False,"texture_mode":"LAND source material blend with reported fallback" if baker else "procedural fallback; no source assets selected",
+              "material_issues":material_errors,"reused_tiles":0,"rebuilt_tiles":0,
               "settings_status":"Generated candidate; bounds and level semantics require game validation",
               "scope":"Experimental native NIF/DDS candidates; not an installable runtime package"}
     try:
@@ -90,15 +113,29 @@ def export(browser,world,output,levels=LEVELS,size=128):
                 mesh_path=f"meshes/{base}/{stem}.nif"
                 diffuse=f"textures/{base}/diffuse/{stem}.dds"
                 normal=f"textures/{base}/normal/{name}.n.level{level}.x{x}.y{y}.dds"
+                # Include neighbor cells for edge normal/transition changes; input hashes are canonical.
+                area=[(list(k),grids[k],materials.get(k)) for k in sorted(grids) if x-1<=k[0]<=x+level and y-1<=k[1]<=y+level]
+                digest=sha256(json.dumps(["lod-v2",level,x,y,size,area,sorted(baker.hashes.items()) if baker else None],sort_keys=True,separators=(",",":"),allow_nan=False).encode()).hexdigest()
+                cached=old.get((level,x,y),{})
+                paths=(mesh_path,diffuse,normal)
+                if cached.get("input_sha256")==digest and set(cached.get("files",{}))==set(paths):
+                    if all((old_root/p).is_file() and (old_root/p).resolve().is_relative_to(old_root) and sha256((old_root/p).read_bytes()).hexdigest()==cached["files"][p] for p in paths):
+                        for p in paths:
+                            (out/p).parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(old_root/p,out/p)
+                        manifest["tiles"].append(cached);manifest["reused_tiles"]+=1;continue
                 mesh=macro_mesh(grids,x,y,level)
                 raw=encode(mesh,diffuse,normal,"terrain")
                 report=check(raw,len(mesh.faces))
                 for path in (mesh_path,diffuse,normal):(out/path).parent.mkdir(parents=True,exist_ok=True)
                 (out/mesh_path).write_bytes(raw)
-                a,b=textures(grids,x,y,level,size)
-                write_dds(out/diffuse,size,size,a);write_dds(out/normal,size,size,b)
-                manifest["tiles"].append({"level":level,"grid":[x,y],**report,
+                a,b=textures(grids,x,y,level,size,baker,materials)
+                (out/diffuse).write_bytes(mip_dds(size,size,a));(out/normal).write_bytes(mip_dds(size,size,b,normal=True))
+                manifest["rebuilt_tiles"]+=1
+                manifest["tiles"].append({"level":level,"grid":[x,y],"input_sha256":digest,**report,
                     "files":{p:sha256((out/p).read_bytes()).hexdigest() for p in (mesh_path,diffuse,normal)}})
+        if baker:
+            manifest["material_issues"].extend(sorted(baker.issues))
+            manifest["source_texture_hashes"]=baker.hashes
         settings=fnv_settings(grids,levels)
         settings_path="LODSettings/"+name+".dlodsettings"
         (out/settings_path).parent.mkdir(exist_ok=True)
