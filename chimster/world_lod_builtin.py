@@ -7,7 +7,7 @@ from math import sqrt
 from hashlib import sha256
 import json,shutil
 from .world_browser import label
-from .world_lod_metadata import world_bounds,dirty_tiles
+from .world_lod_metadata import world_bounds,dirty_tiles,fnv_settings,read_fnv_settings
 from .max_height import decode_land
 from .flora import Mesh
 from .lod_assets import write_dds
@@ -80,7 +80,7 @@ def export(browser,world,output,levels=LEVELS,size=128):
     out=Path(output);out.mkdir(exist_ok=False)
     manifest={"world":name,"bounds":world_bounds(grids),"tiles":[],"native_runtime_assets":False,
               "external_tools":False,"texture_mode":"procedural fallback; not source texture bake",
-              "settings_status":"Native LODSettings layout unverified; not generated",
+              "settings_status":"Generated candidate; bounds and level semantics require game validation",
               "scope":"Experimental native NIF/DDS candidates; not an installable runtime package"}
     try:
         for level,tiles in sorted(plan.items()):
@@ -99,6 +99,11 @@ def export(browser,world,output,levels=LEVELS,size=128):
                 write_dds(out/diffuse,size,size,a);write_dds(out/normal,size,size,b)
                 manifest["tiles"].append({"level":level,"grid":[x,y],**report,
                     "files":{p:sha256((out/p).read_bytes()).hexdigest() for p in (mesh_path,diffuse,normal)}})
+        settings=fnv_settings(grids,levels)
+        settings_path="LODSettings/"+name+".dlodsettings"
+        (out/settings_path).parent.mkdir(exist_ok=True)
+        (out/settings_path).write_bytes(settings)
+        manifest["settings"]={"path":settings_path,**read_fnv_settings(settings),"sha256":sha256(settings).hexdigest()}
         (out/"manifest.json").write_text(json.dumps(manifest,indent=2),encoding="utf-8")
     except Exception:shutil.rmtree(out);raise
     return manifest
