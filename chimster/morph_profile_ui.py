@@ -63,8 +63,8 @@ def launch(parent):
     def pick_weight():
         if weights.selection():
             a,b,c=weights.item(weights.selection()[0],"values");ph.set(a);slot.set(b);weight.set(c)
-    def load():
-        p=filedialog.askopenfilename(parent=win,filetypes=[("Profile JSON","*.json")])
+    def load(dropped=None):
+        p=dropped if dropped is not None else filedialog.askopenfilename(parent=win,filetypes=[("Profile JSON","*.json")])
         if p:commit(json.loads(Path(p).read_text(encoding="utf-8")))
     def save():
         p=filedialog.asksaveasfilename(parent=win,defaultextension=".json")
@@ -78,3 +78,5 @@ def launch(parent):
     ttk.Button(inputs,text="Remove weight",command=guard(lambda:map_weight(True))).pack(side="left")
     slots.bind("<<TreeviewSelect>>",guard(selected));weights.bind("<<TreeviewSelect>>",guard(pick_weight))
     redraw()
+    from .drop_import import editor_drop
+    editor_drop(win,[([".json"],load,False)])
