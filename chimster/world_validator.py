@@ -185,7 +185,7 @@ def validate(paths,max_records=2000000,max_issues=10000,quest_links=False):
     def live(id): 
         r=winning.get(id)
         return r if r and not r["flags"]&DELETED else None
-    coords={};persistent={};lands={}
+    coords={};persistent={};lands={};interiors=0;persistent_refs=0
     for identity,r in winning.items():
         if r["flags"]&DELETED:continue
         name,off,kind=r["provider"],r["offset"],r["kind"]
@@ -206,6 +206,8 @@ def validate(paths,max_records=2000000,max_issues=10000,quest_links=False):
             else:
                 if c["world"]!=r["world"]:issue("world-owner-mismatch",name,off,str(identity))
                 if c["coords"] is not None and not c["flags"]&PERSISTENT and c["world"] is not None and "position" in r and r["position"]!=c["coords"]:issue("reference-grid",name,off,f"Reference at {r['position']} assigned to {c['coords']}","warning")
+        if kind=="CELL" and r["world"] is None:interiors+=1
+        if kind in REFS and r["flags"]&PERSISTENT:persistent_refs+=1
         if kind=="CELL" and r["world"] is not None:
             table,key=(persistent,r["world"]) if r["flags"]&PERSISTENT else (coords,(r["world"],r["coords"]))
             if key in table:issue("duplicate-persistent-cell" if table is persistent else "duplicate-cell-coordinate",name,off,f"{identity} and {table[key]}")
@@ -213,4 +215,4 @@ def validate(paths,max_records=2000000,max_issues=10000,quest_links=False):
         if kind=="LAND" and r["owner"] is not None:
             if r["owner"] in lands:issue("duplicate-land",name,off,f"{identity} and {lands[r['owner']]}")
             lands[r["owner"]]=identity
-    return {"game":"newvegas","valid":not counts["error"] and not incomplete,"complete":not incomplete,"errors":counts["error"],"warnings":counts["warning"],"issues":issues,"plugins":reports,"winning_records":len(winning),"exterior_cells":len(coords),"persistent_cells":len(persistent),"land_records":len(lands),"quest_links_checked":quest_links,"scope":"FNV hierarchy and selected references; not a complete schema or engine validator; no modifications"}
+    return {"game":"newvegas","valid":not counts["error"] and not incomplete,"complete":not incomplete,"errors":counts["error"],"warnings":counts["warning"],"issues":issues,"plugins":reports,"winning_records":len(winning),"exterior_cells":len(coords),"persistent_cells":len(persistent),"interior_cells":interiors,"persistent_references":persistent_refs,"land_records":len(lands),"quest_links_checked":quest_links,"scope":"FNV hierarchy and selected references; not a complete schema or engine validator; no modifications"}
