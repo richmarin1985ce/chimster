@@ -68,6 +68,21 @@ For Morrowind, use the script name instead of a disk FormID. Preparation changes
 
 Regression fixtures cover diagnostic parsing, backend switches, legacy draft/attachment and Lua version checks. Execution remains deferred. Actual installed compiler and editor compatibility must be verified before use.
 
+### Compiler recovery and unchanged-build reuse
+Use the Recover PEX desktop action or the staged CLI, with a trusted locally installed Champollion and scripts you have permission to inspect:
+
+    python -m chimster pex-decompile skyrimse /path/to/Champollion Example.pex recovered --execute
+
+The input PEX header and digest are checked, source recovery takes place in a private directory, and a matching PSC declaration and output hash are checked before publishing the PSC and decompile.json. A recovered script is not guaranteed to be original source or to recompile equivalently; namespaces and multiple-file decompiler output remain unsupported.
+
+Project builds now accept the same backend-dependent options as single-file builds, and --reuse path/to/previous-build (also available in the desktop Build project action). All selected source and import entries, roots, compiler binary digest, flags digest, and options must match the previous build key; every PEX is header-checked and hash-checked again. Any changed source invalidates the entire reuse attempt, intentionally avoiding unsafe partial dependency inference. Only explicitly selected trusted local build manifests should be reused. Compiler DLLs and toolchain environment are not fingerprinted; use a fresh build after changes to those. No per-script incremental caching or signed cache provenance claimed.
+
+Batch diagnostics now map recognized staged source paths and unique basenames back to inventoried original paths with source hashes. The editor refuses navigation for stale saved content. Unknown paths are retained in the log without opening them automatically.
+
+Legacy backend scope remains unchanged: xNVSE CompileScript is a runtime UDF mechanism, not a general offline SCPT compiler; OpenMW's script-all is an engine validation path, not a replacement for native TES3 bytecode export. Original editors remain required for standalone legacy SCPT compilation. References: https://github.com/Orvid/Champollion/blob/main/README.md ; https://github.com/Orvid/Caprica/blob/master/Caprica/main_options.cpp ; https://geckwiki.com/index.php?title=CompileScript ; https://github.com/OpenMW/openmw .
+
+New regression fixtures use mocked tool execution. Execution remains deferred, including real compiler/decompiler, editor and engine verification.
+
 ## Voice
 The formats module packs and unpacks supported FUZ containers. A FUZ is not a speech synthesizer: it contains separate lip-sync and audio payloads. XWM encoding, actual lip-sync generation and Wwise conversion remain unimplemented. Do not republish extracted game voice assets.
 
