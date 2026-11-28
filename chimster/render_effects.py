@@ -63,6 +63,9 @@ class Effects:
     water_level:float=None
     water_extent:float=32.
     water_color:tuple=(.05,.25,.31)
+    water_deep_color:tuple=None
+    water_opacity:float=.82
+    water_reflectivity:float=1.
     reflection_size:int=0
     ssr_strength:float=0.
     ssr_steps:int=16
@@ -79,7 +82,7 @@ class Effects:
         for volume in self.fog_volumes:volume.validate()
         if not isfinite(self.scatter_strength) or not 0<=self.scatter_strength<=2 or not isfinite(self.scatter_anisotropy) or not -.9<=self.scatter_anisotropy<=.9:
             raise ValueError("Invalid scattering parameters")
-        for value,lo,hi in ((self.water_absorption,0,4),(self.water_foam,0,1),(self.underwater_density,0,1)):
+        for value,lo,hi in ((self.water_absorption,0,4),(self.water_foam,0,1),(self.underwater_density,0,1),(self.water_opacity,0,1),(self.water_reflectivity,0,1)):
             if not isfinite(value) or not lo<=value<=hi:raise ValueError("Invalid water optics")
         if self.ssr_steps not in (8,16,24,32) or not isfinite(self.ssr_strength) or not 0<=self.ssr_strength<=1 or not isfinite(self.ssr_distance) or not 1<=self.ssr_distance<=100:raise ValueError("Invalid SSR settings")
         if self.reflection_size not in (0,128,256,512):
@@ -97,6 +100,7 @@ class Effects:
         if self.water_level is not None and (not isfinite(self.water_level) or abs(self.water_level)>1e7):
             raise ValueError("Invalid water level")
         vector(self.fog_color,3,0,1);vector(self.water_color,3,0,1)
+        if self.water_deep_color is not None:vector(self.water_deep_color,3,0,1)
         if sum(bool(l.shadows) for l in self.lights)>1:raise ValueError("At most one local shadow map")
         if len(self.lights)>4:raise ValueError("At most four preview point lights")
         for light in self.lights:light.validate()

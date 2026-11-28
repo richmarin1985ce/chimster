@@ -83,17 +83,17 @@ def mount(parent):
         nonlocal paint,layers
         if src:
             dst.append((h.current,paint,layers));h.current,paint,layers=src.pop();draw()
-    def load():
+    def load(dropped=None):
         nonlocal paint,layers
-        p=filedialog.askopenfilename(filetypes=[("Elevation JSON","*.json")])
+        p=dropped if dropped is not None else filedialog.askopenfilename(filetypes=[("Elevation JSON","*.json")])
         if not p:return
         try:
             t=Terrain.load(p,spacing.get());h.current=t;paint=Paint(tuple(tuple("Ground" for _ in range(t.cells*2)) for _ in range(t.cells*2)))
             layers=[];past.clear();future.clear();draw()
         except (OSError,ValueError,TypeError,tk.TclError) as e:messagebox.showerror("Terrain",str(e))
-    def reopen():
+    def reopen(dropped=None):
         nonlocal paint,layers
-        d=filedialog.askdirectory(title="Open saved terrain project")
+        d=dropped if dropped is not None else filedialog.askdirectory(title="Open saved terrain project")
         if not d:return
         try:
             p=Path(d);m=json.loads((p/"metadata.json").read_text(encoding="utf-8"))
@@ -124,3 +124,5 @@ def mount(parent):
         try:draw()
         except ImportError:status.set("Install Pillow to use the terrain editor.")
     mapview.bind("<Configure>",resize);view.bind("<Configure>",resize)
+    from .drop_import import editor_drop
+    editor_drop(parent,[([".json"],load,False),(["<directory>"],reopen,False)])

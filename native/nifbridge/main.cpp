@@ -57,12 +57,23 @@ static int extractCollision(const char* filename,const char* scaleArg){
     if(dynamic_cast<bhkRigidBodyT*>(body))bodyTransform=rigid(body->rotation,Vector3(body->translation.x,body->translation.y,body->translation.z));
     std::vector<Vector3> verts;std::vector<std::array<unsigned,3>> tris;
     std::vector<std::vector<Vector3>> hulls;size_t hullPoints=0;
+    std::vector<std::array<float,6>> solids;
     auto scaled=[&](Vector3 p){
         p.x*=scale;p.y*=scale;p.z*=scale;
         require(std::isfinite(p.x)&&std::isfinite(p.y)&&std::isfinite(p.z)&&std::abs(p.x)<=1e7&&std::abs(p.y)<=1e7&&std::abs(p.z)<=1e7,"invalid collision vertex");
         return p;
     };
     auto push=[&](Vector3 p){require(verts.size()<500000,"collision vertex limit");verts.push_back(scaled(p));};
+    // Curved primitives are obstruction-only conservative world AABBs.
+    // They must not be promoted to walkable triangle surfaces.
+    auto solid=[&](Vector3 a,Vector3 b,float r,Transform apply){
+        require(std::isfinite(r)&&r>0&&solids.size()<4096,"invalid primitive radius or count");
+        a=scaled(apply(a));b=scaled(apply(b));r*=scale;
+        std::array<float,6> box={std::min(a.x,b.x)-r,std::min(a.y,b.y)-r,std::min(a.z,b.z)-r,
+                                  std::max(a.x,b.x)+r,std::max(a.y,b.y)+r,std::max(a.z,b.z)+r};
+        for(float v:box)require(std::isfinite(v)&&std::abs(v)<=1e7,"invalid primitive bounds");
+        solids.push_back(box);
+    };
     std::set<const bhkShape*> stack;
     std::function<void(bhkShape*,Transform,unsigned)> walk;
     walk=[&](bhkShape* shape,Transform apply,unsigned depth){
@@ -73,6 +84,19 @@ static int extractCollision(const char* filename,const char* scaleArg){
             for(int z:{-1,1})for(int y:{-1,1})for(int x:{-1,1})push(apply(Vector3(x*d.x,y*d.y,z*d.z)));
             const unsigned faces[12][3]={{0,2,1},{1,2,3},{4,5,6},{5,7,6},{0,1,4},{1,5,4},{2,6,3},{3,6,7},{0,4,2},{2,4,6},{1,3,5},{3,7,5}};
             for(auto& t:faces)tris.push_back({base+t[0],base+t[1],base+t[2]});
+        }else if(auto sphere=dynamic_cast<bhkSphereShape*>(shape)){
+            solid(Vector3(0,0,0),Vector3(0,0,0),sphere->radius,apply);
+        }else if(auto capsule=dynamic_cast<bhkCapsuleShape*>(shape)){
+            require(std::isfinite(capsule->radius1)&&std::isfinite(capsule->radius2)&&capsule->radius1>=0&&capsule->radius2>=0&&
+                    std::isfinite(capsule->radius)&&capsule->radius>=0,"invalid capsule radii");
+            solid(capsule->point1,capsule->point2,std::max({capsule->radius,capsule->radius1,capsule->radius2}),apply);
+        }else if(auto cylinder=dynamic_cast<bhkCylinderShape*>(shape)){
+            require(std::isfinite(cylinder->cylinderRadius)&&cylinder->cylinderRadius>0&&std::isfinite(cylinder->radius)&&cylinder->radius>=0,"invalid cylinder radius");
+            solid(Vector3(cylinder->vertexA.x,cylinder->vertexA.y,cylinder->vertexA.z),
+                  Vector3(cylinder->vertexB.x,cylinder->vertexB.y,cylinder->vertexB.z),cylinder->cylinderRadius+cylinder->radius,apply);
+        }else if(auto multi=dynamic_cast<bhkMultiSphereShape*>(shape)){
+            require(!multi->spheres.empty()&&multi->spheres.size()<=4096,"invalid multisphere count");
+            for(const auto& sphere:multi->spheres)solid(sphere.center,sphere.center,sphere.radius,apply);
         }else if(auto convex=dynamic_cast<bhkConvexVerticesShape*>(shape)){
             require(convex->verts.size()>=4&&convex->verts.size()<=64,"convex core point limit");
             require(hulls.size()<128&&hullPoints+convex->verts.size()<=4096,"convex core work limit");
@@ -156,17 +180,87 @@ static int extractCollision(const char* filename,const char* scaleArg){
         require(tris.size()<=500000,"collision triangle limit");stack.erase(shape);
     };
     walk(h.GetBlock(body->shapeRef),bodyTransform,0);
-    require((!verts.empty()&&!tris.empty())||!hulls.empty(),"empty collision geometry");
+    require((!verts.empty()&&!tris.empty())||!hulls.empty()||!solids.empty(),"empty collision geometry");
     std::cout<<std::setprecision(9)<<"{\"vertices\":[";
     for(size_t i=0;i<verts.size();i++){if(i)std::cout<<",";auto p=verts[i];std::cout<<"["<<p.x<<","<<p.y<<","<<p.z<<"]";}
     std::cout<<"],\"triangles\":[";
     for(size_t i=0;i<tris.size();i++){if(i)std::cout<<",";auto t=tris[i];std::cout<<"["<<t[0]<<","<<t[1]<<","<<t[2]<<"]";}
     std::cout<<"],\"convex_cores\":[";
     for(size_t i=0;i<hulls.size();i++){if(i)std::cout<<",";std::cout<<"[";for(size_t j=0;j<hulls[i].size();j++){if(j)std::cout<<",";auto p=hulls[i][j];std::cout<<"["<<p.x<<","<<p.y<<","<<p.z<<"]";}std::cout<<"]";}
+    std::cout<<"],\"solid_obstacles\":[";
+    for(size_t i=0;i<solids.size();i++){if(i)std::cout<<",";auto b=solids[i];std::cout<<"{\"min\":["<<b[0]<<","<<b[1]<<","<<b[2]<<"],\"max\":["<<b[3]<<","<<b[4]<<","<<b[5]<<"]}";}
+    std::cout<<"]}\n";return 0;
+}
+// Static geometry extraction; not a lossless NIF editor.
+static int extractMesh(const char* filename){
+    require(std::filesystem::file_size(filename)<=128*1024*1024,"NIF input limit");
+    std::ifstream input(filename,std::ios::binary);NifFile nif;
+    require(bool(input)&&nif.Load(input)==0&&nif.IsValid()&&!nif.HasUnknown(),"invalid or unknown NIF");
+    const auto& ver=nif.GetHeader().GetVersion();
+    require(ver.File()==NiFileVersion::V20_2_0_7&&
+      ((ver.User()==11&&ver.Stream()==34)||(ver.User()==12&&(ver.Stream()==83||ver.Stream()==100||ver.Stream()==130))),"unsupported NIF version");
+    auto identity=[](auto* node){
+        auto m=node->GetTransformToParent().ToMatrix();
+        for(int i=0;i<16;i++)require(std::isfinite(m[i])&&std::abs(m[i]-(i%5==0?1.f:0.f))<1e-5f,"nonidentity transform unsupported");
+    };
+    auto root=nif.GetRootNode();require(root,"missing root");identity(root);
+    auto shapes=nif.GetShapes();require(!shapes.empty()&&shapes.size()<=256,"shape count limit");
+    std::ostringstream out;out<<std::setprecision(9)<<"CHIMSTER_IMPORT_1 "<<shapes.size()<<"\n";
+    size_t nv=0,nt=0;
+    for(size_t i=0;i<shapes.size();i++){
+        auto shape=shapes[i];require(nif.GetParentNode(shape)==root&&!shape->IsSkinned()&&!shape->HasSkinInstance(),"only unskinned direct root shapes supported");
+        identity(shape);
+        std::vector<Vector3> v;std::vector<Vector2> uv;std::vector<Triangle> t;
+        require(nif.GetVertsForShape(shape,v)&&nif.GetUvsForShape(shape,uv)&&shape->GetTriangles(t)&&!v.empty()&&!t.empty()&&v.size()==uv.size(),"missing geometry or UVs");
+        nv+=v.size();nt+=t.size();require(nv<=300000&&nt<=300000,"geometry limit");
+        std::string diffuse,normal;nif.GetTextureSlot(shape,diffuse,0);nif.GetTextureSlot(shape,normal,1);
+        auto alpha=nif.GetAlphaProperty(shape);
+        require(!alpha||(alpha->flags==0x1200&&alpha->threshold==128),"unsupported alpha property");
+        auto safe=[](const std::string& s){return s.size()<=1024&&std::all_of(s.begin(),s.end(),[](unsigned char c){return c>=32&&c<127;});};
+        require(safe(diffuse)&&safe(normal),"unsafe texture path");
+        out<<"shape_"<<i<<" "<<std::quoted(diffuse)<<" "<<std::quoted(normal)<<" "<<(alpha?1:0)<<" "<<v.size()<<" "<<t.size()<<"\n";
+        for(size_t j=0;j<v.size();j++){
+            auto p=v[j];auto q=uv[j];
+            require(std::isfinite(p.x)&&std::isfinite(p.y)&&std::isfinite(p.z)&&std::isfinite(q.u)&&std::isfinite(q.v),"invalid vertex/UV");
+            out<<p.x<<" "<<p.y<<" "<<p.z<<" "<<q.u<<" "<<1-q.v<<"\n";
+        }
+        for(auto f:t){
+            require(f.p1<v.size()&&f.p2<v.size()&&f.p3<v.size()&&f.p1!=f.p2&&f.p2!=f.p3&&f.p1!=f.p3,"invalid triangle");
+            out<<f.p1<<" "<<f.p2<<" "<<f.p3<<"\n";
+        }
+    }
+    std::cout<<out.str();return 0;
+}
+// Inventory compressed-chunk references without attempting geometry extraction.
+static int inspectChunks(const char* filename){
+    require(std::filesystem::file_size(filename)<=128*1024*1024,"NIF input limit");
+    std::ifstream input(filename,std::ios::binary);NifFile nif;
+    require(bool(input)&&nif.Load(input)==0&&nif.IsValid()&&!nif.HasUnknown(),"invalid or unknown NIF");
+    auto& h=nif.GetHeader();const auto& ver=h.GetVersion();
+    require(ver.File()==NiFileVersion::V20_2_0_7&&ver.User()==12&&(ver.Stream()==83||ver.Stream()==100),"expected Skyrim NIF");
+    std::cout<<std::setprecision(9)<<"{\"blocks\":[";bool first=true;size_t total=0;
+    for(unsigned i=0;i<h.GetNumBlocks();i++){
+        auto data=h.GetBlock<bhkCompressedMeshShapeData>(i);if(!data)continue;
+        require(data->chunks.size()<=4096&&data->transforms.size()<=65535,"chunk inventory limit");
+        total+=data->chunks.size();require(total<=16384,"total chunk inventory limit");
+        if(!first)std::cout<<",";first=false;
+        std::cout<<"{\"block\":"<<i<<",\"transform_count\":"<<data->transforms.size()<<",\"chunks\":[";
+        for(unsigned j=0;j<data->chunks.size();j++){
+            const auto& c=data->chunks[j];if(j)std::cout<<",";
+            require(std::isfinite(c.translation.x)&&std::isfinite(c.translation.y)&&std::isfinite(c.translation.z),"invalid chunk offset");
+            std::cout<<"{\"index\":"<<j<<",\"reference\":"<<c.reference<<",\"transform\":"<<c.transformIndex
+                     <<",\"offset\":["<<c.translation.x<<","<<c.translation.y<<","<<c.translation.z<<"]"
+                     <<",\"vertex_components\":"<<c.verts.size()<<",\"indices\":"<<c.indices.size()
+                     <<",\"strips\":"<<c.strips.size()<<",\"welding_entries\":"<<c.weldingInfo.size()<<"}";
+        }
+        std::cout<<"]}";
+    }
     std::cout<<"]}\n";return 0;
 }
 int main(int argc,char** argv){
  try {
+    if(argc==3&&std::string(argv[1])=="extract-mesh")return extractMesh(argv[2]);
+    if(argc==3&&std::string(argv[1])=="inspect-collision-chunks")return inspectChunks(argv[2]);
     if(argc==4&&std::string(argv[1])=="extract-collision")return extractCollision(argv[2],argv[3]);
     require(argc>=4&&argc<=6,"usage: chimster-nifbridge GAME INPUT.cmesh OUTPUT.nif [box|compound FILE]");
     bool box=argc==5&&std::string(argv[4])=="box";

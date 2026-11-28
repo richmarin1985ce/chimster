@@ -55,3 +55,23 @@ class CompilerReadinessTests(unittest.TestCase):
         self.assertEqual(report["counts"]["error"],2)
         self.assertEqual(report["repeated"][0]["count"],2)
         self.assertEqual(report["events"][0]["frames"][0]["line"],12)
+
+
+    def test_smoke_preview_and_execution(self):
+        from chimster.compiler_profiles import smoke
+        with TemporaryDirectory() as t:
+            root=Path(t);tools=root/"tools";tools.mkdir()
+            exe=tools/"compiler";exe.write_bytes(b"fixture")
+            flags=tools/"flags.flg";flags.write_text("fixture")
+            cfg=root/"profile.json";create(cfg,"skyrim","ck",exe,flags,[])
+            out=root/"out"
+            preview=smoke(cfg,out)
+            self.assertIn("Return 42",preview["source"])
+            self.assertFalse(out.exists())
+            def mock_build(profile,source,output,**kwargs):
+                self.assertTrue(Path(source).exists())
+                self.assertIn("SmokeValue",Path(source).read_text())
+                self.assertTrue(kwargs["execute"])
+                return {"status":"header-checked","diagnostics":[]}
+            with patch("chimster.compiler_profiles.configured_build",side_effect=mock_build):
+                self.assertEqual(smoke(cfg,out,execute=True)["status"],"compiler-smoke-passed")

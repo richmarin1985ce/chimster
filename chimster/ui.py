@@ -4,7 +4,8 @@ from tkinter import ttk, filedialog, messagebox
 from .core import PROFILES, catalog, inspect_plugin, plan
 
 def launch():
- root=tk.Tk(); root.title('CHIMSTER | Bethesda Modding Workshop'); root.geometry('1000x650')
+ from .drop_import import root as desktop_root, editor_drop
+ root=desktop_root(); root.title('CHIMSTER | Bethesda Modding Workshop'); root.geometry('1000x650')
  root.configure(bg='#20252c'); style=ttk.Style(root); style.theme_use('clam')
  top=ttk.Frame(root,padding=12); top.pack(fill='x'); ttk.Label(top,text='CHIMSTER',font=('TkDefaultFont',20,'bold')).pack(side='left')
  game=tk.StringVar(value='newvegas'); ttk.Combobox(top,textvariable=game,values=list(PROFILES),state='readonly').pack(side='right')
@@ -13,7 +14,7 @@ def launch():
  sections={
   'Project':('Project','Core management','Game compatibility','Record projects','Action planner'),
   'Records':('Native records','Record editor','Plugin inspector','Load order'),
-  'World':('3D viewport','Terrain editor','Interior editor','Navmesh editor','Worldspace validator','Landscape budget'),
+  'World':('Worldspace browser','3D viewport','Terrain editor','Interior editor','Navmesh editor','Worldspace validator','Landscape budget'),
   'Narrative':('Quest editor','Dialogue views','Script editor','Books & notes','Localization'),
   'Assets':('Texture Forge','Voice containers'),
   'Gameplay':('Minigame editor',),
@@ -23,6 +24,8 @@ def launch():
  for label,names in sections.items():
   submenu=tk.Menu(menu,tearoff=False);menu.add_cascade(label=label,menu=submenu)
   for name in names:menus[name]=submenu
+ from .calipy import Calipy
+ calipy=Calipy(root,tabs,menus['Local wiki'])
  def tab(name):
   frame=ttk.Frame(tabs,padding=12); tabs.add(frame,text=name)
   if name in menus:menus[name].add_command(label=name,command=lambda f=frame:tabs.select(f))
@@ -47,26 +50,28 @@ def launch():
  def refresh(): show(out,[x for x in catalog() if '*' in x['games'] or game.get() in x['games']])
  ttk.Button(bar,text='Refresh for selected game',command=refresh).pack(side='left'); game.trace_add('write',lambda *_:refresh()); refresh()
  f=tab('Plugin inspector'); bar=ttk.Frame(f); bar.pack(fill='x'); io=output(f)
- def inspect():
-  file=filedialog.askopenfilename(filetypes=[('Bethesda plugins','*.esp *.esm *.esl *.omwaddon *.omwgame'),('All files','*')]);
+ def inspect(dropped=None):
+  file=dropped if dropped is not None else filedialog.askopenfilename(filetypes=[('Bethesda plugins','*.esp *.esm *.esl *.omwaddon *.omwgame'),('All files','*')]);
   if file:
    try: show(io,inspect_plugin(file,game.get()))
    except (OSError,ValueError) as e: messagebox.showerror('Inspection failed',str(e))
  ttk.Button(bar,text='Open plugin (read only)',command=inspect).pack(side='left')
+ editor_drop(f,[((".esp",".esm",".esl",".omwaddon",".omwgame"),inspect,False)],confirm=False,target=io)
  f=tab('Landscape budget'); bar=ttk.Frame(f);bar.pack(fill='x'); budget_out=output(f)
- def inspect_budget():
+ def inspect_budget(dropped=None):
   from .texture_budget import scan_land
-  path=filedialog.askopenfilename(filetypes=[('Plugins','*.esp *.esm')])
+  path=dropped if dropped is not None else filedialog.askopenfilename(filetypes=[('Plugins','*.esp *.esm')])
   if path:
    try:
     r=scan_land(path,game.get())
     show(budget_out,r)
    except (OSError,ValueError) as e:messagebox.showerror('Landscape budget',str(e))
  ttk.Button(bar,text='Inspect quadrant allocations (read only)',command=inspect_budget).pack(side='left')
+ editor_drop(f,[((".esp",".esm"),inspect_budget,False)],confirm=False,target=budget_out)
  f=tab('Record editor'); rb=ttk.Frame(f);rb.pack(fill='x')
  rp=tk.StringVar();ro=tk.StringVar();ri=tk.StringVar(value='0x800');rf=tk.StringVar(value='FULL');rv=tk.StringVar()
- def record_source():
-  p=filedialog.askopenfilename(filetypes=[('Plugins','*.esp *.esm')])
+ def record_source(dropped=None):
+  p=dropped if dropped is not None else filedialog.askopenfilename(filetypes=[('Plugins','*.esp *.esm')])
   if p:
    from pathlib import Path
    rp.set(p);ro.set(Path(p).name)
@@ -93,6 +98,7 @@ def launch():
   except (OSError,ValueError,KeyError) as e:messagebox.showerror('Record editor',str(e))
  ttk.Button(actions,text='Inspect record',command=read_record).pack(side='left')
  ttk.Button(actions,text='Save staged typed edit',command=edit_record).pack(side='left')
+ editor_drop(f,[((".esp",".esm"),record_source,False)])
  f=tab('Native records')
  try:
   from .native_ui import mount as mount_native
@@ -158,11 +164,11 @@ def launch():
    from pathlib import Path
    show(to,build_cube(source,Path(parent)/'texture-cube',face.get()))
   except (OSError,ValueError,ImportError,tk.TclError) as e:messagebox.showerror('Cubemap generation failed',str(e))
- def archive_texture():
+ def archive_texture(dropped=None):
   from .archive_reader import read
   from tkinter import simpledialog
   from pathlib import Path
-  source=filedialog.askopenfilename(filetypes=[('Archives','*.bsa *.ba2')])
+  source=dropped if dropped is not None else filedialog.askopenfilename(filetypes=[('Archives','*.bsa *.ba2')])
   if not source:return
   name=simpledialog.askstring('Texture member','Relative DDS member path')
   if not name:return
@@ -178,10 +184,11 @@ def launch():
  ttk.Button(bar,text='Import archived DDS',command=archive_texture).pack(side='left')
  ttk.Button(bar,text='Generate material maps',command=material).pack(side='left')
  ttk.Button(bar,text='Generate cubemap',command=cube).pack(side='left')
+ editor_drop(f,[((".bsa",".ba2"),archive_texture,False)])
  f=tab('Load order'); ttk.Label(f,text='Scan a JSON load-order profile, without altering installed plugins.').pack(anchor='w')
  bar=ttk.Frame(f);bar.pack(fill='x');lo=output(f)
- def scan_order():
-  path=filedialog.askopenfilename(title='Select profile JSON',filetypes=[('JSON','*.json')])
+ def scan_order(dropped=None):
+  path=dropped if dropped is not None else filedialog.askopenfilename(title='Select profile JSON',filetypes=[('JSON','*.json')])
   if not path:return
   try:
    from pathlib import Path
@@ -191,12 +198,20 @@ def launch():
    finally:cache.close()
   except (OSError,ValueError,KeyError,TypeError) as e:messagebox.showerror('Profile scan failed',str(e))
  ttk.Button(bar,text='Scan profile',command=scan_order).pack(side='left')
+ editor_drop(f,[((".json",),scan_order,False)],confirm=False)
  f=tab('Installed tools'); bar=ttk.Frame(f);bar.pack(fill='x');det=output(f)
  from .tooling import discover_tools
  ttk.Button(bar,text='Detect executables',command=lambda:show(det,discover_tools())).pack(side='left')
- f=tab('3D viewport')
+ viewport_tab=tab('3D viewport')
  from .viewport import mount
- mount(f)
+ load_cell_preview=mount(viewport_tab)
+ f=tab('Worldspace browser')
+ from .world_browser_ui import mount as mount_world_browser
+ def open_cell_preview(scene,report,focus=None,on_select=None,on_stream=None):
+  if not load_cell_preview(scene,report,focus,on_select,on_stream):return False
+  tabs.select(viewport_tab)
+  return True
+ mount_world_browser(f,game,open_cell_preview,load_cell_preview.drop_position)
  f=tab('Worldspace validator')
  ttk.Label(f,text='Add copied plugins in active load order, masters first. Read-only.').pack(anchor='w')
  pathlist=tk.Listbox(f,height=6);pathlist.pack(fill='x')
@@ -218,6 +233,10 @@ def launch():
  ttk.Button(bar,text='Down',command=lambda:move_world_plugin(1)).pack(side='left')
  ttk.Button(bar,text='Clear',command=lambda:pathlist.delete(0,'end')).pack(side='left')
  ttk.Button(bar,text='Validate',command=check_world).pack(side='left')
+ def drop_world(paths):
+  for p in paths:
+   if p not in pathlist.get(0,'end'):pathlist.insert('end',p)
+ editor_drop(f,[((".esp",".esm"),drop_world,True)],confirm=False,target=pathlist)
  f=tab('Asset Forge')
  from .asset_ui import mount as mount_assets
  mount_assets(f)

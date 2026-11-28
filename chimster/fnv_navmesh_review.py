@@ -7,7 +7,8 @@ from .fnv_navi import inspect as inspect_navi
 def fields(row):
     return [(tag.encode("ascii"),bytes.fromhex(value)) for tag,value in row["fields"]]
 
-def review(meshes,navi,door_backlinks=(),*,tolerance=.01):
+def review(meshes,navi,door_backlinks=(),*,tolerance=.01,grid_order="xy",require_connections=False):
+    if grid_order not in ("xy","yx") or type(require_connections) is not bool:raise ValueError("invalid NAVI review options")
     if type(tolerance) not in (int,float) or not math.isfinite(tolerance) or not 0<tolerance<=1:
         raise ValueError("invalid seam tolerance")
     if not isinstance(meshes,list) or not 1<=len(meshes)<=4096:raise ValueError("mesh count limit")
@@ -55,12 +56,24 @@ def review(meshes,navi,door_backlinks=(),*,tolerance=.01):
     for ref in set(backlinks)-set(doors):issues.append({"code":"orphan-door-backlink","door":ref})
     index,_=inspect_navi(fields(navi));registered={}
     for e in index["entries"]:
-        fid=e["mesh"];registered[fid]=(e["location"],tuple(e["grid"]))
+        fid=e["mesh"];registered[fid]=(e["location"],tuple(e["grid"] if grid_order=="xy" else reversed(e["grid"])))
         if fid not in parsed:issues.append({"code":"navi-mesh-outside-review","mesh":fid})
         elif registered[fid]!=locations[fid]:issues.append({"code":"navi-location-mismatch","mesh":fid})
     for fid in set(parsed)-set(registered):issues.append({"code":"navi-registration-missing","mesh":fid})
+    connection_ids={row["mesh"] for row in index.get("connections",[])}
+    if require_connections:
+        for fid in sorted(set(parsed)-connection_ids):issues.append({"code":"nvci-registration-missing","mesh":fid})
+    for row in index.get("connections",[]):
+        fid=row["mesh"]
+        if fid not in parsed:continue
+        r=parsed[fid]
+        expected={e["raw_target"] for e in r["external"]}
+        if any(len(row[k])!=len(set(row[k])) for k in ("standard","preferred","doors")):issues.append({"code":"nvci-duplicate-link","mesh":fid})
+        if set(row["standard"])&set(row["preferred"]):issues.append({"code":"nvci-overlapping-classes","mesh":fid})
+        if set(row["standard"])|set(row["preferred"])!=expected:issues.append({"code":"nvci-neighbor-mismatch","mesh":fid})
+        if set(row["doors"])!={d["raw_target"] for d in r["doors"]}:issues.append({"code":"nvci-door-mismatch","mesh":fid})
     return {"valid_known_fields":not issues,"issues":issues,"meshes":len(parsed),"doors":len(doors),
-            "registered":len(registered),"opaque_navi_fields":index["opaque"],
+            "registered":len(registered),"grid_order":grid_order,"require_connections":require_connections,"opaque_navi_fields":index["opaque"],
             "review_required":["NAVI opaque NVMI suffix and NVCI semantics","independent native grid and GECK finalization"],
             "status":"review only; no playable ESP certification"}
 

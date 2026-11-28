@@ -46,8 +46,8 @@ def mount(parent):
         if not id:return
         try:set_project(remove(project(),id))
         except (ValueError,KeyError,TypeError) as e:messagebox.showerror("Record project",str(e))
-    def open_project():
-        p=filedialog.askopenfilename(filetypes=[("JSON","*.json")])
+    def open_project(dropped=None):
+        p=dropped if dropped is not None else filedialog.askopenfilename(filetypes=[("JSON","*.json")])
         if p:
             try:
                 from .quest_editor import load
@@ -98,3 +98,5 @@ def mount(parent):
         except (ValueError,OSError) as e:messagebox.showerror("Record comparison",str(e))
     for label,fn in (("Open",open_project),("Save draft",save_project),("Add record",add),("Remove draft record",delete),("Build ESP + ledger",build_project),("Compare plugins",compare_ui)):
         ttk.Button(bar,text=label,command=fn).pack(side="left")
+    from .drop_import import editor_drop
+    editor_drop(parent,[([".json"],open_project,False)])

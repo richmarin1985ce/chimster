@@ -33,8 +33,8 @@ def mount(parent):
     def book():
         import re
         return Book(**{k:v.get() for k,v in fields.items()},pages=tuple(re.split(r"\n---PAGE---\n",text.get("1.0","end-1c")))).validate()
-    def open_book():
-        p=filedialog.askopenfilename(filetypes=[("Book project","*.json")])
+    def open_book(dropped=None):
+        p=dropped if dropped is not None else filedialog.askopenfilename(filetypes=[("Book project","*.json")])
         if not p:return
         try:
             b=load(p)
@@ -42,9 +42,9 @@ def mount(parent):
             for k,v in fields.items():v.set(getattr(b,k))
             text.delete("1.0","end");text.insert("1.0","\n---PAGE---\n".join(b.pages))
         except (OSError,ValueError,TypeError) as e:messagebox.showerror("Book",str(e))
-    def import_native():
+    def import_native(dropped=None):
         from .fnv_content import read_books
-        p=filedialog.askopenfilename(filetypes=[("New Vegas plugin","*.esp *.esm")])
+        p=dropped if dropped is not None else filedialog.askopenfilename(filetypes=[("New Vegas plugin","*.esp *.esm")])
         if not p:return
         try:rows=read_books(p)
         except (OSError,ValueError,KeyError) as e:
@@ -124,3 +124,5 @@ def mount(parent):
         except (ValueError,TypeError,OSError) as e:messagebox.showerror("Book",str(e))
     bar=ttk.Frame(parent);bar.pack(fill="x")
     for label,cmd in [("Open",open_book),("Import FNV",import_native),("Validate",validate),("Page preview",page_preview),("Export project + preview",write),("Export FNV ESP",native)]:ttk.Button(bar,text=label,command=cmd).pack(side="left")
+    from .drop_import import editor_drop
+    editor_drop(parent,[([".json"],open_book,False),([".esp",".esm"],import_native,False)])

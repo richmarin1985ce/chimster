@@ -66,9 +66,9 @@ def mount(frame, game):
             status.set("Modified" if source()!=saved["text"] else "Saved copy")
     editor.bind("<<Modified>>",modified)
     selector.bind("<<ComboboxSelected>>",schedule)
-    def open_source():
+    def open_source(dropped=None):
         if source() and source()!=saved["text"] and not messagebox.askyesno("Discard unsaved edits?","Open another script and discard unsaved edits?"):return
-        p=filedialog.askopenfilename(filetypes=[("Script sources","*.psc *.lua *.txt *.gek *.geck *.obscript *.mwscript"),("All files","*")])
+        p=dropped if dropped is not None else filedialog.askopenfilename(filetypes=[("Script sources","*.psc *.lua *.txt *.gek *.geck *.obscript *.mwscript"),("All files","*")])
         if not p:return
         try:
             path=Path(p)
@@ -361,6 +361,62 @@ def mount(frame, game):
         else:
             donor=filedialog.askopenfilename(title="Select same-name compiled donor plugin")
             if donor:run_tool(lambda:attach(plugin,donor,destination,target))
+    def vmad_workbench():
+        if busy[0]:return
+        from .vmad_plugin import inspect,stage_mutation
+        from .vmad import GAMES,TYPES
+        from tkinter import simpledialog
+        target=game.get()
+        if target not in GAMES:status.set("Select a Skyrim-family game");return
+        path=filedialog.askopenfilename(title="Choose plugin",filetypes=[("Plugins","*.esp *.esm *.esl")])
+        if not path:return
+        fid=simpledialog.askstring("Record","Disk FormID (0x...)",parent=frame)
+        if not fid:return
+        try:
+            form=int(fid,0);snapshot=inspect(path,target,form);report(snapshot)
+        except (OSError,ValueError) as exc:messagebox.showerror("VMAD inspection",str(exc));return
+        action=simpledialog.askstring("VMAD","inspect, attach, detach, add-property, set-property, remove-property",initialvalue="inspect",parent=frame)
+        if action not in ("attach","detach","add-property","set-property","remove-property"):return
+        script=simpledialog.askstring("Script","Script identifier",parent=frame)
+        if not script:return
+        kwargs={}
+        if action=="attach":
+            pex=filedialog.askopenfilename(title="Choose matching compiled PEX",filetypes=[("PEX","*.pex")])
+            if not pex:return
+            kwargs["pex"]=pex
+        if action.endswith("property"):
+            prop=simpledialog.askstring("Property","Property identifier",parent=frame)
+            if not prop:return
+            kwargs["property_name"]=prop
+            if action=="add-property":
+                typ=simpledialog.askinteger("Property type","Type ID: "+", ".join(f"{k}={v}" for k,v in TYPES.items()),parent=frame)
+                if typ not in TYPES:return
+                kwargs["type_id"]=typ
+            if action in ("add-property","set-property"):
+                value=simpledialog.askstring("Value","JSON value (object references are decimal disk FormIDs)",parent=frame)
+                if value is None:return
+                try:kwargs["value"]=json.loads(value)
+                except ValueError as exc:messagebox.showerror("Property value",str(exc));return
+        folder=filedialog.askdirectory(title="Choose separate staging directory")
+        if not folder:return
+        destination=Path(folder)/Path(path).name
+        if not messagebox.askyesno("Stage VMAD","Write a new same-name plugin copy? Runtime compatibility is unverified."):return
+        run_tool(lambda:stage_mutation(path,destination,target,form,action,script,snapshot["plugin_sha256"],snapshot["sha256"],**kwargs))
+    def compiler_smoke():
+        if busy[0]:return
+        from .compiler_profiles import load,smoke
+        cfg=filedialog.askopenfilename(title="Select pinned compiler profile",filetypes=[("JSON","*.json")])
+        if not cfg:return
+        try:
+            settings=load(cfg)
+            if settings["game"]!=game.get():raise ValueError("Profile game differs")
+        except (OSError,ValueError,KeyError,TypeError) as exc:messagebox.showerror("Compiler smoke test",str(exc));return
+        out=filedialog.asksaveasfilename(title="Name a NEW smoke-test build directory")
+        if not out:return
+        if messagebox.askyesno("Compiler smoke test","Execute the selected trusted local compiler on an original test script?"):
+            run_tool(lambda:smoke(cfg,out,execute=True))
+    ttk.Button(compiler_bar,text="Native VMAD",command=vmad_workbench).pack(side="left")
+    ttk.Button(compiler_bar,text="Compiler smoke test",command=compiler_smoke).pack(side="left")
     for label,fn in [("Discover compiler",discover_compiler),("Build with profile",profile_build),
                      ("Legacy handoff",legacy_handoff),("Runtime log",runtime_log)]:
         ttk.Button(compiler_bar,text=label,command=fn).pack(side="left")
@@ -376,3 +432,5 @@ def mount(frame, game):
         return "break"
     editor.bind("<Control-z>",undo)
     refresh()
+    from .drop_import import editor_drop
+    editor_drop(frame,[([".psc",".lua",".txt",".gek",".geck",".obscript",".mwscript"],open_source,False)])

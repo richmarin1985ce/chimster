@@ -31,17 +31,17 @@ def mount(parent,game):
         if not d:return
         n=simpledialog.askstring("Project","Project ID",initialvalue=Path(d).name)
         if n:current=Project.create(d,n,game.get());refresh()
-    def open_project():
+    def open_project(dropped=None):
         nonlocal current
-        d=filedialog.askdirectory(title="Open project")
+        d=dropped if dropped is not None else filedialog.askdirectory(title="Open project")
         if d:current=Project(d);refresh()
     def selected():
         s=table.selection()
         if not current or not s:raise ValueError("select an artifact")
         return s[0]
-    def add():
+    def add(dropped=None):
         if not current:raise ValueError("open a project first")
-        p=filedialog.askopenfilename()
+        p=dropped if dropped is not None else filedialog.askopenfilename()
         if not p:return
         k=simpledialog.askstring("Artifact","Stable artifact ID",initialvalue=Path(p).stem)
         if not k:return
@@ -81,3 +81,5 @@ def mount(parent,game):
         refresh();messagebox.showinfo("Build",str(r))
     for t,fn in (("New",create),("Open",open_project),("Refresh",refresh),("Import",add),("Export",export),("Remove",remove),("Rollback",rollback),("Verify",verify),("Build plugin",build)):
         ttk.Button(bar,text=t,command=guard(fn)).pack(side="left")
+    from .drop_import import editor_drop
+    editor_drop(parent,[(["<directory>"],open_project,False),([".esp",".esm",".esl",".json",".nif",".dds",".psc",".wav",".fuz",".obj",".xml"],add,False)])

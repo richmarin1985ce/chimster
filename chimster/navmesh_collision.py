@@ -64,9 +64,12 @@ def union_area(polys):
     return sum((b-a)*length((a+b)*.5) for a,b in zip(xs,xs[1:]) if b-a>EPS)
 
 def generate_collision(spec,*,grid_origin=None,window=None):
-    if spec.get("schema")!=1 or set(spec)-{"schema","vertices","triangles","spacing","agent","min_region_cells"}:
+    if spec.get("schema")!=1 or set(spec)-{"schema","vertices","triangles","spacing","agent","min_region_cells","solid_obstacles"}:
         raise ValueError("invalid collision navigation source")
+    from .collision_obstacles import normalize,overlaps
+    solids=normalize(spec.get("solid_obstacles",[]))
     vs=[point(v) for v in spec["vertices"]];ts=spec["triangles"]
+    if not ts and solids:raise ValueError("collision asset has only solid obstacles; combine with floor geometry")
     if not vs or not ts or len(vs)>500000 or len(ts)>500000:raise ValueError("collision mesh size limit")
     s=num(spec["spacing"],.01,1e5)
     agent=spec.get("agent",{})
@@ -119,10 +122,14 @@ def generate_collision(spec,*,grid_origin=None,window=None):
                 reject["partial_surface"]+=1;continue
             planes.append(plane)
         if planes:supported[k]=planes
+    if len(solids)*sum(map(len,supported.values()))>10000000:raise ValueError("solid obstacle work limit")
     for k,planes in sorted(supported.items()):
         spans=[];faces=columns[k]
         for plane in planes:
             z=corners(k,plane);low,high=min(z),max(z)
+            x0=ox+k[0]*s;y0=oy+k[1]*s
+            if any(overlaps(o,(x0-radius,y0-radius,low+EPS),(x0+s+radius,y0+s+radius,high+height-EPS)) for o in solids):
+                reject["solid_obstacle"]+=1;continue
             # Other surfaces (including vertical walls) are conservative obstacles.
             blocked=False
             for other,poly in faces:
@@ -210,6 +217,11 @@ def generate_collision(spec,*,grid_origin=None,window=None):
                 low=max(z[ea[0]],z[ea[1]],w[eb[0]],w[eb[1]])
                 half=max(radius,EPS);sweep=s*.5+half
                 window=((axis,seam-sweep,1),(axis,seam+sweep,-1),(along,center-half,1),(along,center+half,-1),(2,low+EPS,1),(2,low+height-EPS,-1))
+                sweep_lo=[0.,0.,low+EPS];sweep_hi=[0.,0.,low+height-EPS]
+                sweep_lo[axis]=seam-sweep;sweep_hi[axis]=seam+sweep
+                sweep_lo[along]=center-half;sweep_hi[along]=center+half
+                if any(overlaps(o,sweep_lo,sweep_hi) for o in solids):
+                    reject["step_solid_obstacle"]+=1;continue
                 blocked=False
                 reach_cells=math.ceil(sweep/s)+1
                 for yy in range(y-reach_cells,y+reach_cells+1):

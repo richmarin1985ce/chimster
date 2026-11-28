@@ -25,8 +25,8 @@ def mount(parent):
         try:
             r=validate(project());status.set(json.dumps({k:v for k,v in r.items() if k!="localization"},indent=2))
         except (ValueError,KeyError,TypeError) as e:messagebox.showerror("Quest",str(e))
-    def open_project():
-        p=filedialog.askopenfilename(filetypes=[("Quest JSON","*.json")])
+    def open_project(dropped=None):
+        p=dropped if dropped is not None else filedialog.askopenfilename(filetypes=[("Quest JSON","*.json")])
         if p:
             try:editor.delete("1.0","end");editor.insert("1.0",json.dumps(load(p),indent=2))
             except (OSError,ValueError) as e:messagebox.showerror("Quest",str(e))
@@ -45,3 +45,5 @@ def mount(parent):
         except (ValueError,KeyError,TypeError) as e:messagebox.showerror("Quest",str(e))
     bar=ttk.Frame(parent);bar.pack(fill="x")
     for label,fn in (("Open",open_project),("Save as",write),("Validate",check),("Playtest",start),("Visual graph",graph),("Check states",exact)):ttk.Button(bar,text=label,command=fn).pack(side="left")
+    from .drop_import import editor_drop
+    editor_drop(parent,[([".json"],open_project,False)])

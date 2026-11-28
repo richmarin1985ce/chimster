@@ -35,7 +35,9 @@ class PBR:
                 from .panda_cascades import Cascades,shader
                 from panda3d.core import ShaderAttrib
                 self.cascades=Cascades(preview,effects)
-                preview.root.set_attrib(ShaderAttrib.make(shader(self.pipeline)))
+                preview.root.set_shader(shader(self.pipeline))
+                self.pipeline._set_env_map_uniforms()
+                preview.root.set_shader_input("global_shadow_bias",effects.shadow_bias)
                 self.cascades.update();self.cascades.bind(preview.root)
                 self.pipeline.verify_shaders()
             if volume or effects.ao_strength:

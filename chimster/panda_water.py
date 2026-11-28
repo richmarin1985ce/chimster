@@ -17,7 +17,8 @@ uniform sampler2D reflection_tex,refraction_tex,refraction_depth;
 uniform float nearp,farp,absorption,foam_strength;
 uniform float use_reflection,use_refraction;
 uniform vec3 eye;
-uniform vec3 water_color;
+uniform vec3 water_color,deep_color;
+uniform float water_opacity,water_reflectivity;
 uniform vec3 sky_color;
 uniform vec3 sun;
 uniform float time;
@@ -45,14 +46,15 @@ void main(){
    float thickness=bottom>=.999999?40.0:max(0.0,linear_depth(bottom)-linear_depth(gl_FragCoord.z));
    float optical=thickness/max(.2,abs(dot(v,vec3(0,0,1))));
    vec3 transmitted=texture(refraction_tex,clamp(screen+offset,.002,.998)).rgb;
-   body=mix(transmitted,water_color,1.0-exp(-absorption*optical));
+   vec3 tint=mix(water_color,deep_color,1.0-exp(-absorption*optical));
+   body=mix(transmitted,tint,1.0-exp(-absorption*optical*max(.01,water_opacity/.82)));
    foam=(1.0-smoothstep(.08,.7,thickness))*smoothstep(-.35,.6,a*b)*foam_strength;
  }
 
- vec3 rgb=mix(body,sky,fresnel)+vec3(sparkle*.65);
+ vec3 rgb=mix(body,sky,fresnel*water_reflectivity)+vec3(sparkle*.65*water_reflectivity);
  rgb=mix(rgb,vec3(.85,.92,.90),foam);
  float fog=1.0-exp(-fog_density*length(eye-world));
- fragColor=vec4(mix(rgb,sky_color,fog),use_refraction>.5?1.0:.82);
+ fragColor=vec4(mix(rgb,sky_color,fog),use_refraction>.5?1.0:water_opacity);
 }"""
 
 def create_water(root,effects):
@@ -71,6 +73,9 @@ def create_water(root,effects):
     from panda3d.core import BitMask32
     node.hide(BitMask32.bit(2))
     node.set_shader_input("water_color",effects.water_color)
+    node.set_shader_input("deep_color",effects.water_deep_color or effects.water_color)
+    node.set_shader_input("water_opacity",effects.water_opacity)
+    node.set_shader_input("water_reflectivity",effects.water_reflectivity)
     node.set_shader_input("sky_color",effects.fog_color)
     node.set_shader_input("fog_density",effects.fog_density)
     node.set_shader_input("absorption",effects.water_absorption)

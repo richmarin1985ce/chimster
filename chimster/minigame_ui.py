@@ -13,8 +13,8 @@ def mount(parent):
     editor.insert("1.0","#######\n#S.C.E#\n#######")
     def project():
         return validate({"schema":1,"id":ident.get(),"title":title.get(),"map":editor.get("1.0","end-1c").splitlines()})
-    def open_game():
-        p=filedialog.askopenfilename(filetypes=[("Minigame project","*.json")])
+    def open_game(dropped=None):
+        p=dropped if dropped is not None else filedialog.askopenfilename(filetypes=[("Minigame project","*.json")])
         if not p:return
         try:
             data=load(p);ident.set(data["id"]);title.set(data["title"]);editor.delete("1.0","end");editor.insert("1.0","\n".join(data["map"]))
@@ -30,3 +30,5 @@ def mount(parent):
         except (OSError,ValueError) as e:messagebox.showerror("Minigame",str(e))
     bar=ttk.Frame(parent);bar.pack(fill="x")
     for label,fn in (("Open project",open_game),("Validate",check),("Export playable preview",write)):ttk.Button(bar,text=label,command=fn).pack(side="left")
+    from .drop_import import editor_drop
+    editor_drop(parent,[([".json"],open_game,False)])

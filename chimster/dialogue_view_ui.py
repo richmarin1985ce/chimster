@@ -34,9 +34,9 @@ def mount(parent):
     def select(event=None):
         nonlocal selection
         if lst.curselection():selection=report["nodes"][lst.curselection()[0]]["id"];draw()
-    def open_view():
+    def open_view(dropped=None):
         nonlocal path,report,positions,selection
-        p=filedialog.askopenfilename(filetypes=[("Dialogue view","*.xml")])
+        p=dropped if dropped is not None else filedialog.askopenfilename(filetypes=[("Dialogue view","*.xml")])
         if not p:return
         try:
             r=inspect(parse(p));path=Path(p);report=r;positions={};selection=None
@@ -65,3 +65,5 @@ def mount(parent):
     lst.bind("<<ListboxSelect>>",select);canvas.bind("<Configure>",lambda e:draw())
     bar=ttk.Frame(parent);bar.pack(fill="x")
     for label,fn in (("Open XML",open_view),("Move selected node",move),("Save staged XML",save)):ttk.Button(bar,text=label,command=fn).pack(side="left")
+    from .drop_import import editor_drop
+    editor_drop(parent,[([".xml"],open_view,False)])

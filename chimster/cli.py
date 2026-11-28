@@ -85,10 +85,16 @@ def build_parser():
  a=s.add_parser('navmesh-adaptive'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--levels',type=int,default=3); a.add_argument('--tile-cells',type=int,default=32); a.add_argument('--triangle-budget',type=int,default=250000); a.add_argument('--policy'); a.add_argument('--previous')
  a=s.add_parser('navmesh-areas'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--policy')
  a=s.add_parser('navmesh-tiled'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--previous'); a.add_argument('--tile-cells',type=int,default=32)
+ a=s.add_parser('navmesh-fo4'); a.add_argument('nif'); a.add_argument('output'); a.add_argument('--unit-scale',type=float,required=True); a.add_argument('--spacing',type=float,required=True); a.add_argument('--radius',type=float,default=0.3); a.add_argument('--height',type=float,default=1.8); a.add_argument('--max-step',type=float,default=0.4); a.add_argument('--max-slope',type=float,default=45)
  a=s.add_parser('navmesh-nif'); a.add_argument('nif'); a.add_argument('output'); a.add_argument('helper'); a.add_argument('--unit-scale',type=float,required=True); a.add_argument('--spacing',type=float,required=True); a.add_argument('--radius',type=float,default=0.3); a.add_argument('--height',type=float,default=1.8); a.add_argument('--max-step',type=float,default=0.4); a.add_argument('--max-slope',type=float,default=45)
  a=s.add_parser('navmesh-simplify'); a.add_argument('project'); a.add_argument('output')
  a=s.add_parser('navmesh-route'); a.add_argument('project'); a.add_argument('start',type=int); a.add_argument('end',type=int); a.add_argument('--closed',action='append',default=[]); a.add_argument('--avoid-area',action='append',default=[])
- a=s.add_parser('navmesh-native-review'); a.add_argument('project')
+ a=s.add_parser('navmesh-native-review'); a.add_argument('project'); a.add_argument('--grid-order',choices=('xy','yx'),default='xy'); a.add_argument('--require-connections',action='store_true')
+ a=s.add_parser('navmesh-verify-stage'); a.add_argument('stage'); a.add_argument('finalized'); a.add_argument('--master',action='append',default=[])
+ a=s.add_parser('navmesh-navi-candidate'); a.add_argument('project'); a.add_argument('output')
+ a=s.add_parser('navmesh-navi-reference'); a.add_argument('master'); a.add_argument('output'); a.add_argument('--mesh',type=lambda x:int(x,0),action='append',required=True)
+ a=s.add_parser('navmesh-navi-inspect'); a.add_argument('fields'); a.add_argument('--grid-order',choices=('xy','yx'),required=True)
+ a=s.add_parser('navmesh-navi-stage'); a.add_argument('stage'); a.add_argument('master'); a.add_argument('output')
  a=s.add_parser('navmesh-registration'); a.add_argument('project')
  a=s.add_parser('navmesh-finalize'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--cell',type=lambda x:int(x,0),required=True); a.add_argument('--version',type=int,required=True); a.add_argument('--divisor',type=int,required=True); a.add_argument('--count-width',type=int,choices=(2,4),required=True); a.add_argument('--bindings')
  a=s.add_parser('navmesh-grid-compare'); a.add_argument('fields'); a.add_argument('--count-width',type=int,choices=(2,4),required=True)
@@ -122,6 +128,7 @@ def build_parser():
  a.add_argument('--reuse',help='Previously completed build directory')
  for opt in ('optimize','release','final','warnings-as-errors'): a.add_argument('--'+opt,action='store_true')
  a=s.add_parser('pex-decompile'); a.add_argument('game'); a.add_argument('compiler'); a.add_argument('source'); a.add_argument('output'); a.add_argument('--execute',action='store_true'); a.add_argument('--timeout',type=int,default=120)
+ a=s.add_parser('fragment-source'); a.add_argument('game'); a.add_argument('script'); a.add_argument('kind',choices=['quest','dialogue']); a.add_argument('input'); a.add_argument('output')
  a=s.add_parser('compiler-smoke'); a.add_argument('profile'); a.add_argument('output'); a.add_argument('--execute',action='store_true'); a.add_argument('--timeout',type=int,default=120)
  a=s.add_parser('vmad-mutate'); a.add_argument('game'); a.add_argument('plugin'); a.add_argument('output'); a.add_argument('form',type=lambda v:int(v,0)); a.add_argument('action',choices=['attach','detach','add-property','set-property','remove-property']); a.add_argument('script'); a.add_argument('plugin_sha256'); a.add_argument('vmad_sha256'); a.add_argument('--property'); a.add_argument('--type-id',type=int); a.add_argument('--value',default='null'); a.add_argument('--pex')
  a=s.add_parser('vmad-inspect'); a.add_argument('game'); a.add_argument('plugin'); a.add_argument('form',type=lambda v:int(v,0))
@@ -175,7 +182,12 @@ def build_parser():
  return p
 
 def main(argv=None):
- n=build_parser().parse_args(argv)
+ import sys
+ args=list(sys.argv[1:] if argv is None else argv)
+ if args and args[0]=='--mcp':
+  from .mcp_bridge import main as mcp_main
+  return mcp_main(args[1:])
+ n=build_parser().parse_args(args)
  try:
   if n.cmd=='ui':
    from .ui import launch
@@ -354,6 +366,10 @@ def main(argv=None):
    result=decompile(n.game,n.compiler,n.source,n.output,execute=n.execute,timeout=n.timeout)
    if n.execute and result['status']!='source-recovered':
     print(json.dumps(result,indent=2)); raise SystemExit(1)
+  elif n.cmd=='fragment-source':
+   from .fragment_source import export
+   if Path(n.input).stat().st_size>2*1024*1024: raise ValueError('fragment input too large')
+   result=export(n.game,n.script,n.kind,json.loads(Path(n.input).read_text(encoding='utf-8')),n.output)
   elif n.cmd=='compiler-smoke':
    from .compiler_profiles import smoke
    result=smoke(n.profile,n.output,execute=n.execute,timeout=n.timeout)
@@ -467,6 +483,15 @@ def main(argv=None):
    bundle=build(load(n.project),previous,n.tile_cells)
    with Path(n.output).open("x",encoding="utf-8") as stream:json.dump(bundle,stream)
    result={"output":n.output,"rebuilt":bundle["rebuilt"],"reused":bundle["reused"],"removed":bundle["removed"],"triangles":len(bundle["mesh"]["triangles"]),"seam_edges":bundle["mesh"]["seam_edges"]}
+  elif n.cmd=='navmesh-fo4':
+   from .fo4_collision import extract
+   from .navmesh_collision import generate_collision
+   from .navmesh_simplify import simplify
+   from pathlib import Path
+   source=extract(n.nif,n.unit_scale)
+   mesh=simplify(generate_collision({"schema":1,**source,"spacing":n.spacing,"agent":{"radius":n.radius,"height":n.height,"max_step":n.max_step,"max_slope":n.max_slope}}))
+   with Path(n.output).open("x",encoding="utf-8") as stream:json.dump(mesh,stream)
+   result={"output":n.output,"triangles":len(mesh["triangles"]),"scope":"experimental optional FO4 native physics backend; portable output"}
   elif n.cmd=='navmesh-nif':
    from .modern_nif import extract_collision
    from .navmesh_collision import generate_collision
@@ -490,7 +515,38 @@ def main(argv=None):
   elif n.cmd=='navmesh-native-review':
    from .navmesh_tiles import load
    from .fnv_navmesh_review import review
-   source=load(n.project);result=review(source["meshes"],source["navi"],source.get("door_backlinks",[]))
+   source=load(n.project);result=review(source["meshes"],source["navi"],source.get("door_backlinks",[]),grid_order=n.grid_order,require_connections=n.require_connections)
+  elif n.cmd=='navmesh-verify-stage':
+   from .fnv_navmesh_stage import review
+   result=review(n.stage,n.finalized,n.master)
+  elif n.cmd=='navmesh-navi-candidate':
+   from .navmesh_tiles import load
+   from .fnv_navi_generate import candidate
+   from pathlib import Path
+   payload=candidate(load(n.project))
+   with Path(n.output).open("x",encoding="utf-8") as stream:json.dump(payload,stream)
+   result={k:v for k,v in payload.items() if k!="fields"};result["output"]=n.output
+  elif n.cmd=='navmesh-navi-reference':
+   from .fnv_navi_reference import extract
+   from pathlib import Path
+   data=extract(n.master,n.mesh)
+   with Path(n.output).open("x",encoding="utf-8") as stream:json.dump(data,stream)
+   result={"output":n.output,"grid_order":data["grid_order"],"grid_order_warning":data["grid_order_warning"],"meshes":data["meshes"]}
+  elif n.cmd=='navmesh-navi-inspect':
+   from .navmesh_tiles import load
+   from .fnv_navi_variants import decode
+   from .fnv_navi import inspect
+   from .fnv_navmesh_review import fields
+   source=fields(load(n.fields));index,_=inspect(source)
+   decoded=[];unparsed=[]
+   for tag,raw in source:
+    if tag!=b"NVMI":continue
+    try:decoded.append(decode(raw,grid_order=n.grid_order))
+    except ValueError as exc:unparsed.append({"reason":str(exc),"prefix_hex":raw[:16].hex()})
+   result={"grid_order":n.grid_order,"entries":decoded,"unparsed":unparsed,"connections":index["connections"],"scope":"candidate native NAVI variant inspection; caller-selected coordinate convention"}
+  elif n.cmd=='navmesh-navi-stage':
+   from .fnv_navi_generate import stage_override
+   result=stage_override(n.stage,n.master,n.output)
   elif n.cmd=='navmesh-registration':
    from .navmesh_tiles import load
    from .fnv_navmesh_review import registration_manifest

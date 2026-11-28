@@ -1,6 +1,6 @@
 # Scripting, audio and localization
 ## Papyrus and legacy scripts
-The fragment inventory tracks script bindings but does not yet generate engine-specific wrappers or edit VMAD. Keep PSC source alongside compiled PEX and preserve generated fragment names/properties. Caprica and Champollion adapters construct external compilation and decompilation commands; they require separately installed versions and appropriate game script libraries. Native compilation has not been tested in actual games. TES3 and GECK script languages are distinct from Papyrus and OpenMW Lua.
+The fragment inventory tracks script bindings. Skyrim quest/dialogue source drafts and bounded plain VMAD editing are now available; native fragment metadata is not yet written. Keep PSC source alongside compiled PEX and preserve generated fragment names/properties. Caprica and Champollion adapters construct external compilation and decompilation commands; they require separately installed versions and appropriate game script libraries. Native compilation has not been tested in actual games. TES3 and GECK script languages are distinct from Papyrus and OpenMW Lua.
 
 ### Staged Papyrus builds (Section 15)
 Use an independently installed trusted Creation Kit compiler or Caprica, plus the appropriate local game script libraries and flags. No compiler binaries or proprietary scripts are bundled. Preview is the default:
@@ -95,6 +95,20 @@ Discover candidate compilers, source roots and flag files using the selected ins
 Profiles reject changed executable or flag hashes and never automatically substitute a detected compiler. Compiler discovery, profile builds, legacy inspect/prepare/attach and offline runtime log analysis are available in the Script editor. Profile creation currently uses CLI. Runtime analysis groups timestamped errors/warnings and recognized Papyrus stack frames; it is not a live debugger. The original legacy editor is still required to generate compiled bytecode.
 
 Single-file builds fingerprint PSC and FLG import files before and after compilation, reject detected errors despite a zero process exit code, and recheck the published artifact hash. Symlink entries in source trees are rejected and the inventory is bounded. Fingerprinting detects changes but does not isolate external tools from concurrent filesystem changes; compiler DLLs and environment remain outside the fingerprint. Large libraries incur hashing overhead. Compiler option definitions reviewed against https://open-papyrus.github.io/docs/Creation_Kit/Fallout_4/Compiler_Reference.html and https://github.com/Orvid/Caprica/blob/master/Caprica/main_options.cpp. Tests committed but execution deferred; installed compiler, retail plugin and engine verification remain open.
+
+### Native attachments and compiler smoke tests
+The Script editor's Native VMAD action and vmad-mutate CLI support adding/removing a script, adding/removing a property, and assigning supported scalar and array values. A matching PEX filename and family header are required for attachment. For a record without VMAD, creation is restricted to selected base-record families with leading EDID; placed reference creation is not enabled. Format 2 non-alias object writes require a null value or a matching existing non-deleted disk FormID in the same plugin. Master-only references, alias metadata, type checking against the PEX property declarations, Fallout 4 VMAD and fragment tables remain unsupported. The original plugin is never overwritten.
+
+    python -m chimster compiler-smoke compiler.json smoke-output --execute
+
+The smoke test uses a minimal original Papyrus function and the pinned toolchain. It is a real compile action when invoked with an installed compiler, not a runtime test. No actual compiler execution was performed during implementation; mocked regression fixtures were added.
+
+### Quest and dialogue fragment source drafts
+Generate a Skyrim-family PSC wrapper from a JSON list of explicit event/function/body entries. Example entry: {"event":"stage 10","function":"Fragment_0","body":"SetStage(20)"}. Choose the exact script and function identifiers from the intended Creation Kit binding.
+
+    python -m chimster fragment-source skyrimse QF_Demo quest fragments.json QF_Demo.psc
+
+Dialogue drafts use TopicInfo and a speaker parameter. Quest drafts use Quest. Generated wrappers are source only; native quest/dialogue fragment tables and alias links must still be produced and verified in the Creation Kit. No generated wrapper is automatically attached to a quest or dialogue record. Tests committed; execution deferred.
 
 ## Voice
 The formats module packs and unpacks supported FUZ containers. A FUZ is not a speech synthesizer: it contains separate lip-sync and audio payloads. XWM encoding, actual lip-sync generation and Wwise conversion remain unimplemented. Do not republish extracted game voice assets.
