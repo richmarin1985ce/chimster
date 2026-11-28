@@ -123,6 +123,9 @@ Added convex collision core extraction and manifold reconstruction (three isolat
 ### Native navigation staging and collision pending items
 Added opt-in interior NAVM ESP staging, XXXX framing, stable mesh IDs, native NVDP/XNDP triangle bindings, reciprocal index diagnostics and read-only GECK-finalized-copy review. Skyrim compressed no-transform sentinel and quaternion transforms now supported in source; optional Fallout 4 native physics backend handles restricted static identity-root triangle meshes and compound transforms. Native bridge and backend integration unverified; full suite blocked by local GitHub DNS, no actual GECK execution. Referenced compressed chunks, additional primitives, fully independent NAVI generation and native runtime verification still open. Existing milestone estimates unchanged.
 
+### Pending native AutoNav continuation
+Added ordinary non-island interior NVMI/NVCI generation, counted connection reference decoding, candidate master-NAVI extension ESP copy (exactly FalloutNV.esm, new interior cells, preserve all base registrations), reciprocal seam/door checks and NVCI graph review. Added obstruction-only sphere/capsule/cylinder/multisphere conservative bounds to Nifly and optional FO4 sphere/capsule adapter; raster/stair filtering and incremental tile fingerprint integration. Referenced compressed chunks remain unsupported; new native chunk inventory command aids fixture research. Five isolated Python codec/bounds tests passed; full repository and native bridge tests unexecuted due GitHub DNS. Exterior/island/preferred navigation, master topology edits, independent native fixtures and game-runtime certification remain open. No score change.
+
 ## Critical path
 1. Stable project FormID allocation, typed native record schema and dependency-safe edits.
 2. Integrated native interior cells, architectural assets, room/portal/trigger volumes, placed references and collision.
