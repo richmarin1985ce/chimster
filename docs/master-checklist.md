@@ -117,6 +117,9 @@ Added bounded globally aligned resolution trials (finest nonempty candidate with
 ### Native navigation finalization and collision extraction
 Added native NAVM candidate generation of counts, geometry, edge/door flags, cover indices, explicit external/door bytes and configurable conservative spatial grid; local reference comparison and review gates. Read-only NAVI prefix inspection and opt-in cross-record registration, external reciprocal link and door backlink diagnostics. Expanded FO3/FNV Nifly collision extraction for rigid-body quaternion and nested proper child rotation. Native helper rebuild, independent grid and NAVI unknown data verification, actual playable ESP finalization, more collision families and runtime tests remain outstanding. Synthetic test fixtures committed but not executed; local GitHub DNS failed. Existing milestone percentages unchanged.
 
+### Native collision and registration review continuation
+Added convex collision core extraction and manifold reconstruction (three isolated local Python fixtures passed), experimental Skyrim static compressed mesh chunks/strips/big triangle reader, and native candidate batch review with reciprocal geometric seams, NAVI registration/location/grid checks and door backlink inventory. Registration manifests carry candidate payload fingerprints; no invented opaque NAVI fields. Native helper compilation, compressed/convex retail fixtures, unknown NAVI suffix/NVCI generation and playable export remain unverified. Full integration regressions not executed; no milestone score change.
+
 ## Critical path
 1. Stable project FormID allocation, typed native record schema and dependency-safe edits.
 2. Integrated native interior cells, architectural assets, room/portal/trigger volumes, placed references and collision.
