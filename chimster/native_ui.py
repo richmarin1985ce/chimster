@@ -64,6 +64,26 @@ def mount(parent, game=None):
         key=s.rows.get(path,{}).get("key")
         if key is None:raise ValueError("no persistent identity")
         show(s.review(key,reverse))
+    def validate():
+        s=state["session"]
+        if s is None:raise ValueError("Open a plugin first")
+        issues=s.validate()
+        counts={}
+        for issue in issues:counts[issue[0]]=counts.get(issue[0],0)+1
+        show({"profile":s.profile,"records":len(s.rows),"counts":counts,"issues":issues,
+              "note":"No diagnostics does not certify engine compatibility."})
+    def load_masters():
+        s=state["session"]
+        if s is None:raise ValueError("Open a plugin first")
+        if s.slots is None:raise ValueError("TES3 master indexing not supported yet")
+        directory=filedialog.askdirectory(title="Choose plugin master directory")
+        if not directory:return
+        from .native_master_index import index_masters
+        types,report=index_masters(s.profile,Path(directory),s.slots.names[:-1])
+        candidate=NativeSession(s.profile,s.data,s.slots,types)
+        state["session"]=candidate
+        refresh()
+        show({"master_index":report,"external_types":len(types),"diagnostics":candidate.validate()})
     def export():
         s=state["session"];source=state["source"]
         if s is None:raise ValueError("Open a plugin first")
@@ -75,5 +95,7 @@ def mount(parent, game=None):
     ttk.Button(bar,text="Open plugin",command=guard(open_file)).pack(side="left")
     ttk.Button(bar,text="Dependencies",command=guard(lambda:review(False))).pack(side="left")
     ttk.Button(bar,text="Dependents",command=guard(lambda:review(True))).pack(side="left")
+    ttk.Button(bar,text="Load masters",command=guard(load_masters)).pack(side="left")
+    ttk.Button(bar,text="Validate",command=guard(validate)).pack(side="left")
     ttk.Button(bar,text="Export staged copy",command=guard(export)).pack(side="left")
     tree.bind("<<TreeviewSelect>>",lambda event:guard(inspect)() if tree.selection() else None)
