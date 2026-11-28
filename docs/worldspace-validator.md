@@ -7,3 +7,5 @@ This initial validator is New Vegas-specific; no claim of retail-game verificati
 References: https://tes5edit.github.io/fopdoc/FalloutNV/Groups.html and https://stepmodifications.org/wiki/Guide:Plugins_Files
 
 Optional `--quest-links` expands the same merged-load-order pass to exact generated New Vegas QUST/DIAL/INFO schemas. It validates typed references, topic group ownership, and previous-response ownership. Unsupported quest layouts are reported as opaque warnings rather than treated as fully verified; the default world-only scope is unchanged. This is not full retail quest or script certification.
+
+The generated interior writer emits bounded New Vegas CELL/REFR groups with a stable allocation ledger, separate persistent and temporary child buckets, and local or master-bound statics. The validator reports winning interior cell and persistent reference counts. The staged remapper accepts the generated subset, checks interior FormID block/subblock labels and persistence flags, and retains existing rejection of unsupported layouts.
