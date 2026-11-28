@@ -1,0 +1,232 @@
+"""Desktop Cell View: worldspaces, cells, placements and a bounded grid."""
+import tkinter as tk
+from tkinter import ttk, filedialog, messagebox
+from pathlib import Path
+from pprint import pformat
+from .world_browser import Browser, label
+from .native_profiles import canonical_profile
+
+
+def mount(parent, game):
+    state = {"paths": [], "index": None, "world": None, "cell": None,
+             "worlds": [], "cells": {}, "objects": {}, "center": (0, 0)}
+    status = tk.StringVar(value="New Vegas only. Add plugins in master-first load order.")
+    query = tk.StringVar()
+    object_query = tk.StringVar()
+    world_choice = tk.StringVar()
+    gx, gy = tk.StringVar(value="0"), tk.StringVar(value="0")
+    toolbar = ttk.Frame(parent)
+    toolbar.pack(fill="x")
+    plugins = tk.Listbox(parent, height=3, exportselection=False)
+    plugins.pack(fill="x")
+    def add():
+        for p in filedialog.askopenfilenames(filetypes=[("New Vegas plugins", "*.esm *.esp")]):
+            if p not in state["paths"]:
+                state["paths"].append(p)
+        update_paths()
+    def update_paths():
+        plugins.delete(0, "end")
+        for p in state["paths"]:
+            plugins.insert("end", Path(p).name)
+        state["index"] = None
+        worlds.configure(values=[])
+        world_choice.set("")
+        clear_cells()
+        status.set("Load order changed; rebuild the index.")
+    def move(delta):
+        if not plugins.curselection():
+            return
+        i = plugins.curselection()[0]
+        j = i + delta
+        if 0 <= j < len(state["paths"]):
+            state["paths"][i], state["paths"][j] = state["paths"][j], state["paths"][i]
+            update_paths()
+            plugins.selection_set(j)
+    def remove():
+        if plugins.curselection():
+            state["paths"].pop(plugins.curselection()[0])
+            update_paths()
+    def load():
+        try:
+            if canonical_profile(game.get()) != "new-vegas":
+                raise ValueError("Select New Vegas in the main game selector.")
+            if not state["paths"]:
+                raise ValueError("Add plugins first.")
+            index = Browser.open(state["paths"])
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            messagebox.showerror("Worldspace browser", str(exc))
+            return
+        state["index"] = index
+        state["worlds"] = [None] + [r["key"] for r in index.matching(index.worlds.values(), "")]
+        worlds.configure(values=["Interiors / unassigned"] +
+                         [index.name(index.worlds[k]) + " [" + label(k) + "]" for k in state["worlds"][1:]])
+        worlds.current(0)
+        select_world()
+        status.set(f"{len(index.worlds)} worldspaces; {sum(map(len,index.cells.values()))} cells; "
+                   f"{len(index.issues)} hierarchy/coordinate warnings")
+    for name, cmd in (("Add plugins", add), ("Up", lambda: move(-1)), ("Down", lambda: move(1)),
+                      ("Remove", remove), ("Build index", load)):
+        ttk.Button(toolbar, text=name, command=cmd).pack(side="left")
+    selectors = ttk.Frame(parent)
+    selectors.pack(fill="x", pady=4)
+    ttk.Label(selectors, text="World Space").pack(side="left")
+    worlds = ttk.Combobox(selectors, textvariable=world_choice, state="readonly", width=45)
+    worlds.pack(side="left", fill="x", expand=True)
+    ttk.Label(selectors, text="Filter cells").pack(side="left")
+    ttk.Entry(selectors, textvariable=query, width=18).pack(side="left")
+    pane = ttk.Panedwindow(parent, orient="horizontal")
+    pane.pack(fill="both", expand=True)
+    left, right = ttk.Frame(pane), ttk.Frame(pane)
+    pane.add(left, weight=1)
+    pane.add(right, weight=2)
+    def table(parent, columns):
+        frame = ttk.Frame(parent)
+        frame.pack(fill="both", expand=True)
+        tree = ttk.Treeview(frame, columns=[c[0] for c in columns], show="headings", selectmode="browse", height=8)
+        for key, name, width in columns:
+            tree.heading(key, text=name)
+            tree.column(key, width=width, minwidth=45)
+        scroll = ttk.Scrollbar(frame, orient="vertical", command=tree.yview)
+        tree.configure(yscrollcommand=scroll.set)
+        scroll.pack(side="right", fill="y")
+        tree.pack(fill="both", expand=True)
+        return tree
+    cells = table(left, (("name","Cell",150),("grid","X, Y",75),("count","Records",55),("provider","Winning file",100)))
+    nav = ttk.Frame(left)
+    nav.pack(fill="x")
+    ttk.Label(nav, text="X").pack(side="left")
+    ttk.Entry(nav, textvariable=gx, width=6).pack(side="left")
+    ttk.Label(nav, text="Y").pack(side="left")
+    ttk.Entry(nav, textvariable=gy, width=6).pack(side="left")
+    def jump():
+        try:
+            state["center"] = (int(gx.get()), int(gy.get()))
+        except ValueError:
+            status.set("Enter integer cell coordinates.")
+            return
+        draw_grid()
+        index = state["index"]
+        if index is not None:
+            candidates = index.coordinates.get((state["world"], state["center"]), ())
+            if len(candidates) == 1:
+                select_key(candidates[0]["key"])
+            elif candidates:
+                status.set("Multiple cells occupy these coordinates; select one in the list.")
+    ttk.Button(nav, text="Go", command=jump).pack(side="left")
+    canvas = tk.Canvas(left, height=200, background="#20252c", highlightthickness=0)
+    canvas.pack(fill="x")
+    ttk.Label(right, text="Cell objects / LAND / NAVM").pack(anchor="w")
+    ttk.Entry(right, textvariable=object_query).pack(fill="x")
+    objects = table(right, (("name","Object",150),("type","Type",55),("base","Base",110),("bucket","Bucket",80),("plugin","Winning file",100)))
+    details = tk.Text(right, height=8, wrap="word", state="disabled")
+    details.pack(fill="both", expand=True)
+    ttk.Label(parent, textvariable=status).pack(anchor="w")
+    def show(value):
+        details.configure(state="normal")
+        details.delete("1.0", "end")
+        details.insert("1.0", pformat(value, width=80))
+        details.configure(state="disabled")
+    def clear_objects():
+        objects.delete(*objects.get_children())
+        state["objects"].clear()
+    def clear_cells():
+        cells.delete(*cells.get_children())
+        state["cells"].clear()
+        state["cell"] = None
+        clear_objects()
+        show({})
+        draw_grid()
+    def select_world(event=None):
+        i = worlds.current()
+        if state["index"] is None or i < 0:
+            return
+        state["world"] = state["worlds"][i]
+        state["center"] = (0, 0)
+        rows = state["index"].cell_rows(state["world"])
+        grids = [r["grid"] for r in rows if "grid" in r]
+        if grids:
+            state["center"] = min(grids, key=lambda p: p[0]*p[0]+p[1]*p[1])
+        gx.set(str(state["center"][0]))
+        gy.set(str(state["center"][1]))
+        refresh_cells()
+    def refresh_cells(*_):
+        clear_cells()
+        index = state["index"]
+        if index is None:
+            return
+        for row in index.cell_rows(state["world"], query.get()):
+            key = row["key"]
+            grid = row.get("grid")
+            position = ", ".join(map(str,grid)) if grid is not None else ("Interior" if row.get("interior") else "Persistent / no grid")
+            item = cells.insert("", "end", values=(index.name(row), position, len(index.children.get(key,())),row["plugin"]))
+            state["cells"][item] = key
+        draw_grid()
+    def refresh_objects(*_):
+        clear_objects()
+        index = state["index"]
+        if index is None or state["cell"] is None:
+            return
+        for row in index.object_rows(state["cell"], object_query.get()):
+            base = index.active.get(row.get("base"))
+            bucket = {8:"Persistent",9:"Temporary",10:"Distant"}.get(row["bucket"],"")
+            item = objects.insert("", "end", values=(index.name(row),row["signature"],
+                index.name(base) if base else label(row.get("base")),bucket,row["plugin"]))
+            state["objects"][item] = row
+    def select_key(key):
+        for item, candidate in state["cells"].items():
+            if candidate == key:
+                cells.selection_set(item)
+                cells.see(item)
+                select_cell()
+                return
+        status.set("Cell is outside the current filter.")
+    def select_cell(event=None):
+        selected = cells.selection()
+        index = state["index"]
+        if not selected or index is None or selected[0] not in state["cells"]:
+            return
+        key = state["cells"][selected[0]]
+        state["cell"] = key
+        row = index.active[key]
+        if "grid" in row:
+            state["center"] = row["grid"]
+            gx.set(str(row["grid"][0]))
+            gy.set(str(row["grid"][1]))
+        refresh_objects()
+        show(index.details(row))
+        draw_grid()
+    def select_object(event=None):
+        selected = objects.selection()
+        if selected and selected[0] in state["objects"]:
+            show(state["index"].details(state["objects"][selected[0]]))
+    def draw_grid(event=None):
+        canvas.delete("all")
+        index = state["index"]
+        if index is None or state["world"] is None:
+            canvas.create_text(8,8,anchor="nw",fill="white",text="Select an exterior worldspace")
+            return
+        size = max(10,min(canvas.winfo_width(),canvas.winfo_height())//9)
+        cx,cy = state["center"]
+        for dy in range(-4,5):
+            for dx in range(-4,5):
+                grid = (cx+dx,cy-dy)
+                rows = index.coordinates.get((state["world"],grid),())
+                selected = any(r["key"]==state["cell"] for r in rows)
+                color = "#d8ac63" if selected else "#b85c5c" if len(rows)>1 else "#52798a" if rows else "#303a43"
+                x,y=(dx+4)*size,(dy+4)*size
+                tag=f"cell_{dx+4}_{dy+4}"
+                canvas.create_rectangle(x,y,x+size,y+size,fill=color,outline="#1d242a",tags=(tag,))
+                if rows and len(rows)==1:
+                    canvas.tag_bind(tag,"<Button-1>",lambda event,k=rows[0]["key"]:select_key(k))
+                if size>=19:
+                    canvas.create_text(x+size/2,y+size/2,text=f"{grid[0]}\n{grid[1]}",fill="white",font=("TkDefaultFont",7),tags=(tag,))
+    def profile_changed(*_):
+        update_paths()
+    worlds.bind("<<ComboboxSelected>>", select_world)
+    cells.bind("<<TreeviewSelect>>", select_cell)
+    objects.bind("<<TreeviewSelect>>", select_object)
+    canvas.bind("<Configure>", draw_grid)
+    query.trace_add("write",refresh_cells)
+    object_query.trace_add("write",refresh_objects)
+    game.trace_add("write",profile_changed)
+    ttk.Button(toolbar,text="Warnings",command=lambda:show(state["index"].issues if state["index"] else [])).pack(side="left")
