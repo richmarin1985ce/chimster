@@ -11,6 +11,12 @@ def capabilities(profile):
         "typed_reference_schema":active and p.schema_revision=="fnv-generated-v1",
         "native_creation_templates":active and profile in ("morrowind","new-vegas"),
         "native_formid_allocation":active and profile in ("fallout3","new-vegas"),
+        "archive_read":active,
+        "archive_packaging":active,
+        "archive_pair_packaging":active and profile in ("fallout4","fallout4-vr"),
+        "archive_cubemap_packaging":active and profile in ("fallout4","fallout4-vr"),
+        "archive_precedence_preview":active,
+        "external_archive_comparison":active,
         "retail_verified":False,
     }
 
