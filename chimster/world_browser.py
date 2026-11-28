@@ -76,6 +76,9 @@ def read_plugin(path, profile="new-vegas"):
                 row["editor_id"] = text_field(fields.get(b"EDID"))
                 if sig not in KINDS and b"MODL" in fields:
                     row["model"] = text_field(fields[b"MODL"])
+                if sig=="TREE" and profile in ("oblivion","fallout3","new-vegas"):
+                    from .speedtree import tree_fields
+                    row["speedtree"]=tree_fields(fields)
                 if sig in KINDS and (profile in ("oblivion","fallout3","new-vegas") or not localized):
                     row["name"] = text_field(fields.get(b"FULL"))
                 if sig == "REGN" and profile=="new-vegas":
