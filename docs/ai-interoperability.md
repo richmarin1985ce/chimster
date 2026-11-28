@@ -67,3 +67,12 @@ With the local AI client closed, a user or installer can explicitly register a r
 The command preserves unrelated settings and other MCP server entries, creates a backup of existing configuration, and refuses to overwrite a different Chimster entry. It does not discover or modify arbitrary clients automatically. The client must support the mcpServers configuration format and be closed to avoid concurrent writes; the preflight check is not a cross-process lock. Review the backup and restart the client after registration. The command deliberately refuses write-enabled registration; use separately approved manual configuration for write grants. No additional Chimster plugin is required.
 
 The standalone installer build now includes an installed-executable smoke test for MCP configuration generation, protocol initialization, tool enumeration, project status and resource enumeration. This is a test implementation, not evidence that a platform build or third-party client test has passed.
+
+## Native record editing (experimental)
+For Fallout: New Vegas projects, `fnv_record_preview_edit` stages a single typed field edit using Chimster's existing record editor. It requires artifact ID, original plugin identity, local FormID, field tag, JSON-encoded value, current project revision, plugin SHA-256 and record payload SHA-256. It restores the original filename in isolated temporary staging, checks existing schema constraints, verifies unchanged record payloads and masters, and returns before/after values and the staged digest. Only owned records in ESP artifacts are supported; masters, overrides, unsupported fields and cross-cell moves are excluded. Maximum plugin size is 32 MiB. No source or game install file is modified.
+
+Read-only sessions can preview but cannot apply. To grant a trusted local client native edits explicitly:
+
+    chimster --mcp --project /path/to/project --allow-edit --allow-native-edit
+
+`fnv_record_apply_edit` consumes a matching single-use token and publishes the staged bytes as a new project revision. The same session undo/redo can restore the prior revision, provided no intervening edit occurred. This is a session grant rather than human approval of each edit. Game testing is still required; no claim of runtime compatibility or support for native editing in other games is made.
