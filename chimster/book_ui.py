@@ -30,6 +30,25 @@ def mount(parent):
             b=book();p=Path(parentdir)/b.editor_id;export(b,p)
             messagebox.showinfo("Book exported",str(p))
         except (OSError,ValueError,TypeError) as e:messagebox.showerror("Book",str(e))
+    def page_preview():
+        try:
+            b=book()
+            win=tk.Toplevel(parent);win.title(b.title)
+            index=0
+            heading=ttk.Label(win);heading.pack()
+            page=tk.Text(win,wrap="word",width=65,height=22,padx=20,pady=20)
+            page.pack(fill="both",expand=True)
+            def show(delta=0):
+                nonlocal index
+                index=max(0,min(len(b.pages)-1,index+delta))
+                heading.configure(text=f"{b.title} — {index+1}/{len(b.pages)}")
+                page.configure(state="normal");page.delete("1.0","end")
+                page.insert("1.0",b.pages[index]);page.configure(state="disabled")
+            bar=ttk.Frame(win);bar.pack()
+            ttk.Button(bar,text="Previous",command=lambda:show(-1)).pack(side="left")
+            ttk.Button(bar,text="Next",command=lambda:show(1)).pack(side="left")
+            show()
+        except (ValueError,TypeError) as e:messagebox.showerror("Book",str(e))
     def validate():
         try:b=book();messagebox.showinfo("Book",f"{len(b.pages)} pages; {sum(map(len,b.pages))} characters. Valid portable project.")
         except (ValueError,TypeError) as e:messagebox.showerror("Book",str(e))
@@ -46,4 +65,4 @@ def mount(parent):
             export_book(b,p,model);messagebox.showinfo("Experimental ESP",p+"\nValidate in xEdit and game before use.")
         except (ValueError,TypeError,OSError) as e:messagebox.showerror("Book",str(e))
     bar=ttk.Frame(parent);bar.pack(fill="x")
-    for label,cmd in [("Open",open_book),("Validate",validate),("Export project + preview",write),("Export FNV ESP",native)]:ttk.Button(bar,text=label,command=cmd).pack(side="left")
+    for label,cmd in [("Open",open_book),("Validate",validate),("Page preview",page_preview),("Export project + preview",write),("Export FNV ESP",native)]:ttk.Button(bar,text=label,command=cmd).pack(side="left")
