@@ -57,6 +57,8 @@ def mount(parent):
         item=next((i for i in scene.instances if i.id==selected),None)
         if item:
             for k,v in values.items():v.set(str(getattr(item,k)))
+        else:
+            for k,v in values.items():v.set("")
         draw()
     def select(event=None):
         nonlocal selected
@@ -145,6 +147,13 @@ def mount(parent):
     parent.bind("<Destroy>",release,add="+")
     controls=ttk.Frame(parent);controls.pack(fill="x",before=pane)
     ttk.Checkbutton(controls,text="OpenGL preview",variable=use_gl,command=draw).pack(side="left")
+    def toggle_setting(name,value):
+        nonlocal settings
+        settings=replace(settings,**{name:value}).validate();draw()
+    for name,label in (("cull","Culling"),("instancing","Instancing"),("hierarchy","Spatial hierarchy")):
+        var=tk.BooleanVar(value=getattr(settings,name))
+        ttk.Checkbutton(controls,text=label,variable=var,
+            command=lambda n=name,v=var:toggle_setting(n,v.get())).pack(side="left")
     ttk.Label(controls,text="LOD distances").pack(side="left")
     ttk.Entry(controls,textvariable=lod_text,width=15).pack(side="left")
     ttk.Button(controls,text="Apply LOD",command=set_lod).pack(side="left")
