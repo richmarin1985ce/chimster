@@ -76,3 +76,43 @@ class BuiltinLODTests(unittest.TestCase):
             (a/next(iter(initial["tiles"][0]["files"]))).write_bytes(b"damaged")
             repaired=export(draft.index(),world,c,levels=(4,),size=64,previous=a)
             self.assertEqual(repaired["rebuilt_tiles"],1)
+
+    def test_paired_object_atlas(self):
+        from chimster.world_lod_atlas import build
+        from chimster.lod_assets import dds_rgba
+        mesh=terrain_grid([[0.,0.],[0.,0.]])
+        class Assets:
+            def get(self,path):
+                return dds_rgba(4,4,bytes((128,128,255,255))*16)
+        active=[(mesh,"textures/a.dds","textures/a_n.dds"),(mesh,"textures/b.dds","textures/b_n.dds")]
+        result,remaining,issues=build(active,Assets(),size=32,maximum=256)
+        self.assertEqual(len(result["mesh"].faces),4)
+        self.assertEqual(result["groups"],2)
+        self.assertEqual(remaining,[])
+        self.assertEqual(issues,[])
+        self.assertEqual(len(result["diffuse"]),result["size"]**2*4)
+        self.assertNotEqual(result["mesh"].uv[:4],result["mesh"].uv[4:])
+        self.assertEqual(mesh.uv,[(0.,0.),(1.,0.),(0.,1.),(1.,1.)])
+
+    def test_grouped_reader(self):
+        from chimster.fnv_lod_nif import read_static_groups
+        mesh=terrain_grid([[1.,2.],[2.,3.]])
+        raw=encode_groups([(mesh,"textures/a.dds","textures/a_n.dds"),(mesh,"textures/b.dds","textures/b_n.dds")],"companion")
+        groups=read_static_groups(raw)
+        self.assertEqual(len(groups),2)
+        self.assertEqual(sum(len(m.faces) for m,_,_ in groups),4)
+        self.assertEqual(groups[0][0].vertices,mesh.vertices)
+        with self.assertRaises(ValueError):read_static(raw)
+
+    def test_native_vegetation_candidate(self):
+        from chimster.world_lod_vegetation import build
+        from chimster.flora import Recipe
+        with tempfile.TemporaryDirectory() as d:
+            out=Path(d)/"tree"
+            result=build(Recipe(seed=42,branches=4,leaves=12),out,size=64,views=2)
+            self.assertEqual(result["billboard_triangles"],8)
+            self.assertFalse(result["external_tools"])
+            self.assertFalse(result["native_tree_tiles"])
+            for path in result["files"]:self.assertTrue((out/path).is_file())
+            nif=next(p for p in result["files"] if p.endswith(".nif"))
+            self.assertIn("NiAlphaProperty",check((out/nif).read_bytes(),8)["block_types"])
