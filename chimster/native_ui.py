@@ -8,8 +8,14 @@ from .native_parser import parse, subrecords
 from .native_editor import NativeSession
 from .record_graph import Slots, Identity
 
-def mount(parent):
-    profile=tk.StringVar(value="new-vegas")
+def mount(parent, game=None):
+    aliases={"newvegas":"new-vegas","skyrimse":"skyrim-se","oblivionremastered":"oblivion-remastered"}
+    profile=tk.StringVar(value=aliases.get(game.get(),game.get()) if game is not None else "new-vegas")
+    if game is not None:
+        def sync(*_):
+            value=aliases.get(game.get(),game.get())
+            if value in PROFILES:profile.set(value)
+        game.trace_add("write",sync)
     state={"session":None,"source":None,"paths":{},"undo":[],"redo":[]}
     bar=ttk.Frame(parent);bar.pack(fill="x")
     ttk.Combobox(bar,textvariable=profile,values=list(PROFILES),state="readonly").pack(side="left")
@@ -47,17 +53,20 @@ def mount(parent):
         s=NativeSession(kind,data,None if kind=="morrowind" else Slots(p.name,masters))
         state.update(session=s,source=p,undo=[],redo=[]);refresh()
     def selected():
+        if not tree.selection():raise ValueError("Select a record first")
         return state["paths"][tree.selection()[0]]
     def inspect():
         s=state["session"];path=selected()
         row=s.rows.get(path)
         show(row if row is not None else {"header":s.node(path).header.hex()})
     def review(reverse):
-        s=state["session"];key=s.rows[selected()]["key"]
+        path=selected();s=state["session"]
+        key=s.rows.get(path,{}).get("key")
         if key is None:raise ValueError("no persistent identity")
         show(s.review(key,reverse))
     def export():
         s=state["session"];source=state["source"]
+        if s is None:raise ValueError("Open a plugin first")
         directory=filedialog.askdirectory(title="Choose staging directory")
         if not directory:return
         target=Path(directory)/source.name
