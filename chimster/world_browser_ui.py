@@ -650,6 +650,11 @@ def mount(parent, game, open_preview=None, viewport_drop=None):
             previous=None
             if messagebox.askyesno("Incremental LOD","Reuse unchanged tiles from an earlier LOD package?",parent=parent):
                 previous=filedialog.askdirectory(title="Choose previous LOD package") or None
+            if index.profile=="oblivion":
+                from .world_lod_oblivion import export as export_oblivion
+                show(export_oblivion(index,world,out))
+                status.set("Oblivion terrain intermediates exported; native TES4 mesh encoding pending.")
+                return
             show(export(index,world,out,assets=assets,previous=previous))
             status.set("Built-in native LOD candidates exported. Runtime verification pending.")
         except (ValueError,OSError,TypeError,KeyError) as exc:messagebox.showerror("Built-in LOD",str(exc),parent=parent)
