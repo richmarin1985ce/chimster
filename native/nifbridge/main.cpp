@@ -38,11 +38,21 @@ static int extractCollision(const char* filename,const char* scaleArg){
     require(collisionCount==1,"multiple or nested collision objects unsupported");
     auto body=dynamic_cast<bhkRigidBody*>(h.GetBlock(coll->bodyRef));
     require(body&&body->motionSystem==7&&body->mass==0&&body->collisionFilter.layer==1,"expected fixed static collision body");
-    Vector3 translation;
+    // Havok rigid-body transforms are applied in Havok units, before
+    // converting to game coordinates. Preserve the documented XYZW order.
+    using Transform=std::function<Vector3(Vector3)>;
+    Transform bodyTransform=[](Vector3 p){return p;};
     if(dynamic_cast<bhkRigidBodyT*>(body)){
         auto q=body->rotation;
-        require(std::abs(q.x)+std::abs(q.y)+std::abs(q.z)<1e-5f&&std::abs(std::abs(q.w)-1)<1e-5f,"rotated rigid body unsupported");
-        translation=Vector3(body->translation.x,body->translation.y,body->translation.z);
+        float length=std::sqrt(q.x*q.x+q.y*q.y+q.z*q.z+q.w*q.w);
+        require(std::isfinite(length)&&std::abs(length-1.f)<1e-3f,"invalid rigid body quaternion");
+        Vector3 u(q.x/length,q.y/length,q.z/length);
+        float w=q.w/length;
+        Vector3 tr(body->translation.x,body->translation.y,body->translation.z);
+        bodyTransform=[u,w,tr](Vector3 p){
+            Vector3 v=u.cross(p)*2.f;
+            return p+v*w+u.cross(v)+tr;
+        };
     }
     std::vector<Vector3> verts;std::vector<std::array<unsigned,3>> tris;
     auto push=[&](Vector3 p){
@@ -51,36 +61,46 @@ static int extractCollision(const char* filename,const char* scaleArg){
         require(verts.size()<500000,"collision vertex limit");verts.push_back(p);
     };
     std::set<const bhkShape*> stack;
-    std::function<void(bhkShape*,Vector3,unsigned)> walk;
-    walk=[&](bhkShape* shape,Vector3 offset,unsigned depth){
+    std::function<void(bhkShape*,Transform,unsigned)> walk;
+    walk=[&](bhkShape* shape,Transform apply,unsigned depth){
         require(shape&&depth<32&&stack.insert(shape).second,"invalid collision shape graph");
         if(auto b=dynamic_cast<bhkBoxShape*>(shape)){
             auto d=b->dimensions;require(d.x>0&&d.y>0&&d.z>0,"invalid box dimensions");
             unsigned base=verts.size();
-            for(int z:{-1,1})for(int y:{-1,1})for(int x:{-1,1})push(Vector3(offset.x+x*d.x,offset.y+y*d.y,offset.z+z*d.z));
+            for(int z:{-1,1})for(int y:{-1,1})for(int x:{-1,1})push(apply(Vector3(x*d.x,y*d.y,z*d.z)));
             const unsigned faces[12][3]={{0,2,1},{1,2,3},{4,5,6},{5,7,6},{0,1,4},{1,5,4},{2,6,3},{3,6,7},{0,4,2},{2,4,6},{1,3,5},{3,7,5}};
             for(auto& t:faces)tris.push_back({base+t[0],base+t[1],base+t[2]});
         }else if(auto tf=dynamic_cast<bhkTransformShape*>(shape)){
-            for(int i=0;i<16;i++)if(i<12||i==15)require(std::abs(tf->xform[i]-(i%5==0?1.f:0.f))<1e-5f,"nontranslation child transform unsupported");
-            walk(h.GetBlock(tf->shapeRef),Vector3(offset.x+tf->xform[12],offset.y+tf->xform[13],offset.z+tf->xform[14]),depth+1);
+            auto m=tf->xform;
+            for(int i=0;i<16;i++)require(std::isfinite(m[i]),"nonfinite collision transform");
+            require(std::abs(m[3])+std::abs(m[7])+std::abs(m[11])<1e-5f&&std::abs(m[15]-1)<1e-5f,"nonaffine child transform");
+            Vector3 a(m[0],m[1],m[2]),b(m[4],m[5],m[6]),c(m[8],m[9],m[10]);
+            auto dot=[](Vector3 p,Vector3 q){return p.x*q.x+p.y*q.y+p.z*q.z;};
+            require(std::abs(dot(a,a)-1)<1e-4f&&std::abs(dot(b,b)-1)<1e-4f&&std::abs(dot(c,c)-1)<1e-4f&&
+                    std::abs(dot(a,b))+std::abs(dot(a,c))+std::abs(dot(b,c))<1e-4f&&dot(a.cross(b),c)>.999f,
+                    "child transform must be proper rigid rotation");
+            // Same column-major Havok convention as compound exporter.
+            Transform child=[m,apply](Vector3 p){return apply(Vector3(m[0]*p.x+m[4]*p.y+m[8]*p.z+m[12],
+                m[1]*p.x+m[5]*p.y+m[9]*p.z+m[13],m[2]*p.x+m[6]*p.y+m[10]*p.z+m[14]));};
+            walk(h.GetBlock(tf->shapeRef),child,depth+1);
         }else if(auto list=dynamic_cast<bhkListShape*>(shape)){
             require(list->subShapeRefs.GetSize()<=4096,"collision list limit");
-            for(unsigned i=0;i<list->subShapeRefs.GetSize();i++)walk(h.GetBlock<bhkShape>(list->subShapeRefs.GetBlockRef(i)),offset,depth+1);
+            for(unsigned i=0;i<list->subShapeRefs.GetSize();i++)walk(h.GetBlock<bhkShape>(list->subShapeRefs.GetBlockRef(i)),apply,depth+1);
         }else if(auto mopp=dynamic_cast<bhkMoppBvTreeShape*>(shape)){
-            walk(h.GetBlock(mopp->shapeRef),offset,depth+1);
+            walk(h.GetBlock(mopp->shapeRef),apply,depth+1);
         }else if(auto packed=dynamic_cast<bhkPackedNiTriStripsShape*>(shape)){
             auto data=h.GetBlock(packed->dataRef);
             require(data&&!data->compressed&&data->compressedVertData.size()==data->numVerts,"unsupported packed vertex encoding");
             require(std::abs(packed->scaling.x-1)<1e-5f&&std::abs(packed->scaling.y-1)<1e-5f&&std::abs(packed->scaling.z-1)<1e-5f,"nonunit packed scale unsupported");
             unsigned base=verts.size();
-            for(auto p:data->compressedVertData)push(Vector3(p.x+offset.x,p.y+offset.y,p.z+offset.z));
+            for(auto p:data->compressedVertData)push(apply(p));
             auto append=[&](const Triangle& t){require(t.p1<data->numVerts&&t.p2<data->numVerts&&t.p3<data->numVerts,"invalid packed triangle");tris.push_back({base+t.p1,base+t.p2,base+t.p3});};
             for(auto& t:data->triData)append(t.tri);
             for(auto& t:data->triNormData)append(t.tri);
         }else throw std::runtime_error("unsupported native collision shape");
         require(tris.size()<=500000,"collision triangle limit");stack.erase(shape);
     };
-    walk(h.GetBlock(body->shapeRef),translation,0);
+    walk(h.GetBlock(body->shapeRef),bodyTransform,0);
     require(!verts.empty()&&!tris.empty(),"empty collision geometry");
     std::cout<<std::setprecision(9)<<"{\"vertices\":[";
     for(size_t i=0;i<verts.size();i++){if(i)std::cout<<",";auto p=verts[i];std::cout<<"["<<p.x<<","<<p.y<<","<<p.z<<"]";}
