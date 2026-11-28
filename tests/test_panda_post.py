@@ -122,3 +122,14 @@ class PostTests(unittest.TestCase):
             self.assertTrue(preview.underwater)
             self.assertIsNone(preview.water_targets)
         finally:preview.close()
+
+    def test_environment_sky(self):
+        from chimster.panda_environment import sky_bytes
+        raw=sky_bytes(4,(.3,.4,.5),.6)
+        self.assertEqual(len(raw),6*4*4*4)
+        self.assertGreater(len(set(raw[::4])),1)
+        import os
+        if not os.environ.get("CHIMSTER_TEST_PANDA_GL"):return
+        from chimster.panda_environment import environment
+        env=environment((.3,.4,.5),.6)
+        self.assertTrue(env.is_prepared.done())

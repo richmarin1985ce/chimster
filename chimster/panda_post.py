@@ -23,7 +23,11 @@ class PBR:
         self.state=preview.root.get_state()
         self.pipeline=Pipeline.__new__(Pipeline)
         try:
-            self.pipeline.__init__(render_node=preview.root,window=preview.output,camera_node=preview.camera,taskmgr=self.tasks,msaa_samples=0,max_lights=6,use_normal_maps=True,use_occlusion_maps=True,enable_fog=bool(effects.fog_density),enable_hardware_skinning=False,use_330=True,shadow_bias=effects.shadow_bias)
+            env=None
+            if effects.environment_strength:
+                from .panda_environment import environment
+                env=environment(tuple(effects.fog_color),effects.environment_strength)
+            self.pipeline.__init__(env_map=env,render_node=preview.root,window=preview.output,camera_node=preview.camera,taskmgr=self.tasks,msaa_samples=0,max_lights=6,use_normal_maps=True,use_occlusion_maps=True,enable_fog=bool(effects.fog_density),enable_hardware_skinning=False,use_330=True,shadow_bias=effects.shadow_bias)
             self.pipeline.verify_shaders()
         except Exception:
             self.close()
