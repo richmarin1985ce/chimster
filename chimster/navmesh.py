@@ -172,6 +172,7 @@ def remove_triangles(mesh,selected):
     # Keep vertex IDs stable; do not silently weld or reindex.
     new=[triangles[i] for i in keep]
     result={**mesh,"triangles":new,**topology(mesh["vertices"],new),"links":links}
-    if "triangle_rooms" in mesh:result["triangle_rooms"]=[mesh["triangle_rooms"][i] for i in keep]
+    for key in ("triangle_rooms","triangle_layers"):
+        if key in mesh:result[key]=[mesh[key][i] for i in keep]
     result["manual_exclusions"]=mesh.get("manual_exclusions",0)+len(selected)
     return result
