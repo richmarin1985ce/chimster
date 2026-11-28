@@ -12,11 +12,19 @@ class LocalLight:
     color:tuple=(1.,.8,.55)
     intensity:float=1.
     radius:float=12.
+    direction:tuple=None
+    cone:float=45.
+    shadows:bool=False
     def validate(self):
         vector(self.position,3,-1e7,1e7)
         vector(self.color,3,0,1)
         if not isfinite(self.intensity) or not 0<=self.intensity<=8 or not isfinite(self.radius) or not .1<=self.radius<=10000:
             raise ValueError("Invalid local light")
+        if self.direction is not None:
+            vector(self.direction,3,-1e7,1e7)
+            if not any(self.direction):raise ValueError("Zero spotlight direction")
+        if not isfinite(self.cone) or not 5<=self.cone<=120:raise ValueError("Invalid spotlight cone")
+        if self.shadows and self.direction is None:raise ValueError("Only spotlight shadows supported")
         return self
 
 @dataclass(frozen=True)
@@ -51,6 +59,7 @@ class Effects:
         if self.water_level is not None and (not isfinite(self.water_level) or abs(self.water_level)>1e7):
             raise ValueError("Invalid water level")
         vector(self.fog_color,3,0,1);vector(self.water_color,3,0,1)
+        if sum(bool(l.shadows) for l in self.lights)>1:raise ValueError("At most one local shadow map")
         if len(self.lights)>4:raise ValueError("At most four preview point lights")
         for light in self.lights:light.validate()
         return self

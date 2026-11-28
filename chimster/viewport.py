@@ -10,7 +10,8 @@ def mount(parent):
     from .render_effects import preset
     scene,materials=make_demo();camera=Camera();selected=None;drag=None
     effect_name=tk.StringVar(value="Off");water_enabled=tk.BooleanVar(value=False)
-    point_enabled=tk.BooleanVar(value=False)
+    point_enabled=tk.BooleanVar(value=False);spot_enabled=tk.BooleanVar(value=False)
+    water_height=tk.StringVar(value="0");light_pos=tk.StringVar(value="2,2,5")
     renderer=None;panda=None;photo=None;render_size=(1,1);settings=Settings();failure=''
     backend=tk.StringVar(value='Panda3D');lod_text=tk.StringVar(value='22,45,90')
     toolbar=ttk.Frame(parent);toolbar.pack(fill="x")
@@ -27,7 +28,12 @@ def mount(parent):
         nonlocal renderer,panda,photo,render_size,failure
         canvas.delete("mesh");canvas.delete("gl")
         from .render_effects import LocalLight
-        effects=replace(preset(effect_name.get()),water_level=0. if water_enabled.get() else None,lights=(LocalLight(position=(2.,2.,5.)),) if point_enabled.get() else ())
+        try:
+            pos=tuple(float(x) for x in light_pos.get().split(","))
+            lights=(LocalLight(position=pos,direction=(0,0,-1) if spot_enabled.get() else None,shadows=spot_enabled.get()),) if point_enabled.get() else ()
+            effects=replace(preset(effect_name.get()),water_level=float(water_height.get()) if water_enabled.get() else None,lights=lights).validate()
+        except ValueError as exc:
+            status.set("Effects: "+str(exc));return
         if backend.get()=="Panda3D" and canvas.winfo_width()>4 and canvas.winfo_height()>4:
             try:
                 from .panda_viewport import Preview
@@ -202,6 +208,12 @@ def mount(parent):
     fxchoice.pack(side="left");fxchoice.bind("<<ComboboxSelected>>",lambda e:draw())
     ttk.Checkbutton(fxbar,text="Preview water (Panda)",variable=water_enabled,command=draw).pack(side="left")
     ttk.Checkbutton(fxbar,text="Point light (Panda)",variable=point_enabled,command=draw).pack(side="left")
+    ttk.Label(fxbar,text="Water Z").pack(side="left")
+    ttk.Entry(fxbar,textvariable=water_height,width=6).pack(side="left")
+    ttk.Checkbutton(fxbar,text="Spot",variable=spot_enabled,command=draw).pack(side="left")
+    ttk.Label(fxbar,text="Light XYZ").pack(side="left")
+    ttk.Entry(fxbar,textvariable=light_pos,width=12).pack(side="left")
+    ttk.Button(fxbar,text="Apply",command=draw).pack(side="left")
     def tick_water():
         if parent.winfo_exists():
             if water_enabled.get() and backend.get()=="Panda3D":draw()

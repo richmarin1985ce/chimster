@@ -122,7 +122,7 @@ class Preview:
         s.set_hpr(-35,-50,0);self.root.set_light(a);self.root.set_light(s)
         self.ambient=a;self.sun=s;self.effect_nodes=[];self.effects_key=None;self.water=None;self.water_targets=None;self.water_error=None
     def configure_effects(self,effects,settings,center,eye):
-        from panda3d.core import Fog,PointLight,Vec3
+        from panda3d.core import Fog,PointLight,Spotlight,PerspectiveLens,Vec3,Point3
         from .panda_water import create_water
         from time import monotonic
         key=(effects,settings.light)
@@ -137,13 +137,18 @@ class Preview:
             self.sun.node().set_shadow_caster(bool(effects.shadow_size),max(1,effects.shadow_size),max(1,effects.shadow_size))
             if effects.shadow_size:
                 lens=self.sun.node().get_lens()
-                lens.set_film_size(effects.shadow_extent*2)
+                lens.set_film_size(effects.shadow_extent*2,effects.shadow_extent*2)
                 lens.set_near_far(.1,effects.shadow_extent*4)
             for i,light in enumerate(effects.lights):
-                source=PointLight(f"preview-point-{i}")
+                source=PointLight(f"preview-point-{i}") if light.direction is None else Spotlight(f"preview-spot-{i}")
+                if light.direction is not None:
+                    lens=PerspectiveLens();lens.set_fov(light.cone);lens.set_near_far(.1,max(.2,light.radius*4))
+                    source.set_lens(lens)
+                    if light.shadows and effects.shadow_size:source.set_shadow_caster(True,min(512,effects.shadow_size),min(512,effects.shadow_size))
                 source.set_color(tuple(x*light.intensity for x in light.color)+(1,))
                 source.set_attenuation((1,0,4/(light.radius*light.radius)))
                 node=self.root.attach_new_node(source);node.set_pos(*light.position)
+                if light.direction is not None:node.look_at(Point3(*(light.position[j]+light.direction[j] for j in range(3))))
                 self.root.set_light(node);self.effect_nodes.append(node)
             if effects.fog_density:
                 fog=Fog("preview-haze")
@@ -155,8 +160,10 @@ class Preview:
             if effects.water_level is not None:self.water=create_water(self.root,effects)
             self.effects_key=key
         direction=Vec3(*settings.light);direction.normalize()
-        self.sun.set_pos(*(center[i]+direction[i]*effects.shadow_extent for i in range(3)))
-        self.sun.look_at(*center)
+        from .shadow_math import snap_center
+        anchor=snap_center(center,settings.light,effects.shadow_extent,effects.shadow_size)
+        self.sun.set_pos(*(anchor[i]+direction[i]*effects.shadow_extent for i in range(3)))
+        self.sun.look_at(Point3(*anchor),Vec3(0,0,1) if abs(direction[2])<.99 else Vec3(0,1,0))
         if self.water is not None:
             self.water.set_shader_input("eye",eye)
             self.water.set_shader_input("sun",settings.light)

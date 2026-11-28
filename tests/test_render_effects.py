@@ -16,3 +16,13 @@ class EffectsTests(unittest.TestCase):
         self.assertEqual(mirror_point((2,3,8),2),(2,3,-4))
         self.assertEqual(mirror_vector((0,1,2)),(0,1,-2))
         with self.assertRaises(ValueError):Effects(refraction=True).validate()
+
+    def test_shadow_snap(self):
+        from chimster.shadow_math import snap_center
+        p=snap_center((.01,.01,2),(0,0,1),16,512)
+        for a,b in zip(p,(0,0,2)):self.assertAlmostEqual(a,b)
+        self.assertEqual(snap_center((1,2,3),(0,0,1),16,0),(1,2,3))
+    def test_spot_limits(self):
+        with self.assertRaises(ValueError):LocalLight(direction=(0,0,0)).validate()
+        with self.assertRaises(ValueError):LocalLight(shadows=True).validate()
+        self.assertEqual(LocalLight(direction=(0,0,-1),shadows=True).validate().cone,45)
