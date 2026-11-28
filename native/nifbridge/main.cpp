@@ -27,7 +27,9 @@ static int extractCollision(const char* filename,const char* scaleArg){
     std::ifstream input(filename,std::ios::binary);NifFile nif;
     require(bool(input)&&nif.Load(input)==0&&nif.IsValid()&&!nif.HasUnknown(),"invalid or unknown NIF");
     auto& h=nif.GetHeader();const auto& ver=h.GetVersion();
-    require(ver.File()==NiFileVersion::V20_2_0_7&&ver.User()==11&&ver.Stream()==34,"collision extraction currently FO3/FNV only");
+    const bool legacy=ver.User()==11&&ver.Stream()==34;
+    const bool skyrim=ver.User()==12&&(ver.Stream()==83||ver.Stream()==100);
+    require(ver.File()==NiFileVersion::V20_2_0_7&&(legacy||skyrim),"unsupported collision format");
     auto root=nif.GetRootNode();require(root,"missing root");
     auto m=root->GetTransformToParent().ToMatrix();
     for(int i=0;i<16;i++)require(std::abs(m[i]-(i%5==0?1.f:0.f))<1e-5f,"nonidentity root transform unsupported");
@@ -99,6 +101,46 @@ static int extractCollision(const char* filename,const char* scaleArg){
             for(unsigned i=0;i<list->subShapeRefs.GetSize();i++)walk(h.GetBlock<bhkShape>(list->subShapeRefs.GetBlockRef(i)),apply,depth+1);
         }else if(auto mopp=dynamic_cast<bhkMoppBvTreeShape*>(shape)){
             walk(h.GetBlock(mopp->shapeRef),apply,depth+1);
+        }else if(auto compressed=dynamic_cast<bhkCompressedMeshShape*>(shape)){
+            require(skyrim,"compressed collision extraction requires Skyrim format");
+            auto data=h.GetBlock(compressed->dataRef);
+            require(data&&data->numConvexPieceA==0&&data->chunks.size()<=4096,"unsupported compressed collision data");
+            auto unit=[](const Vector4& v){return std::abs(v.x-1)<1e-5f&&std::abs(v.y-1)<1e-5f&&std::abs(v.z-1)<1e-5f;};
+            require(unit(compressed->scaling)&&unit(compressed->scaling2),"compressed collision scale unsupported");
+            auto append=[&](unsigned base,unsigned count,unsigned a,unsigned b,unsigned c){
+                require(a<count&&b<count&&c<count,"compressed triangle index out of range");
+                if(a!=b&&b!=c&&a!=c){require(tris.size()<500000,"collision triangle limit");tris.push_back({base+a,base+b,base+c});}
+            };
+            unsigned base=verts.size();
+            require(data->bigVerts.size()<=500000-verts.size(),"big vertex limit");
+            for(const auto& p:data->bigVerts)push(apply(Vector3(p.x,p.y,p.z)));
+            for(const auto& t:data->bigTris)append(base,data->bigVerts.size(),t.triangle1,t.triangle2,t.triangle3);
+            for(const auto& chunk:data->chunks){
+                require(chunk.reference==65535&&chunk.transformIndex<data->transforms.size(),"referenced or missing chunk transform unsupported");
+                const auto& tf=data->transforms[chunk.transformIndex];
+                auto q=tf.rotation;
+                require(std::abs(q.x)+std::abs(q.y)+std::abs(q.z)<1e-5f&&std::abs(std::abs(q.w)-1)<1e-5f,"rotated compressed chunk needs independent verification");
+                require(chunk.verts.size()%3==0&&chunk.verts.size()/3<=500000-verts.size(),"invalid compressed vertex array");
+                unsigned count=chunk.verts.size()/3;base=verts.size();
+                // Skyrim compressed vertices are quantized at 1/1000 Havok unit.
+                for(unsigned j=0;j<chunk.verts.size();j+=3){
+                    push(apply(Vector3(chunk.translation.x+tf.translation.x+chunk.verts[j]*.001f,
+                                       chunk.translation.y+tf.translation.y+chunk.verts[j+1]*.001f,
+                                       chunk.translation.z+tf.translation.z+chunk.verts[j+2]*.001f)));
+                }
+                size_t pos=0;
+                for(auto length:chunk.strips){
+                    require(length>=3&&pos+length<=chunk.indices.size(),"invalid compressed strip length");
+                    for(unsigned j=0;j+2<length;j++){
+                        auto a=chunk.indices[pos+j],b=chunk.indices[pos+j+1],c=chunk.indices[pos+j+2];
+                        if(j%2)std::swap(a,b);
+                        append(base,count,a,b,c);
+                    }
+                    pos+=length;
+                }
+                require((chunk.indices.size()-pos)%3==0,"invalid compressed triangle list");
+                for(;pos<chunk.indices.size();pos+=3)append(base,count,chunk.indices[pos],chunk.indices[pos+1],chunk.indices[pos+2]);
+            }
         }else if(auto packed=dynamic_cast<bhkPackedNiTriStripsShape*>(shape)){
             auto data=h.GetBlock(packed->dataRef);
             require(data&&!data->compressed&&data->compressedVertData.size()==data->numVerts,"unsupported packed vertex encoding");
