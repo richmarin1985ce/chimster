@@ -3,7 +3,7 @@ import tkinter as tk
 from tkinter import ttk,filedialog,messagebox,simpledialog
 from pathlib import Path
 from .project import Project,KINDS
-def mount(parent,game):
+def mount(parent,game,viewport_control=None):
     current=None;revision=None
     from .editor_presence import Presence
     from .editor_commands import mailbox,consume
@@ -39,6 +39,9 @@ def mount(parent,game):
         for k,a in sorted(m["artifacts"].items()):table.insert("","end",iid=k,text=k,values=(a["kind"],a["filename"],a["size"]))
         if previous and table.exists(previous[0]):table.selection_set(previous[0])
     def dashboard_command(action,artifact):
+        if action.startswith("viewport-"):
+            if viewport_control:viewport_control(action)
+            return
         refresh()
         if action=="select" and table.exists(artifact):
             table.selection_set(artifact);table.see(artifact)
