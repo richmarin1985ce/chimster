@@ -94,15 +94,11 @@ class NativeTypedWorkbench(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     s.apply_typed(rev,[(a,tag,0,{"value":"Changed"}),(b,scalar,0,{"value":True})])
                 self.assertEqual(s.data,data)
-                # TES3 GMST lacks a registered persistent named identity and is
-                # intentionally not exposed by the desktop transaction.
-                edits=[(a,tag,0,{"value":"Longer name"})]
-                if profile!="morrowind":
-                    edits.append((b,scalar,0,{"value":42}))
+                edits=[(a,tag,0,{"value":"Longer name"}),(b,scalar,0,{"value":42})]
                 s.apply_typed(rev,edits)
                 self.assertEqual(s.typed_fields(a)[0]["value"],"Longer name")
                 self.assertIn((b"ZZZZ",b"opaque"),s.rows[a]["parts"])
-                if profile!="morrowind":self.assertEqual(s.typed_fields(b)[0]["value"],42)
+                self.assertEqual(s.typed_fields(b)[0]["value"],42)
                 with self.assertRaises(ValueError):s.apply_typed(rev,edits)
                 self.assertEqual(s.node((0,)).header,parse(profile,data)[0].header)
 
