@@ -17,3 +17,17 @@ class ClassicWriterTests(unittest.TestCase):
     def test_duplicate(self):
         with self.assertRaises(ValueError):
             build([("meshes/a.nif",b"a"),("Meshes/A.nif",b"b")])
+
+    def test_compression(self):
+        for version in (103,104,105):
+            with self.subTest(version=version):
+                if version==105:
+                    try:import lz4.frame
+                    except ImportError:continue
+                data=b"A"*4096
+                stream=io.BytesIO(build([("meshes/a.nif",data),("meshes/b.nif",b"x")],version=version,compress=True))
+                index=directory(stream)
+                self.assertTrue(index["meshes/a.nif"][2])
+                self.assertFalse(index["meshes/b.nif"][2])
+                self.assertEqual(read(stream,index["meshes/a.nif"]),data)
+                self.assertEqual(read(stream,index["meshes/b.nif"]),b"x")
