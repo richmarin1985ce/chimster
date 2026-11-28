@@ -2,7 +2,7 @@
 import struct
 import zlib
 from .native_parser import subrecords
-from .native_catalog import CATALOGS, references
+from .native_catalog import references
 from .native_profiles import PROFILES
 from dataclasses import replace
 
@@ -14,13 +14,8 @@ def edit_reference(profile,node,slots,index,expected,target,record_types, offset
     if not 0<=index<len(parts):
         raise ValueError("missing field")
     tag,raw=parts[index]
-    edges,opaque=references(profile,sig,parts,slots)
+    edges,opaque=references(profile,sig,parts,slots,include_null=True)
     candidates=[(o,k) for i,o,t,k in edges if i==index and t==expected and (offset is None or o==offset)]
-    # Null references in fixed layouts are absent from the graph.
-    spec=CATALOGS[profile].get((sig,tag))
-    if expected is None and spec and len(raw)==spec.length and (offset is None or offset==spec.offset):
-        if struct.unpack_from("<I",raw,spec.offset)[0]==0:
-            candidates.append((spec.offset,spec.targets))
     if len(candidates)!=1 or index in opaque:
         raise ValueError("ambiguous, stale or unsupported reference")
     field_offset,kinds=candidates[0]
