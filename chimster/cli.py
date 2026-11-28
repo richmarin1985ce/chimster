@@ -122,6 +122,8 @@ def build_parser():
  a.add_argument('--reuse',help='Previously completed build directory')
  for opt in ('optimize','release','final','warnings-as-errors'): a.add_argument('--'+opt,action='store_true')
  a=s.add_parser('pex-decompile'); a.add_argument('game'); a.add_argument('compiler'); a.add_argument('source'); a.add_argument('output'); a.add_argument('--execute',action='store_true'); a.add_argument('--timeout',type=int,default=120)
+ a=s.add_parser('compiler-smoke'); a.add_argument('profile'); a.add_argument('output'); a.add_argument('--execute',action='store_true'); a.add_argument('--timeout',type=int,default=120)
+ a=s.add_parser('vmad-mutate'); a.add_argument('game'); a.add_argument('plugin'); a.add_argument('output'); a.add_argument('form',type=lambda v:int(v,0)); a.add_argument('action',choices=['attach','detach','add-property','set-property','remove-property']); a.add_argument('script'); a.add_argument('plugin_sha256'); a.add_argument('vmad_sha256'); a.add_argument('--property'); a.add_argument('--type-id',type=int); a.add_argument('--value',default='null'); a.add_argument('--pex')
  a=s.add_parser('vmad-inspect'); a.add_argument('game'); a.add_argument('plugin'); a.add_argument('form',type=lambda v:int(v,0))
  a=s.add_parser('vmad-edit'); a.add_argument('game'); a.add_argument('plugin'); a.add_argument('output'); a.add_argument('form',type=lambda v:int(v,0)); a.add_argument('script'); a.add_argument('property'); a.add_argument('value'); a.add_argument('plugin_sha256'); a.add_argument('vmad_sha256')
  a=s.add_parser('pex-inspect'); a.add_argument('game'); a.add_argument('path')
@@ -352,6 +354,14 @@ def main(argv=None):
    result=decompile(n.game,n.compiler,n.source,n.output,execute=n.execute,timeout=n.timeout)
    if n.execute and result['status']!='source-recovered':
     print(json.dumps(result,indent=2)); raise SystemExit(1)
+  elif n.cmd=='compiler-smoke':
+   from .compiler_profiles import smoke
+   result=smoke(n.profile,n.output,execute=n.execute,timeout=n.timeout)
+   if n.execute and result.get('status')!='compiler-smoke-passed':
+    print(json.dumps(result,indent=2)); raise SystemExit(1)
+  elif n.cmd=='vmad-mutate':
+   from .vmad_plugin import stage_mutation
+   result=stage_mutation(n.plugin,n.output,n.game,n.form,n.action,n.script,n.plugin_sha256,n.vmad_sha256,property_name=n.property,type_id=n.type_id,value=json.loads(n.value),pex=n.pex)
   elif n.cmd=='vmad-inspect':
    from .vmad_plugin import inspect
    result=inspect(n.plugin,n.game,n.form)
