@@ -95,3 +95,27 @@ def model_path(path):
 def billboard_paths(path):
     stem=PurePosixPath(model_path(path)).stem
     return (f"textures/trees/billboards/{stem}.dds",f"trees/billboards/{stem}.dds")
+
+
+def tree_fields(fields):
+    """Decode game TREE metadata without changing the underlying record."""
+    result={"issues":[]}
+    raw=fields.get(b"ICON",b"")
+    if raw:result["leaf_texture"]=raw.split(b"\0",1)[0].decode("cp1252",errors="replace")
+    raw=fields.get(b"BNAM",b"")
+    if len(raw)==8:
+        w,h=struct.unpack("<2f",raw)
+        if all(isfinite(v) and 0<v<=1e6 for v in (w,h)):result["billboard_dimensions"]=(w,h)
+        else:result["issues"].append("Invalid billboard dimensions")
+    elif raw:result["issues"].append("Unsupported BNAM size")
+    raw=fields.get(b"SNAM",b"")
+    if len(raw)%4 or len(raw)>4096:result["issues"].append("Unsupported seed array")
+    else:result["seeds"]=[s[0] for s in struct.iter_unpack("<I",raw)]
+    raw=fields.get(b"CNAM",b"")
+    if len(raw)==32:
+        values=struct.unpack("<5fi2f",raw)
+        if all(isfinite(v) for v in values):
+            result["parameters"]=dict(zip(("curvature","min_leaf_angle","max_leaf_angle","branch_dimming","leaf_dimming","shadow_radius","rock_speed","rustle_speed"),values))
+        else:result["issues"].append("Nonfinite tree parameters")
+    elif raw:result["issues"].append("Unsupported CNAM size")
+    return result
