@@ -14,6 +14,9 @@ def validate_mesh(mesh):
         raise ValueError("invalid vertex")
     if any(len(v)!=2 or not all(isfinite(x) for x in v) for v in mesh.uv):
         raise ValueError("invalid UV")
+    colors=getattr(mesh,"colors",[])
+    if colors and (len(colors)!=len(mesh.vertices) or any(len(v)!=4 or any(not isfinite(x) or not 0<=x<=1 for x in v) for v in colors)):
+        raise ValueError("invalid vertex colors")
     for tri,mat in mesh.faces:
         if len(tri)!=3 or len(set(tri))!=3 or any(not isinstance(i,int) or not 0<=i<len(mesh.vertices) for i in tri) or not mat:
             raise ValueError("invalid triangle/material")
