@@ -126,3 +126,19 @@ class ViewportTests(unittest.TestCase):
             self.assertIn(204,r.targets[2].read(alignment=1)[3::4])
             with self.assertRaises(ValueError):Material(reflectivity=2).validate()
         finally:r.close()
+
+    @unittest.skipUnless(os.environ.get("CHIMSTER_TEST_GL"),"optional GL context")
+    def test_ao_mask_resize_and_disable(self):
+        from chimster.render_effects import Effects
+        s,m=make_demo();r=Renderer(backend="egl")
+        try:
+            cam=Camera(zoom=4)
+            a,_=r.render(s,cam,96,72,m)
+            b,_=r.render(s,cam,96,72,m,effects=Effects(ao_strength=.8))
+            self.assertEqual(r.ao.mask.size,(96,72))
+            self.assertNotEqual(a,b)
+            r.render(s,cam,64,48,m,effects=Effects(ao_strength=.8))
+            self.assertEqual(r.ao.mask.size,(64,48))
+            c,_=r.render(s,cam,96,72,m)
+            self.assertEqual(a,c)
+        finally:r.close()
