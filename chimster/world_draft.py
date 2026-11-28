@@ -173,6 +173,19 @@ class Draft:
                                 "title":title,"origin":origin,"size":size,"environment":settings,"starter_land":True})
         return world
 
+    def create_weather(self,name,spec):
+        from .world_weather import validate
+        from .world_climate import weather_preview
+        import struct
+        name=self.unique_name(name)
+        spec=validate(spec,self.index())
+        self.checkpoint()
+        key=self.allocate()
+        preview=weather_preview([(b"NAM0",bytes(spec["colors"])),(b"FNAM",struct.pack("<6f",*spec["fog"]))])
+        self.rows[key]={"key":key,"signature":"WTHR","plugin":self.name,"flags":0,"world":None,"cell":None,"bucket":None,"editor_id":name,"name":"","weather_spec":spec,"weather_preview":preview}
+        self.operations.append({"action":"create_weather","key":key_json(key),"editor_id":name,"spec":spec})
+        return key
+
     def create_region(self,name,spec):
         from .world_regions import validate
         name=self.unique_name(name)
