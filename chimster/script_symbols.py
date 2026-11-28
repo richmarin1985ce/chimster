@@ -15,6 +15,7 @@ class Symbol:
     origin: str = "vanilla"
     owner: str = ""
     line: int = 0
+    path: str = ""
 
 PAPYRUS = (
     Symbol("GetStage","Int GetStage()","Current quest stage.",owner="Quest"),
@@ -111,13 +112,13 @@ def local_symbols(source, language):
             result.append(Symbol(m[1],s,"Declaration in current source.","local",owner,line))
     return tuple(result)
 
-def complete(game,language,source,prefix,extenders=(),owner="",limit=40):
+def complete(game,language,source,prefix,extenders=(),owner="",limit=40,library=()):
     if type(limit) is not int or not 1<=limit<=200:
         raise ValueError("invalid completion limit")
     norm=(lambda s:s) if language=="lua" else str.casefold
     prefix=norm(prefix)
     owner=norm(owner)
-    items=local_symbols(source,language)+catalog(game,language,extenders)
+    items=local_symbols(source,language)+catalog(game,language,extenders)+tuple(library)
     matches={}
     for symbol in items:
         if owner and norm(symbol.owner)!=owner:continue
@@ -126,6 +127,37 @@ def complete(game,language,source,prefix,extenders=(),owner="",limit=40):
         matches.setdefault(key,symbol)
     return sorted(matches.values(),key=lambda s:(s.origin!="local",norm(s.name),norm(s.owner)))[:limit]
 
-def lookup(game,language,source,name,extenders=(),owner=""):
+def lookup(game,language,source,name,extenders=(),owner="",library=()):
     norm=(lambda s:s) if language=="lua" else str.casefold
-    return [s for s in complete(game,language,source,name,extenders,owner,200) if norm(s.name)==norm(name)]
+    return [s for s in complete(game,language,source,name,extenders,owner,200,library) if norm(s.name)==norm(name)]
+
+
+def index_papyrus_library(root, *, max_files=2000, max_bytes=32*1024*1024):
+    """Read explicitly selected local .psc files, never follow symlinks."""
+    from pathlib import Path
+    from dataclasses import replace
+    import os
+    path=Path(root).resolve(strict=True)
+    if not path.is_dir():raise ValueError("expected source library directory")
+    if not 1<=max_files<=10000 or not 1<=max_bytes<=128*1024*1024:
+        raise ValueError("invalid indexing limits")
+    items=[];issues=[];total=0;count=0
+    for folder,dirs,files in os.walk(path,followlinks=False):
+        dirs[:]=sorted(d for d in dirs if not (Path(folder)/d).is_symlink())
+        for name in sorted(files):
+            p=Path(folder)/name
+            if p.suffix.casefold()!=".psc" or p.is_symlink() or not p.is_file():continue
+            count+=1
+            if count>max_files:raise ValueError("source library file limit exceeded")
+            size=p.stat().st_size
+            total+=size
+            if total>max_bytes:raise ValueError("source library byte limit exceeded")
+            if size>512*1024:
+                issues.append({"path":str(p),"reason":"file exceeds highlighting limit"});continue
+            try:
+                source=p.read_text(encoding="utf-8-sig")
+                for symbol in local_symbols(source,"papyrus"):
+                    items.append(replace(symbol,origin="library",path=str(p)))
+            except (OSError,UnicodeError,ValueError) as exc:
+                issues.append({"path":str(p),"reason":str(exc)})
+    return {"root":str(path),"files":count,"bytes":total,"symbols":tuple(items),"issues":issues}
