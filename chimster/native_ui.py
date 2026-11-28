@@ -266,6 +266,52 @@ def mount(parent, game=None):
             grid.insert("","end",text=f'{row["tag"]} #{row["occurrence"]+1}',values=(row.get("semantic_status",row["status"]),value("left"),value("right")))
         grid.pack(fill="both",expand=True)
         ttk.Label(dialog,text="Opaque fields are not safe to merge automatically.").pack(anchor="w")
+
+    def string_table():
+        from .compatibility_strings import parse as parse_table,edit as edit_table
+        from hashlib import sha256
+        name=filedialog.askopenfilename(filetypes=[("Native string tables","*.strings *.dlstrings *.ilstrings")])
+        if not name:return
+        p=Path(name);kind=p.suffix[1:].upper()
+        encoding=simpledialog.askstring("String table encoding","Encoding:",initialvalue="utf-8",parent=parent)
+        if encoding is None:return
+        data=p.read_bytes();original=parse_table(data,kind,encoding);changes={}
+        dialog=tk.Toplevel(parent);dialog.title("Native string table: "+p.name);dialog.geometry("720x500")
+        query=tk.StringVar();ttk.Entry(dialog,textvariable=query).pack(fill="x")
+        grid=ttk.Treeview(dialog,columns=("value",),show="tree headings")
+        grid.heading("#0",text="String ID");grid.heading("value",text="Text")
+        grid.column("#0",width=110);grid.column("value",width=530);grid.pack(fill="both",expand=True)
+        entries={}
+        def populate(*_):
+            grid.delete(*grid.get_children());entries.clear();q=query.get().casefold()
+            for key,value in original.items():
+                value=changes.get(key,value)
+                if q not in f"{key} {value}".casefold():continue
+                item=grid.insert("","end",text=str(key),values=(value,));entries[item]=key
+                if len(entries)>=500:break
+        def modify():
+            if not grid.selection():raise ValueError("Select a string ID")
+            key=entries[grid.selection()[0]]
+            value=simpledialog.askstring("Edit string "+str(key),"New text:",initialvalue=changes.get(key,original[key]),parent=dialog)
+            if value is None:return
+            if value==original[key]:changes.pop(key,None)
+            else:
+                value.encode(encoding)
+                if chr(0) in value:raise ValueError("Embedded null")
+                changes[key]=value
+            populate()
+        def save_table():
+            if not changes:raise ValueError("No changes to export")
+            directory=filedialog.askdirectory(title="Choose staging directory")
+            if not directory:return
+            output=Path(directory)/p.name
+            result=edit_table(data,kind,changes,sha256(data).hexdigest(),encoding)
+            with output.open("xb") as stream:stream.write(result)
+            messagebox.showinfo("Native strings",f"Exported {len(changes)} changed strings to {output}",parent=dialog)
+        ttk.Label(dialog,text="Filter by ID or text; first 500 matches. Original table is never overwritten.").pack(anchor="w")
+        ttk.Button(dialog,text="Edit string",command=guard(modify)).pack(anchor="e")
+        ttk.Button(dialog,text="Export staged table",command=guard(save_table)).pack(anchor="e")
+        grid.bind("<Double-1>",lambda event:guard(modify)());query.trace_add("write",populate);populate()
     def history(reverse):
         s=state["session"]
         if s is None:raise ValueError("Open a plugin first")
@@ -291,13 +337,15 @@ def mount(parent, game=None):
     ttk.Button(bar,text="Load masters",command=guard(load_masters)).pack(side="left")
     ttk.Button(bar,text="Validate",command=guard(validate)).pack(side="left")
     ttk.Button(bar,text="Edit typed field",command=guard(edit_field)).pack(side="left")
-    ttk.Button(bar,text="New item",command=guard(create_record)).pack(side="left")
-    ttk.Button(bar,text="Duplicate",command=guard(duplicate_record)).pack(side="left")
-    ttk.Button(bar,text="Retarget",command=guard(retarget)).pack(side="left")
-    ttk.Button(bar,text="Compare",command=guard(compare_record)).pack(side="left")
-    ttk.Button(bar,text="Undo",command=guard(lambda:history(False))).pack(side="left")
-    ttk.Button(bar,text="Redo",command=guard(lambda:history(True))).pack(side="left")
-    ttk.Button(bar,text="Export staged copy",command=guard(export)).pack(side="left")
+    actions=ttk.Frame(parent);actions.pack(fill="x",before=pane)
+    ttk.Button(actions,text="Native strings",command=guard(string_table)).pack(side="left")
+    ttk.Button(actions,text="New item",command=guard(create_record)).pack(side="left")
+    ttk.Button(actions,text="Duplicate",command=guard(duplicate_record)).pack(side="left")
+    ttk.Button(actions,text="Retarget",command=guard(retarget)).pack(side="left")
+    ttk.Button(actions,text="Compare",command=guard(compare_record)).pack(side="left")
+    ttk.Button(actions,text="Undo",command=guard(lambda:history(False))).pack(side="left")
+    ttk.Button(actions,text="Redo",command=guard(lambda:history(True))).pack(side="left")
+    ttk.Button(actions,text="Export staged copy",command=guard(export)).pack(side="left")
     tree.bind("<<TreeviewSelect>>",lambda event:guard(inspect)() if tree.selection() else None)
     from .drop_import import editor_drop
     editor_drop(parent,[([".esp",".esm",".esl"],open_file,False)])
