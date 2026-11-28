@@ -145,3 +145,34 @@ class NativeSession:
             candidate=NativeSession(self.profile,data,self.slots,self.external_types,self.external_records)
         self.__dict__.update(candidate.__dict__)
         return self.revision
+
+    def typed_fields(self,path):
+        """Show only explicitly supported common scalar adapters."""
+        from .native_typed_edit import common_fields
+        path=tuple(path)
+        if path not in self.rows:raise ValueError("Select a record")
+        root=self.nodes[0]
+        localized=root.signature==b"TES4" and bool(struct.unpack_from("<I",root.header,8)[0]&0x80)
+        return common_fields(self.profile,self.node(path),localized)
+
+    def apply_typed(self,revision,edits):
+        """Apply a typed batch atomically; never change identity or write files."""
+        from .native_typed_edit import edit
+        if revision!=self.revision:raise ValueError("stale session")
+        if not isinstance(edits,(list,tuple)) or not 1<=len(edits)<=256:
+            raise ValueError("expected bounded nonempty edit batch")
+        candidate=NativeSession(self.profile,self.data,self.slots,self.external_types,self.external_records)
+        for selector,tag,occurrence,changes in edits:
+            path=candidate.resolve_identity(selector) if isinstance(selector,str) else tuple(selector)
+            if path not in candidate.rows:raise ValueError("not an editable record")
+            key=candidate.rows[path]["key"]
+            if key is None or len(candidate.paths.get(key,()))!=1 or key not in candidate.types:
+                raise ValueError("missing, deleted or ambiguous record identity")
+            if not isinstance(tag,bytes) or len(tag)!=4:raise ValueError("invalid field tag")
+            data=edit(self.profile,candidate.data,path,tag,occurrence,changes,candidate.revision)
+            updated=NativeSession(self.profile,data,self.slots,self.external_types,self.external_records)
+            if updated.paths!=candidate.paths or updated.types!=candidate.types:
+                raise ValueError("typed edit changed record identities or types")
+            candidate=updated
+        self.__dict__.update(candidate.__dict__)
+        return self.revision
