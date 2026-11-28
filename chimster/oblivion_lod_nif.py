@@ -22,13 +22,6 @@ def encode_groups(groups):
     for mesh,diffuse,cutout,material in groups:
         if len(material)!=14 or not all(isfinite(v) for v in material) or material[-1]!=1:raise ValueError("Unsupported material")
         data,_,_=geometry(mesh)
-        colors=getattr(mesh,"colors",[])
-        if colors:
-            if len(colors)!=len(mesh.vertices) or any(len(v)!=4 or any(not isfinite(x) or not 0<=x<=1 for x in v) for v in colors):raise ValueError("Invalid vertex colors")
-            # Classic geometry has one byte Has Vertex Colors immediately after the bounding sphere.
-            pos=9+len(mesh.vertices)*12+3+len(mesh.vertices)*36+16
-            if data[pos]!=0:raise ValueError("Unexpected geometry layout")
-            data=data[:pos]+b"\x01"+b"".join(pack("4f",*v) for v in colors)+data[pos+1:]
         path=texture(diffuse);i=len(blocks);children.append(i)
         props=(i+2,i+3,i+5) if cutout else (i+2,i+3)
         shape=av("LOD geometry "+str(len(children)),props)+pack("iiB",i+1,-1,0)
