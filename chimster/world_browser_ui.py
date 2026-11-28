@@ -652,7 +652,7 @@ def mount(parent, game, open_preview=None, viewport_drop=None):
                 previous=filedialog.askdirectory(title="Choose previous LOD package") or None
             if index.profile=="oblivion":
                 from .world_lod_oblivion import export as export_oblivion
-                show(export_oblivion(index,world,out))
+                show(export_oblivion(index,world,out,assets=assets))
                 status.set("Oblivion native terrain candidates exported; runtime verification pending.")
                 return
             show(export(index,world,out,assets=assets,previous=previous))
