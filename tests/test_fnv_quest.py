@@ -98,3 +98,21 @@ class NativeQuestTests(unittest.TestCase):
         parts+=list(subs(empty_script()))
         with self.assertRaisesRegex(ValueError,"unsupported condition"):
             fields(b"QUST",parts)
+
+    def test_shared_native_quest_and_world_validation(self):
+        from chimster.native_quests import inspect,validate
+        from chimster.world_validator import validate as validate_world
+        from chimster.record_graph import Slots
+        spec={"schema":1,"id":"Quest","title":"Quest",
+              "stages":[{"index":0,"log":"Start"},{"index":10,"log":"End","conditions":[{"stage":0,"done":True}]}],
+              "topics":[{"id":"Talk","prompt":"Talk","responses":[{"text":"First"},{"text":"Second"}]}]}
+        with TemporaryDirectory() as d:
+            path=Path(d)/"Quest.esp";export(spec,path)
+            rows=list(inspect("new-vegas",path.read_bytes(),Slots(path.name)))
+            self.assertEqual(list(validate(rows)),[])
+            quest=next(r for r in rows if r["signature"]=="QUST")
+            self.assertTrue(any(offset==12 for _,offset,_ in quest["typed_offsets"]))
+            self.assertEqual(quest["opaque"],[])
+            report=validate_world([path],quest_links=True)
+            self.assertTrue(report["quest_links_checked"])
+            self.assertTrue(report["valid"],report["issues"])
