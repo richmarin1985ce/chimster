@@ -160,7 +160,40 @@ def globe(catalog,k,res=16):
         assets[name]=mesh;instances.append(Instance(name,name))
     mats={name:Material(tint=col) for name,(w,col) in colors.items()}
     return Scene(assets,instances),report(k,mats,{},6,"globe")
-def terrain(catalog,k,lat,lon,span_km=8.,resolution=32):
+class Heightfield:
+    """Explicit user-supplied square height samples in meters."""
+    def __init__(self,rows):
+        n=len(rows)
+        if n<2 or n>513 or any(len(row)!=n for row in rows):raise ValueError("Expected square heightfield of 2–513 samples")
+        if any(type(h) not in (int,float) or not isfinite(h) or abs(h)>100000 for row in rows for h in row):raise ValueError("Invalid height sample")
+        self.rows=tuple(tuple(row) for row in rows);self.n=n
+    @classmethod
+    def load(cls,path):
+        import json
+        from pathlib import Path
+        p=Path(path)
+        if p.stat().st_size>8*1024*1024:raise ValueError("Heightfield file exceeds budget")
+        data=json.loads(p.read_text(encoding="utf-8"))
+        if not isinstance(data,dict) or data.get("version")!=1 or data.get("units")!="meters" or not isinstance(data.get("heights"),list):raise ValueError("Expected heightfield JSON version 1 in meters")
+        return cls(data["heights"])
+    def sample(self,u,v):
+        x=max(0.,min(1.,u))*(self.n-1);y=max(0.,min(1.,v))*(self.n-1)
+        a=min(self.n-2,int(x));b=min(self.n-2,int(y));fx=x-a;fy=y-b
+        return (1-fy)*((1-fx)*self.rows[b][a]+fx*self.rows[b][a+1])+fy*((1-fx)*self.rows[b+1][a]+fx*self.rows[b+1][a+1])
+
+def skirt(mesh,res,depth):
+    """Hide mixed-LOD edge gaps with downward-facing perimeter strips."""
+    edge=list(range(res+1))+[y*(res+1)+res for y in range(1,res+1)]+[res*(res+1)+x for x in range(res-1,-1,-1)]+[y*(res+1) for y in range(res-1,0,-1)]
+    start=len(mesh.vertices)
+    for i in edge:
+        x,y,z=mesh.vertices[i];mesh.vertices.append((x,y,z-depth));mesh.uv.append(mesh.uv[i])
+    mat=mesh.faces[0][1]
+    for i,a in enumerate(edge):
+        j=(i+1)%len(edge);b=edge[j];c=start+i;d=start+j
+        mesh.faces.extend([((a,c,d),mat),((a,d,b),mat)])
+    return mesh
+
+def terrain(catalog,k,lat,lon,span_km=8.,resolution=32,heightfield=None):
     if not all(isfinite(x) for x in (lat,lon,span_km)) or not -90<=lat<=90 or not -180<=lon<=180 or not .1<=span_km<=100 or resolution not in (16,32,64):raise ValueError("Invalid landing preview")
     p=catalog.planets[k];radius=p.get("radius_km",0)
     if not 1<=radius<=1000000 or span_km>radius*.1:raise ValueError("Missing radius or oversized local patch")
@@ -174,19 +207,26 @@ def terrain(catalog,k,lat,lon,span_km=8.,resolution=32):
         for tx in range(3):
             name=f"planet-tile-{tx}-{ty}"
             def coord(x,y):return ((tx+x-1.5)*span_km/3,(ty+y-1.5)*span_km/3)
+            cx=(tx-1)*32;cy=(ty-1)*32
             def point(x,y):
                 a,b=coord(x,y);q=direction_at(lat,lon,a,b,radius)
-                z=height*relief(q,seed)/meters_per_unit
-                return (a*1000/meters_per_unit,b*1000/meters_per_unit,z)
+                if heightfield is not None:z=heightfield.sample((tx+x)/3,(ty+y)/3)/meters_per_unit
+                else:
+                    # Global relief plus higher-frequency local-scale detail.
+                    detail=.5*sin(q[0]*radius*1.7+q[1]*radius*.9+seed%31)*cos(q[2]*radius*2.1)+.25*sin(q[1]*radius*6.2-q[2]*radius*3.4+seed%47)
+                    z=height*(.65*relief(q,seed)+.35*detail)/meters_per_unit
+                return ((x-.5)*32,(y-.5)*32,z)
             def mat(x,y):return material_at(direction_at(lat,lon,*coord(x,y),radius),seed,colors)
             for tier,r in enumerate((resolution,resolution//2,resolution//4)):
-                assets[name+("@lod"+str(tier) if tier else "")]=grid(r,point,mat)
-            instances.append(Instance(name,name))
+                mesh=grid(r,point,mat)
+                assets[name+("@lod"+str(tier) if tier else "")]=skirt(mesh,r,max(1.,height/meters_per_unit*.25))
+            instances.append(Instance(name,name,cx,cy))
     mats={name:Material(tint=col) for name,(w,col) in colors.items()}
     fx={}
     if "atmosphere" in p:
         _,density,ray,mie=p["atmosphere"]
         fx=dict(fog_density=min(.12,density*.012),scatter_strength=min(2.,(ray+mie)*.5),fog_falloff=.02,volume_distance=160.)
     r=report(k,mats,fx,9,"landing")
-    r.update(latitude=lat,longitude=lon,span_km=span_km,meters_per_unit=meters_per_unit)
+    r.update(latitude=lat,longitude=lon,span_km=span_km,meters_per_unit=meters_per_unit,height_source="imported meters" if heightfield is not None else "illustrative procedural")
+    if heightfield is not None:r["issues"]=["User-supplied heightfield; native biome placement remains illustrative"]
     return Scene(assets,instances),r

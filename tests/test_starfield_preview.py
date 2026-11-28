@@ -190,7 +190,24 @@ class StarfieldPreviewTests(unittest.TestCase):
             s,r=terrain(catalog,key,0,179.99,8,16)
             self.assertEqual(len(s.instances),9)
             self.assertEqual(len(s.assets),27)
-            self.assertEqual(s.assets["planet-tile-0-0"].vertices[16],s.assets["planet-tile-1-0"].vertices[0])
+            a=s.assets["planet-tile-0-0"].vertices[16];b=s.assets["planet-tile-1-0"].vertices[0]
+            self.assertEqual((a[0]-32,a[1],a[2]),b)
             self.assertEqual(s.assets["planet-tile-0-0"].vertices[0],s.assets["planet-tile-0-0@lod1"].vertices[0])
             self.assertAlmostEqual(sum(x*x for x in direction_at(90,180,1,1,6000)),1.)
             self.assertEqual(r["planet_mode"],"landing")
+
+    def test_planet_heightfield_and_skirts(self):
+        from chimster.starfield_planets import Heightfield,terrain
+        from types import SimpleNamespace
+        key=Identity("test.esm",0x800)
+        catalog=SimpleNamespace(planets={key:{"radius_km":6000.,"biomes":[]}},biomes={})
+        hf=Heightfield([[0.,100.],[200.,300.]])
+        self.assertEqual(hf.sample(.5,.5),150.)
+        scene,report=terrain(catalog,key,0,0,9,16,heightfield=hf)
+        self.assertEqual(report["height_source"],"imported meters")
+        m=scene.assets["planet-tile-1-1"]
+        self.assertGreater(len(m.vertices),17**2)
+        self.assertAlmostEqual(m.vertices[8*17+8][2],150/report["meters_per_unit"])
+        self.assertEqual(scene.instances[4].x,0)
+        self.assertEqual(scene.instances[5].x,32)
+        with self.assertRaises(ValueError):Heightfield([[float("nan"),0],[0,0]])

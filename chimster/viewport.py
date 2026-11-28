@@ -482,7 +482,7 @@ def mount(parent):
         except Exception as exc:messagebox.showerror("Starfield preview",str(exc),parent=parent)
     ttk.Button(toolbar,text="Starfield cell preview",command=open_starfield).pack(side="left")
     def open_planets():
-        from .starfield_planets import Planets,globe,terrain
+        from .starfield_planets import Planets,globe,terrain,Heightfield
         from .starfield_preview import label
         paths=filedialog.askopenfilenames(parent=parent,title="Select Starfield full masters in load order",filetypes=[("Starfield plugins","*.esm *.esp")])
         if not paths:return
@@ -514,9 +514,13 @@ def mount(parent):
                         if lon is None:return
                         span=simpledialog.askfloat("Landing width","Area width in kilometers",initialvalue=8,minvalue=.1,maxvalue=100,parent=win)
                         if span is None:return
-                        candidate,report=terrain(catalog,k,lat,lon,span)
+                        heights=None
+                        if messagebox.askyesno("Landing heightfield","Use a user-supplied square JSON heightfield in meters instead of illustrative terrain?",parent=win):
+                            heightpath=filedialog.askopenfilename(parent=win,filetypes=[("Heightfield JSON","*.json")])
+                            if heightpath:heights=Heightfield.load(heightpath)
+                        candidate,report=terrain(catalog,k,lat,lon,span,heightfield=heights)
                     else:candidate,report=globe(catalog,k)
-                    if load_cell_preview(candidate,report):source.set("Starfield "+p["name"]+" | illustrative "+report["planet_mode"]+" preview")
+                    if load_cell_preview(candidate,report):source.set("Starfield "+p["name"]+" | "+report.get("height_source","illustrative")+" "+report["planet_mode"]+" preview")
                 except (ValueError,OSError,KeyError) as exc:messagebox.showerror("Planet preview",str(exc),parent=win)
             def inspect():
                 k,p=chosen()
