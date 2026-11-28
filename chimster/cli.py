@@ -81,7 +81,7 @@ def build_parser():
  b=c.add_parser('snapshot'); b.add_argument('game',choices=['oblivionremastered','fallout76']); b.add_argument('root'); b.add_argument('release')
  b=c.add_parser('compare'); b.add_argument('old'); b.add_argument('new')
  b=c.add_parser('package-layout'); b.add_argument('paths',nargs='+')
- a=s.add_parser('navmesh-auto'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--rooms',action='store_true'); a.add_argument('--spacing',type=float,default=0.5); a.add_argument('--radius',type=float,default=0.3); a.add_argument('--height',type=float,default=1.8)
+ a=s.add_parser('navmesh-auto'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--rooms',action='store_true'); a.add_argument('--simplify',action='store_true'); a.add_argument('--spacing',type=float,default=0.5); a.add_argument('--radius',type=float,default=0.3); a.add_argument('--height',type=float,default=1.8)
  a=s.add_parser('navmesh-nif'); a.add_argument('nif'); a.add_argument('output'); a.add_argument('helper'); a.add_argument('--unit-scale',type=float,required=True); a.add_argument('--spacing',type=float,required=True); a.add_argument('--radius',type=float,default=0.3); a.add_argument('--height',type=float,default=1.8); a.add_argument('--max-step',type=float,default=0.4); a.add_argument('--max-slope',type=float,default=45)
  a=s.add_parser('navmesh-simplify'); a.add_argument('project'); a.add_argument('output')
  a=s.add_parser('navmesh-route'); a.add_argument('project'); a.add_argument('start',type=int); a.add_argument('end',type=int); a.add_argument('--closed',action='append',default=[])
@@ -359,6 +359,9 @@ def main(argv=None):
     mesh=generate_collision(spec)
    elif n.rooms:mesh=build(spec,n.spacing,{"radius":n.radius,"height":n.height})
    else:mesh=generate(spec)
+   if n.simplify:
+    from .navmesh_simplify import simplify
+    mesh=simplify(mesh)
    from pathlib import Path
    with Path(n.output).open("x",encoding="utf-8") as stream:json.dump(mesh,stream)
    result={"output":n.output,"vertices":len(mesh["vertices"]),"triangles":len(mesh["triangles"]),"regions":len(mesh["regions"]),"issues":mesh.get("issues",[]),"scope":mesh["scope"]}
