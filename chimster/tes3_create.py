@@ -3,25 +3,67 @@ import struct
 import hashlib
 from .native_parser import parse,subrecords
 from .native_payload_edit import replace
-from .tes3_items import edit_properties,SCHEMAS
+from .tes3_items import edit_properties,SCHEMAS,edit_book_data,edit_ingredient,edit_magic_effect,edit_container_flags,edit_leveled_level,edit_chance_none,ITEMS
 
-def create(data,signature,new_id,name,revision,*,model,properties=None):
+def create(data,signature,new_id,name,revision,*,model=None,properties=None,body='',effects=(),entries=(),actor_fields=None):
     if hashlib.sha256(data).hexdigest()!=revision:raise ValueError("Stale revision")
-    if signature not in ("MISC","WEAP","ARMO","CLOT","ALCH"):raise ValueError("Unsupported creation template")
+    if signature.encode("ascii") not in ITEMS:raise ValueError("Unsupported creation template")
     def encode(value,limit):
         if not isinstance(value,str) or not value.strip() or "\0" in value:raise ValueError("Invalid text")
         raw=value.encode("cp1252")
         if len(raw)>limit:raise ValueError("Text too long")
         return raw+b"\0"
     identity=encode(new_id,31)
-    parts=[(b"NAME",identity),(b"MODL",encode(model,255)),(b"FNAM",encode(name,255))]
-    tag={"MISC":"MCDT","WEAP":"WPDT","ARMO":"AODT","CLOT":"CTDT","ALCH":"ALDT"}[signature]
-    fmt,keys=SCHEMAS[signature,tag]
-    values=dict.fromkeys(keys,0)
-    for key in ("speed","reach"):
-        if key in values:values[key]=1
-    raw=edit_properties(signature,tag,struct.pack(fmt,*(values[k] for k in keys)),**(properties or {}))
-    parts.append((tag.encode(),raw))
+    parts=[(b"NAME",identity)]
+    props=dict(properties or {})
+    if signature not in ("SPEL","ENCH","LEVI","LEVC"):
+        parts.append((b"MODL",encode(model,255)))
+    if signature not in ("ENCH","LEVI","LEVC"):
+        parts.append((b"FNAM",encode(name,255)))
+    schemas={s:t for s,t in SCHEMAS}
+    if signature in schemas:
+        tag=schemas[signature]
+        fmt,keys=SCHEMAS[signature,tag]
+        values=dict.fromkeys(keys,0)
+        for key in ("speed","reach","quality"):
+            if key in values:values[key]=1
+        if signature=="CONT":
+            flags=props.pop("container_flags",{})
+        raw=edit_properties(signature,tag,struct.pack(fmt,*(values[k] for k in keys)),**props)
+        parts.append((tag.encode(),raw))
+        if signature=="CONT":
+            parts.append((b"FLAG",edit_container_flags(struct.pack("<I",8),**flags)))
+    elif signature=="BOOK":
+        parts.extend([(b"BKDT",edit_book_data(struct.pack("<fIIiI",0,0,0,-1,0),**props)),(b"TEXT",body.encode("cp1252")+b"\0")])
+    elif signature=="INGR":
+        parts.append((b"IRDT",edit_ingredient(struct.pack("<fi12i",0,0,*([-1]*12)),**props)))
+    elif signature in ("LEVI","LEVC"):
+        flags=props.pop("flags",0);chance=props.pop("chance_none",0)
+        if props or type(flags)!=int or not 0<=flags<=0xffffffff:raise ValueError("Invalid list properties")
+        entries=list(entries)
+        parts.extend([(b"DATA",struct.pack("<I",flags)),(b"NNAM",edit_chance_none(b"\0",chance)),(b"INDX",struct.pack("<I",len(entries)))])
+        for item,level in entries:
+            parts.extend([(b"INAM" if signature=="LEVI" else b"CNAM",encode(item,31)),(b"INTV",edit_leveled_level(bytes(2),level))])
+    elif signature in ("NPC_","CREA"):
+        # Explicit native actor data required: never invent race/class/stats.
+        fields=list(actor_fields or ())
+        allowed={b"RNAM",b"CNAM",b"ANAM",b"BNAM",b"KNAM",b"NPDT",b"FLAG",b"AIDT",b"NPCO",b"NPCS",b"SCRI",b"XSCL"}
+        if props or any(k not in allowed or not isinstance(v,bytes) for k,v in fields):raise ValueError("Invalid actor fields")
+        stats=[v for k,v in fields if k==b"NPDT"]
+        if len(stats)!=1 or len(stats[0]) not in ((12,52) if signature=="NPC_" else (96,)):raise ValueError("Explicit actor stats required")
+        required={b"FLAG",b"AIDT"} | ({b"RNAM",b"CNAM",b"ANAM",b"BNAM",b"KNAM"} if signature=="NPC_" else set())
+        if any(sum(k==tag for k,v in fields)!=1 for tag in required):raise ValueError("Missing or duplicate actor field")
+        parts.extend(fields)
+    else:raise ValueError("Unsupported creation template")
+    if signature in ("SPEL","ENCH","ALCH"):
+        for effect in effects:
+            parts.append((b"ENAM",edit_magic_effect(struct.pack("<Hbb5i",0,-1,-1,0,0,0,0,0),**effect)))
+        if not effects:raise ValueError("At least one effect required")
+    elif effects:raise ValueError("Effects unsupported")
+    if signature=="CONT":
+        for item,count in entries:
+            if type(count)!=int or not -2147483648<=count<=2147483647:raise ValueError("Invalid inventory count")
+            parts.append((b"NPCO",struct.pack("<i32s",count,encode(item,31))))
     nodes=parse("morrowind",data)
     if not nodes or nodes[0].signature!=b"TES3":raise ValueError("Missing header")
     for node in nodes[1:]:
