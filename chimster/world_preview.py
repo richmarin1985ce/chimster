@@ -95,6 +95,19 @@ def preview(browser, key, radius=0, models=None):
         environment=effective(browser,world)
         from .world_climate import representative_weather
         environment["weather_preview"]=representative_weather(browser,environment["values"].get("climate"))
+        if grid is not None:
+            from .world_regions import at
+            regions=at((r["region_spec"] for r in browser.active.values() if "region_spec" in r),world,grid[0]*4096+2048,grid[1]*4096+2048)
+            environment["regions"]=regions
+            for region in regions:
+                for weather,chance,_ in sorted(region["weather"],key=lambda r:-r[1]):
+                    from .record_graph import Identity
+                    candidate=browser.active.get(Identity(*weather),{}) if weather else {}
+                    if chance>0 and candidate.get("weather_preview"):
+                        environment["weather_preview"]={"weather":weather,**candidate["weather_preview"],"source":"regional preview"}
+                        break
+                else:continue
+                break
     return Scene(assets,instances), {
         "cell":label(key),"cells":len(cells),"grid":grid,"land_tiles":land_count,
         "proxy_references":len(instances)-land_count-model_count,"model_references":model_count,"skipped_references":skipped,
