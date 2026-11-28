@@ -6,7 +6,7 @@ from .native_catalog import CATALOGS, references
 from .native_profiles import PROFILES
 from dataclasses import replace
 
-def edit_reference(profile,node,slots,index,expected,target,record_types):
+def edit_reference(profile,node,slots,index,expected,target,record_types, offset=None):
     if PROFILES[profile].family=="TES3":
         raise ValueError("TES3 reference editing unsupported")
     sig=node.signature.decode("ascii")
@@ -14,13 +14,18 @@ def edit_reference(profile,node,slots,index,expected,target,record_types):
     if not 0<=index<len(parts):
         raise ValueError("missing field")
     tag,raw=parts[index]
+    edges,opaque=references(profile,sig,parts,slots)
+    candidates=[(o,k) for i,o,t,k in edges if i==index and t==expected and (offset is None or o==offset)]
+    # Null references in fixed layouts are absent from the graph.
     spec=CATALOGS[profile].get((sig,tag))
-    if spec is None or len(raw)!=spec.length:
-        raise ValueError("unknown field layout")
-    if slots.decode(struct.unpack_from("<I",raw,spec.offset)[0])!=expected:
-        raise ValueError("stale reference")
+    if expected is None and spec and len(raw)==spec.length and (offset is None or offset==spec.offset):
+        if struct.unpack_from("<I",raw,spec.offset)[0]==0:
+            candidates.append((spec.offset,spec.targets))
+    if len(candidates)!=1 or index in opaque:
+        raise ValueError("ambiguous, stale or unsupported reference")
+    field_offset,kinds=candidates[0]
     if target is not None and (target not in record_types or
-        spec.targets and record_types[target] not in spec.targets):
+        kinds and record_types[target] not in kinds):
         raise ValueError("unresolved or wrong-type target")
     compressed=bool(struct.unpack_from("<I",node.header,8)[0]&0x40000)
     data=bytearray(zlib.decompress(node.payload[4:]) if compressed else node.payload)
@@ -37,7 +42,7 @@ def edit_reference(profile,node,slots,index,expected,target,record_types):
         if extended is not None:
             n,extended=extended,None
         if i==index:
-            struct.pack_into("<I",data,pos+spec.offset,slots.encode(target))
+            struct.pack_into("<I",data,pos+field_offset,slots.encode(target))
             break
         pos+=n
         i+=1
