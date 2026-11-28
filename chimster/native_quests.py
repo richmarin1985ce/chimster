@@ -39,22 +39,42 @@ def inspect(profile, data, slots):
                         opaque.append(i)
                     if tag in (b"CTDA",b"CTDT"):
                         conditions.append((i,tag,raw))
+                offsets=[]
+                if profile=="new-vegas" and node.signature in (b"QUST",b"DIAL",b"INFO"):
+                    from .quest_remap_schema import fields as exact_fields
+                    try:
+                        exact=exact_fields(node.signature,parts)
+                    except (ValueError,UnicodeError,struct.error):
+                        pass
+                    else:
+                        edges=[];opaque=[]
+                        for i,offset,kinds in exact:
+                            target=slots.decode(struct.unpack_from("<I",parts[i][1],offset)[0])
+                            offsets.append((i,offset,kinds))
+                            if target is not None:edges.append((i,target,kinds[0] if len(kinds)==1 else kinds))
                 yield {"identity":slots.decode(struct.unpack_from("<I",node.header,12)[0]),
                        "signature":signature,"ancestry":ancestry,"parts":parts,
-                       "edges":edges,"opaque":opaque,"conditions":conditions}
+                       "edges":edges,"opaque":opaque,"conditions":conditions,"typed_offsets":offsets}
     yield from walk(parse(profile,data),())
 
 def validate(rows, external=None):
     """External records must be supplied for cross-master resolution."""
     rows=list(rows)
     index=dict(external or {})
-    index.update((r["identity"],r["signature"]) for r in rows if r["identity"] is not None)
+    seen=set()
+    for r in rows:
+        identity=r["identity"]
+        if identity is None or identity in seen:
+            yield identity,None,None,"null-or-duplicate-identity"
+        else:
+            seen.add(identity);index[identity]=r["signature"]
+    topics_by_info={r["identity"]:next((o for _,role,o in reversed(r["ancestry"]) if role=="topic"),None) for r in rows if r["signature"]=="INFO"}
     for row in rows:
         for field,target,kind in row["edges"]:
             actual=index.get(target)
             if actual is None:
                 yield row["identity"],field,target,"unresolved"
-            elif actual!=kind:
+            elif actual not in ((kind,) if isinstance(kind,str) else kind):
                 yield row["identity"],field,target,"wrong-type"
         if row["signature"]=="INFO":
             topics=[owner for _,role,owner in row["ancestry"] if role=="topic"]
@@ -62,3 +82,10 @@ def validate(rows, external=None):
                 yield row["identity"],None,None,"missing-topic-group"
             elif index.get(topics[-1])!="DIAL":
                 yield row["identity"],None,topics[-1],"unresolved-or-wrong-topic"
+            else:
+                for field,target,kind in row["edges"]:
+                    tag=row["parts"][field][0]
+                    if tag==b"TPIC" and target!=topics[-1]:
+                        yield row["identity"],field,target,"topic-group-mismatch"
+                    if tag==b"PNAM" and target in topics_by_info and topics_by_info[target]!=topics[-1]:
+                        yield row["identity"],field,target,"previous-info-topic-mismatch"
