@@ -23,7 +23,7 @@ def decode(parts,slots):
         values=[v for t,v in parts if t==tag]
         if len(values)==1 and len(values[0])==4:
             key=slots.decode(struct.unpack("<I",values[0])[0])
-            result[name]=(key.origin,key.local) if key else None
+            if key:result[name]=(key.origin,key.local)
     return result
 
 def normalize(values,index):
