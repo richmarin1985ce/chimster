@@ -88,3 +88,24 @@ class ViewportTests(unittest.TestCase):
             c,_=r.render(s,cam,64,48,m,effects=Effects(ao_strength=.4))
             self.assertEqual(len(c),64*48*4)
         finally:r.close()
+
+    @unittest.skipUnless(os.environ.get("CHIMSTER_TEST_GL"),"optional GL context")
+    def test_lighting_shadow_and_volume_pipeline(self):
+        from chimster.render_effects import Effects,LocalLight,FogVolume
+        s,m=make_demo();r=Renderer(backend="egl")
+        try:
+            cam=Camera(zoom=5)
+            baseline,_=r.render(s,cam,96,72,m)
+            lights=(LocalLight(position=(0,0,7),intensity=3,radius=20),)
+            lit,_=r.render(s,cam,96,72,m,effects=Effects(lights=lights))
+            self.assertNotEqual(baseline,lit)
+            shaded,_=r.render(s,cam,96,72,m,effects=Effects(lights=lights,shadow_size=512,shadow_cascades=2))
+            self.assertEqual(len(r.shadows.targets),2)
+            self.assertNotEqual(lit,shaded)
+            pick=r.pick(48,36)
+            fog,_=r.render(s,cam,96,72,m,effects=Effects(lights=lights,shadow_size=512,shadow_cascades=2,fog_density=.08,scatter_strength=.7,fog_volumes=(FogVolume(),)))
+            self.assertNotEqual(shaded,fog)
+            self.assertEqual(r.pick(48,36),pick)
+            restored,_=r.render(s,cam,96,72,m)
+            self.assertEqual(restored,baseline)
+        finally:r.close()

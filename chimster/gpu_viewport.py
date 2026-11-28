@@ -299,10 +299,10 @@ class Renderer:
                     for key,value in {"tint":m.tint,"alpha_cut":m.cutout,"normal_strength":m.normal_strength if m.normal else 0.,"normal_y":-1. if m.directx else 1.,"spec_strength":m.spec_strength,"gloss":m.gloss}.items():p[key].value=value
                     vao.render(self.gl.TRIANGLES,instances=len(chunk));stats["triangles"]+=count*len(chunk);stats["draw_calls"]+=1
         output=a
-        if effects.ao_strength or effects.fog_density:
+        if effects.ao_strength or effects.fog_density or effects.fog_volumes:
             from .screen_occlusion import Occlusion
             if self.ao is None:self.ao=Occlusion(self.ctx)
-            output=self.ao.render(a,depth,w,h,settings,effects,1/ty,(dot(settings.light,right),dot(settings.light,up),-dot(settings.light,back)))
+            output=self.ao.render(a,depth,w,h,settings,effects,1/ty,view,self.shadows)
         raw=output.read(alignment=1);stride=w*4
         raw=b"".join(raw[y:y+stride] for y in range((h-1)*stride,-1,-stride))
         stats["frame_ms"]=(perf_counter()-start)*1000;stats["renderer"]=self.ctx.info.get("GL_RENDERER","unknown")

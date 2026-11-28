@@ -1,4 +1,5 @@
-"""Bounded depth-neighborhood screen-space occlusion, no world geometry pass."""
+"""Screen-space AO and bounded world-space volumetric integration."""
+from . import gpu_lighting,gpu_shadows,gpu_volume
 VERTEX="""#version 330
 out vec2 uv;
 void main(){
@@ -11,8 +12,9 @@ uniform sampler2D image, depthmap;
 uniform vec2 pixel;
 uniform float nearp,farp, radius, strength, projection_y;
 uniform float fog_density,scatter_strength,anisotropy;
-uniform vec3 fog_color,sun_view;
+uniform vec3 fog_color;
 out vec4 color;
+"""+gpu_lighting.GLSL+gpu_shadows.GLSL+gpu_volume.GLSL+"""
 float linear_depth(float d){return nearp*farp/(farp-d*(farp-nearp));}
 vec3 position_at(vec2 q,float d){
  float z=linear_depth(d);
@@ -51,11 +53,7 @@ void main(){
  }
  }
  vec3 rgb=src.rgb*(1.0-strength*occ/max(weight,1.0));
- float trans=exp(-fog_density*length(pos));
- float mu=dot(normalize(pos),normalize(sun_view));
- float gg=anisotropy*anisotropy;
- float phase=(1.0-gg)/pow(max(.01,1.0+gg-2.0*anisotropy*mu),1.5);
- rgb=mix(fog_color,rgb,trans)+fog_color*(1.0-trans)*scatter_strength*phase*.15;
+ if(fog_density>0.0||volume_count>0)rgb=integrate_fog(rgb,pos);
  color=vec4(clamp(rgb,0.0,1.0),src.a);
 }"""
 
@@ -66,7 +64,7 @@ class Occlusion:
         self.vao=ctx.vertex_array(self.program,[])
         self.target=None
         self.size=None
-    def render(self,image,depth,w,h,settings,effects,projection_y,sun_view):
+    def render(self,image,depth,w,h,settings,effects,projection_y,view,shadows):
         if self.size!=(w,h):
             self.release_target()
             tex=self.ctx.texture((w,h),4)
@@ -75,8 +73,11 @@ class Occlusion:
         tex,fbo=self.target
         fbo.use();self.ctx.viewport=(0,0,w,h);self.ctx.enable_only(0)
         image.use(0);depth.use(1)
-        for k,v in dict(image=0,depthmap=1,pixel=(1/w,1/h),nearp=settings.near,farp=settings.far,radius=effects.ao_radius,strength=effects.ao_strength,projection_y=projection_y,fog_density=effects.fog_density,fog_color=effects.fog_color,scatter_strength=effects.scatter_strength,anisotropy=effects.scatter_anisotropy,sun_view=sun_view).items():
+        for k,v in dict(image=0,depthmap=1,pixel=(1/w,1/h),nearp=settings.near,farp=settings.far,radius=effects.ao_radius,strength=effects.ao_strength,projection_y=projection_y,fog_density=effects.fog_density,fog_color=effects.fog_color,scatter_strength=effects.scatter_strength,anisotropy=effects.scatter_anisotropy).items():
             self.program[k].value=v
+        gpu_lighting.bind(self.program,effects)
+        gpu_shadows.bind(self.program,shadows,bool(effects.shadow_size))
+        gpu_volume.bind(self.program,effects,view,settings)
         self.vao.render(vertices=3)
         return tex
     def release_target(self):

@@ -36,3 +36,9 @@ class EffectsTests(unittest.TestCase):
         self.assertAlmostEqual(views[0][1],16.8)
         self.assertEqual(views[1][1],48)
         with self.assertRaises(ValueError):Effects(shadow_cascades=3).validate()
+
+    def test_volumetric_limits(self):
+        from chimster.render_effects import FogVolume
+        self.assertEqual(Effects(fog_volumes=(FogVolume(),)).validate().volume_steps,8)
+        for fx in (Effects(volume_steps=100),Effects(fog_falloff=-1),Effects(fog_volumes=(FogVolume(radius=0),)),Effects(fog_volumes=(FogVolume(),)*5)):
+            with self.assertRaises(ValueError):fx.validate()

@@ -28,6 +28,17 @@ class LocalLight:
         return self
 
 @dataclass(frozen=True)
+class FogVolume:
+    center:tuple=(0.,0.,0.)
+    radius:float=8.
+    density:float=.08
+    def validate(self):
+        vector(self.center,3,-1e7,1e7)
+        if not isfinite(self.radius) or not .1<=self.radius<=10000 or not isfinite(self.density) or not 0<=self.density<=1:
+            raise ValueError("Invalid fog volume")
+        return self
+
+@dataclass(frozen=True)
 class Effects:
     shadow_size:int=0
     shadow_extent:float=48.
@@ -43,12 +54,22 @@ class Effects:
     ao_radius:float=1.5
     scatter_strength:float=0.
     scatter_anisotropy:float=.55
+    volume_steps:int=8
+    volume_distance:float=160.
+    fog_height:float=0.
+    fog_falloff:float=0.
+    fog_volumes:tuple=()
     water_level:float=None
     water_extent:float=32.
     water_color:tuple=(.05,.25,.31)
     reflection_size:int=0
     refraction:bool=False
     def validate(self):
+        if self.volume_steps not in (4,8,16,24):raise ValueError("Invalid volume step count")
+        if not isfinite(self.volume_distance) or not 1<=self.volume_distance<=10000:raise ValueError("Invalid volume distance")
+        if not isfinite(self.fog_height) or abs(self.fog_height)>1e7 or not isfinite(self.fog_falloff) or not 0<=self.fog_falloff<=1:raise ValueError("Invalid height fog")
+        if len(self.fog_volumes)>4:raise ValueError("At most four fog volumes")
+        for volume in self.fog_volumes:volume.validate()
         if not isfinite(self.scatter_strength) or not 0<=self.scatter_strength<=2 or not isfinite(self.scatter_anisotropy) or not -.9<=self.scatter_anisotropy<=.9:
             raise ValueError("Invalid scattering parameters")
         if self.reflection_size not in (0,128,256,512):
@@ -73,6 +94,6 @@ class Effects:
 def preset(name):
     if name=="Off":return Effects()
     if name=="Low":return Effects(fog_density=.012,ao_strength=.3)
-    if name=="Medium":return Effects(shadow_size=512,reflection_size=256,fog_density=.018,ao_strength=.45,scatter_strength=.35)
-    if name=="High":return Effects(shadow_size=1024,shadow_cascades=2,reflection_size=512,refraction=True,fog_density=.022,ao_strength=.65,scatter_strength=.65)
+    if name=="Medium":return Effects(shadow_size=512,reflection_size=256,fog_density=.018,ao_strength=.45,scatter_strength=.35,volume_steps=8,fog_falloff=.015)
+    if name=="High":return Effects(shadow_size=1024,shadow_cascades=2,reflection_size=512,refraction=True,fog_density=.022,ao_strength=.65,scatter_strength=.65,volume_steps=16,fog_falloff=.02)
     raise ValueError("Unknown effects preset")
