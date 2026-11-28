@@ -48,6 +48,26 @@ The second command requires the hashes from the inspection and a separate, new s
 
 Format references: https://github.com/BadDogSkyrim/BethesdaLibrary/blob/main/docs/file-formats/scripts.md and https://github.com/TES5Edit/meta/blob/master/UESPWiki/QUSTDef.wiki .
 
+### Compiler integrations and diagnostics
+Papyrus single-file builds accept explicit optimization and backend-dependent release/final switches. Caprica additionally accepts warnings-as-errors. Compiler launch failures and timeouts return structured diagnostics. Recognized compiler locations include filename, line and column where available; the original log and stdout/stderr provenance are retained. The desktop Diagnostics button navigates to matching lines in the current saved source, not arbitrary paths from compiler messages. Batch diagnostics from temporary staged paths may not resolve to the original editor file.
+
+OpenMW Lua scripts can be parsed without executing them using a separately installed Lua 5.1 luac compiler:
+    
+    python -m chimster lua-check /path/to/luac Script.lua --execute
+
+This is a Lua syntax check only, not a simulation of OpenMW's LuaJIT extensions, engine APIs or runtime.
+
+### Legacy editor compilation handoff
+Morrowind, classic Oblivion, Fallout 3 and Fallout: New Vegas now have advisory source block checks and standalone SCPT inspection, source draft preparation and donor attachment commands. Example for New Vegas:
+
+    python -m chimster legacy-script-inspect newvegas original/Example.esp
+    python -m chimster legacy-script-prepare newvegas original/Example.esp draft/Example.esp 0x800 Example.txt
+    python -m chimster legacy-script-attach newvegas draft/Example.esp compiled/Example.esp final/Example.esp
+
+For Morrowind, use the script name instead of a disk FormID. Preparation changes an existing standalone script, converts UTF-8 source to the supported CP1252 encoding and clears old bytecode and variable metadata. **The draft is not playable.** Compile it in the appropriate native Construction Set or GECK and save a same-name donor copy. Attachment checks script identity, matching source, compiled sizes/counts, record headers and unrelated payloads, preserves the draft's other records and adjusts group lengths. It intentionally rejects broader editor rewrites. It does not establish opcode correctness or genuine compiler provenance. Embedded FNV quest scripts retain the separate quest-attach-scripts workflow. No standalone legacy bytecode compiler, editor automation, generalized remapping, arbitrary encodings or engine verification is claimed.
+
+Regression fixtures cover diagnostic parsing, backend switches, legacy draft/attachment and Lua version checks. Execution remains deferred. Actual installed compiler and editor compatibility must be verified before use.
+
 ## Voice
 The formats module packs and unpacks supported FUZ containers. A FUZ is not a speech synthesizer: it contains separate lip-sync and audio payloads. XWM encoding, actual lip-sync generation and Wwise conversion remain unimplemented. Do not republish extracted game voice assets.
 
