@@ -64,6 +64,10 @@ def launch(parent):
         from .lip_curve_ui import launch as launch_curves
         launch_curves(win)
     ttk.Button(bar,text="Native curve editor",command=curve_editor).pack(side="left")
+    def phonemes():
+        from .phoneme_ui import launch as launch_phonemes
+        launch_phonemes(win)
+    ttk.Button(bar,text="Phonemes and calibration",command=phonemes).pack(side="left")
     def close():
         if busy[0]:messagebox.showinfo("Native LIP","Local operation is running.",parent=win)
         else:win.destroy()
