@@ -42,6 +42,7 @@ class Preview:
         if self.pipe is None: raise RuntimeError("No Panda3D graphics pipe")
         self.root=NodePath("preview")
         self.model=None; self.key=None; self.output=None
+        self.visibility=None;self.visibility_spec=None;self.visibility_report=None
         from panda3d.core import Camera, PerspectiveLens, AmbientLight, DirectionalLight
         self.lens=PerspectiveLens()
         self.camera=self.root.attach_new_node(Camera("camera",self.lens))
@@ -49,6 +50,10 @@ class Preview:
         sun=DirectionalLight("sun");sun.set_color((.8,.8,.8,1))
         a=self.root.attach_new_node(ambient);s=self.root.attach_new_node(sun)
         s.set_hpr(-35,-50,0);self.root.set_light(a);self.root.set_light(s)
+    def configure_visibility(self,layout=None,membership=None,occluders=()):
+        from copy import deepcopy
+        self.visibility_spec=deepcopy((layout,membership or {},tuple(occluders))) if layout is not None else None
+        self.key=None
     def render(self,scene,camera,w,h):
         from panda3d.core import FrameBufferProperties,WindowProperties,GraphicsPipe,Texture,GraphicsOutput
         from .gpu_viewport import basis,Settings
@@ -65,10 +70,19 @@ class Preview:
         key=(scene.instances,tuple(sorted((k,id(m)) for k,m in scene.assets.items())))
         if key!=self.key:
             candidate=build_scene(scene)
+            visibility=None
+            if self.visibility_spec is not None:
+                from .panda_visibility import Visibility
+                layout,membership,occluders=self.visibility_spec
+                visibility=Visibility(candidate,layout,membership)
+                for corners in occluders:visibility.add_occluder(corners)
+                visibility.enable_occlusion(True)
+            self.visibility=visibility
             if self.model is not None:self.model.remove_node()
             self.model=candidate;self.model.reparent_to(self.root);self.key=key
         eye,_,_,_,_,_=basis(camera,w,h,Settings())
         self.lens.set_aspect_ratio(w/h);self.lens.set_fov(45);self.lens.set_near_far(.05,5000)
+        self.visibility_report=self.visibility.update(eye) if self.visibility is not None else None
         self.camera.set_pos(*eye);self.camera.look_at(*camera.center)
         self.engine.render_frame();self.engine.sync_frame()
         raw=bytes(self.texture.get_ram_image_as("RGBA"))
