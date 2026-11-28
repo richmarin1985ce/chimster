@@ -528,6 +528,18 @@ def mount(parent):
                         if messagebox.askyesno("Landing heightfield","Use a user-supplied square JSON heightfield in meters instead of illustrative terrain?",parent=win):
                             heightpath=filedialog.askopenfilename(parent=win,filetypes=[("Heightfield JSON","*.json")])
                             if heightpath:heights=Heightfield.load(heightpath)
+                        if heights is None and messagebox.askyesno("Native terrain","Preview a local Starfield .btd terrain file instead of generated relief?",parent=win):
+                            from .starfield_btd import BTD
+                            btdpath=filedialog.askopenfilename(parent=win,filetypes=[("Starfield terrain","*.btd")])
+                            if btdpath:
+                                btd=BTD.load(btdpath)
+                                x=simpledialog.askinteger("BTD cell X","Southwest cell X",initialvalue=btd.min_cell[0],minvalue=btd.min_cell[0],maxvalue=btd.min_cell[0]+btd.nx-1,parent=win)
+                                if x is None:return
+                                y=simpledialog.askinteger("BTD cell Y","Southwest cell Y",initialvalue=btd.min_cell[1],minvalue=btd.min_cell[1],maxvalue=btd.min_cell[1]+btd.ny-1,parent=win)
+                                if y is None:return
+                                scale=simpledialog.askfloat("BTD height units","Meters per stored height unit (verify against game data)",initialvalue=1,minvalue=.0001,maxvalue=1000,parent=win)
+                                if scale is None:return
+                                heights=btd.heightfield(x,y,meters_per_height_unit=scale)
                         if heights is None:
                             stream=LandingStream(catalog,k,lat,lon,span)
                             candidate,report=stream.update()

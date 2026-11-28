@@ -241,3 +241,19 @@ class StarfieldPreviewTests(unittest.TestCase):
         row=decode_climate([(b"WLST",struct.pack("<IiI",0x801,100,0)),(b"TNAM",bytes((1,2,3,4,5)))],Slots("test.esm",[]))
         self.assertEqual(row["weather"][0][0],Identity("test.esm",0x801))
         self.assertEqual(row["timing_raw"],(1,2,3,4,5))
+
+    def test_native_starfield_btd(self):
+        from chimster.starfield_btd import BTD
+        import zlib
+        raw=struct.pack("<16384H",*([32768]*16384))+bytes(32768)
+        packed=zlib.compress(raw)
+        header=struct.pack("<4sI2f2I4iI",b"BTDB",6,-100.,100.,128,128,0,0,0,0,0)
+        data=header+bytes(40)+struct.pack("<64H",*([65535]*64))+bytes(128)+struct.pack("<II",0,len(packed))*4+packed
+        b=BTD(data)
+        self.assertEqual(b.sample(0,0),32768)
+        self.assertEqual(b.sample(0,0,4),65535)
+        self.assertEqual(b.sample(0,0,texture=True),0)
+        hf=b.heightfield(0,0,res=33,meters_per_height_unit=2)
+        self.assertAlmostEqual(hf.rows[0][0],2*(-100+200*32768/65535))
+        with self.assertRaises(ValueError):BTD(data[:50])
+        with self.assertRaises(ValueError):BTD(data[:-2]).sample(0,0)
