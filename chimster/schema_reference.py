@@ -22,6 +22,17 @@ def inspect(signature, parts, slots, include_null=False):
     sig = signature.encode("ascii")
     from .quest_remap_schema import PATTERNS as QUEST_PATTERNS, fields as quest_fields
     from .world_remap_schema import PATTERNS as WORLD_PATTERNS, fields as world_fields
+    if sig==b"NAVM":
+        from .fnv_navmesh import inspect as inspect_navmesh
+        try:report,offsets=inspect_navmesh(parts)
+        except (ValueError,struct.error):return [],tuple(range(len(parts)))
+        edges=[]
+        for i,offset,kinds in offsets:
+            target=slots.decode(struct.unpack_from("<I",parts[i][1],offset)[0])
+            if target is not None or include_null:edges.append(Reference(i,offset,target,kinds))
+        opaque=tuple(i for i,(tag,raw) in enumerate(parts) if tag in (b"NVCA",b"NVGD",b"NVEX",b"NVDP"))
+        if report["issues"]:opaque=tuple(range(len(parts)))
+        return edges,opaque
     exact = quest_fields if sig in QUEST_PATTERNS else world_fields if sig in WORLD_PATTERNS else None
     if exact is not None:
         try:
