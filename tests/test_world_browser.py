@@ -323,5 +323,34 @@ class WorldBrowserTests(unittest.TestCase):
 
 
 
+    def test_region_weather_and_portable_lod(self):
+        from chimster.world_draft import Draft
+        from chimster.world_regions import at
+        from chimster.world_lod import export
+        draft=Draft(Browser.open([]))
+        world=draft.create_world("RegionWorld","Region World",(0,0),(2,1))
+        weather=draft.create_weather("RegionalWeather",{})
+        climate=draft.create_climate("RegionalClimate",{"weather":[((weather.origin,weather.local),100,None)]})
+        draft.set_environment(world,{"climate":(climate.origin,climate.local)})
+        region=draft.create_region("TestRegion",{"world":(world.origin,world.local),
+            "areas":[{"points":[(0,0),(4096,0),(4096,4096),(0,4096)],"falloff":0}],
+            "weather":[((weather.origin,weather.local),100,None)],"priority":2,"map_name":"Test"})
+        index=draft.index()
+        self.assertEqual(at([index.active[region]["region_spec"]],world,2048,2048)[0]["priority"],2)
+        self.assertEqual(at([index.active[region]["region_spec"]],world,6144,2048),[])
+        out=Path(self.tmp.name)/"lod"
+        result=export(index,world,out,steps=(2,4))
+        self.assertEqual(len(result["tiles"]),4)
+        self.assertEqual(result["seams"],[])
+        self.assertFalse(result["native_runtime_assets"])
+        from chimster.world_draft_native import export_esp
+        dest=Path(self.tmp.name)/draft.name
+        export_esp(draft,dest)
+        reopened=Browser.open([dest])
+        for key,field in ((weather,"weather_spec"),(climate,"climate_spec"),(region,"region_spec")):
+            self.assertEqual(reopened.active[key][field],index.active[key][field])
+
+
+
 if __name__ == "__main__":
     unittest.main()
