@@ -108,9 +108,13 @@ def mount(parent,game=None):
         if target:
             with open(target,"xb") as stream:stream.write(data)
             return {"exported":target,"bytes":len(data)}
+    def validate_archive():
+        from .archive_validation import audit
+        source=filedialog.askopenfilename(filetypes=[("Archives","*.bsa *.ba2")])
+        if source:return audit(source)
     actions=ttk.Frame(parent);actions.pack(fill="x")
     for label,fn in [
-        ("Export member",export_member),("Packed assets",packed_assets),("Asset lookup",assets),("Installation",root),("Capabilities",lambda:capabilities(profile.get())),
+        ("Validate archive",validate_archive),("Export member",export_member),("Packed assets",packed_assets),("Asset lookup",assets),("Installation",root),("Capabilities",lambda:capabilities(profile.get())),
         ("Plugin",lambda:choose(lambda p,d:audit(profile.get(),d))),
         ("Dependencies",dependencies),("Archive header",lambda:choose(lambda p,d:archive(d),36)),
         ("NIF header",lambda:choose(lambda p,d:nif(d),256)),
