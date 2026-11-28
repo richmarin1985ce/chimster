@@ -119,3 +119,20 @@ class StarfieldPreviewTests(unittest.TestCase):
             self.assertEqual(m.metallic,.7)
             self.assertEqual(key("Example.MAT"),"materials/example.mat")
             with self.assertRaises(ValueError):Material(metallic=2.).validate()
+
+    def test_embedded_mesh_and_bind_pose(self):
+        from chimster.starfield_mesh import Reader,decode,decode_stream
+        raw=struct.pack("<II3HfII",0,3,0,1,2,2.,0,3)+struct.pack("<9h",0,0,0,32767,0,0,0,32767,0)+struct.pack("<6I",0,0,0,0,0,0)
+        r=Reader(raw+struct.pack("<II",0,0)+b"NEXT")
+        m,lods,meta=decode_stream(r,embedded=True)
+        self.assertEqual(bytes(r.take(4)),b"NEXT")
+        self.assertEqual(meta["indices"],3)
+        skinned=bytearray(raw)
+        struct.pack_into("<I",skinned,18,1)
+        struct.pack_into("<I",skinned,len(skinned)-4,3)
+        skinned+=struct.pack("<6H",0,65535,0,65535,0,65535)
+        with self.assertRaises(ValueError):decode(skinned)
+        m,lods,meta=decode(skinned,bind_pose=True)
+        self.assertTrue(meta["bind_pose"])
+        self.assertEqual(len(m.vertices),3)
+        with self.assertRaises(ValueError):decode(raw+struct.pack("<I",1))

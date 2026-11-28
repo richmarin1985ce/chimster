@@ -4,7 +4,7 @@ Parses sized blocks and root/child links, never searches raw bytes for paths.
 Unsupported animated, skinned, embedded and other scene graph blocks fail closed.
 """
 from math import isfinite
-from .starfield_mesh import Reader,decode
+from .starfield_mesh import Reader,decode,decode_stream
 from .compatibility_asset_lookup import normalize
 from .flora import Mesh
 from .lod import validate_mesh
@@ -47,18 +47,27 @@ def av(r):
     if not all(isfinite(x) for x in values) or not 0<values[-1]<=1e5:raise ValueError("Invalid NIF transform")
     return flags,values
 
-def geometry(data):
+def geometry(data,units=1.,bind_pose=False):
     rows,roots,strings=blocks(data);out=[];active=set()
     def visit(index,chain,depth):
         if depth>32 or index in active or not 0<=index<len(rows):raise ValueError("Cyclic/invalid NIF scene graph")
         active.add(index);kind,raw=rows[index];r=Reader(raw)
         flags,transform=av(r);chain=(transform,)+chain
-        if kind in ("NiNode","BSFadeNode"):
-            for child in r.read("<"+"i"*r.count(10000)):
+        if kind in ("NiNode","BSFadeNode","BSLeafAnimNode","CsNiNode","BSOrderedNode","BSMultiBoundNode","NiSwitchNode","NiLODNode","BSRangeNode","BSBlastNode","BSDamageStage"):
+            children=r.read("<"+"i"*r.count(10000))
+            if kind=="BSOrderedNode":r.take(17)
+            elif kind=="BSMultiBoundNode":r.take(8)
+            elif kind in ("NiSwitchNode","NiLODNode"):
+                switch,index=r.read("<HI")
+                if kind=="NiLODNode":r.take(4)
+                if index>=len(children):raise ValueError("Invalid active NIF child")
+                children=children[index:index+1]
+            elif kind in ("BSRangeNode","BSBlastNode","BSDamageStage"):r.take(3)
+            for child in children:
                 if child!=-1:visit(child,chain,depth+1)
         elif kind=="BSGeometry":
             r.take(40);skin,shader,alpha=r.read("<3i")
-            if skin!=-1 or flags&512:raise ValueError("Skinned or embedded BSGeometry unsupported")
+            if skin!=-1 and not bind_pose:raise ValueError("Skinned BSGeometry requires explicit bind-pose preview")
             entries=[]
             for _ in range(4):
                 has,=r.read("<B")
@@ -66,7 +75,10 @@ def geometry(data):
                 if has:
                     indices,verts,meshflags=r.read("<3I")
                     if indices%3 or not verts or verts>65536:raise ValueError("Invalid BSGeometry mesh counts")
-                    entries.append((mesh_path(sized(r)),indices,verts))
+                    if flags&512:
+                        decoded=decode_stream(r,units,embedded=True,bind_pose=bind_pose)
+                        entries.append((decoded,indices,verts))
+                    else:entries.append((mesh_path(sized(r)),indices,verts))
                 else:entries.append(None)
             if not entries[0]:raise ValueError("Missing base BSGeometry mesh")
             material=None
@@ -103,15 +115,15 @@ def join(meshes):
     validate_mesh(result);return result
 
 class AutoMeshes:
-    def __init__(self,sources,units=1.,fallback=None,materials=None):
-        self.sources=sources;self.units=units;self.fallback=fallback;self.cache={};self.vertices=0;self.material_source=materials;self.materials={};self.material_issues=[]
+    def __init__(self,sources,units=1.,fallback=None,materials=None,bind_pose=False):
+        self.sources=sources;self.units=units;self.fallback=fallback;self.cache={};self.vertices=0;self.material_source=materials;self.materials={};self.material_issues=[];self.bind_pose=bind_pose
     def __call__(self,model):
         key=normalize(model)
         if not key.startswith("meshes/"):key="meshes/"+key
         if not key.endswith(".nif"):raise ValueError("Expected NIF model")
         if key in self.cache:return self.cache[key]
         if len(self.cache)>=64:raise ValueError("NIF cache limit")
-        try:shapes=geometry(self.sources.read(key))
+        try:shapes=geometry(self.sources.read(key),self.units,self.bind_pose)
         except (ValueError,OSError,UnicodeError):
             if self.fallback is not None:return self.fallback(model)
             raise
@@ -127,8 +139,8 @@ class AutoMeshes:
             for i,entry in enumerate(entries):
                 if entry:
                     path,ni,nv=entry
-                    m,lods,meta=decode(self.sources.read(path),self.units)
-                    if len(m.vertices)!=nv or len(m.faces)*3!=ni:raise ValueError("BSGeometry external counts mismatch")
+                    m,lods,meta=decode(self.sources.read(path),self.units,self.bind_pose) if isinstance(path,str) else path
+                    if len(m.vertices)!=nv or meta["indices"]!=ni:raise ValueError("BSGeometry external counts mismatch")
                     previous=transformed(m,chain,self.units);has[i]=True
                     if material:previous.faces=[(tri,material) for tri,_ in previous.faces]
                 elif i==0:raise ValueError("Missing base geometry")

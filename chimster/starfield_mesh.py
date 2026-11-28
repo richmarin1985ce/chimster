@@ -32,9 +32,9 @@ class Reader:
         if n%3:raise ValueError("Triangle index count is not divisible by three")
         return list(struct.iter_unpack("<3H",self.take(n*2)))
 
-def decode(data,units=1.):
+def decode_stream(r,units=1.,embedded=False,bind_pose=False):
     if not isfinite(units) or not .001<=units<=10000:raise ValueError("Invalid preview scale")
-    r=Reader(data);version,=r.read("<I")
+    version,=r.read("<I")
     if version not in (0,1,2):raise ValueError("Unsupported Starfield mesh version")
     triangles=r.indices()
     scale,=r.read("<f")
@@ -52,7 +52,9 @@ def decode(data,units=1.):
         if k not in (0,n):raise ValueError("Invalid "+stream+" stream")
         r.take(k*4)
     wn=r.count(n*16)
-    if wn or weights:raise ValueError("Skinned external meshes are not supported in static preview")
+    if bool(wn)!=bool(weights) or wn!=n*weights:raise ValueError("Invalid bone weight stream")
+    if wn and not bind_pose:raise ValueError("Skinned external meshes require explicit bind-pose preview")
+    r.take(wn*4)
     lods=[r.indices() for _ in range(r.count(16))] if version else []
     def build(faces):
         if any(max(tri)>=n for tri in faces):raise ValueError("Out-of-range Starfield vertex index")
@@ -62,9 +64,21 @@ def decode(data,units=1.):
     variants=[build(faces) for faces in lods[:3] if faces]
     for faces in lods[3:]:
         if any(max(tri)>=n for tri in faces):raise ValueError("Invalid additional LOD index")
-    tail=len(r.data)-r.pos
-    if tail and version<2:raise ValueError("Unexpected trailing mesh bytes")
-    return main,variants,dict(version=version,vertices=n,triangles=len(main.faces),lods=len(variants),unparsed_meshlet_bytes=tail)
+    # Embedded BSMeshData always has meshlet and cull arrays. External
+    # variants may omit the footer. Validate its extent when present.
+    meshlets=0
+    if embedded or r.pos<len(r.data):
+        meshlets=r.count(MAX_TRIANGLES)
+        r.take(meshlets*16)
+        cull=r.count(MAX_TRIANGLES)
+        if cull not in (0,meshlets):raise ValueError("Invalid meshlet cull count")
+        r.take(cull*24)
+    return main,variants,dict(version=version,vertices=n,triangles=len(main.faces),indices=len(triangles)*3,lods=len(variants),meshlets=meshlets,weights_per_vertex=weights,bind_pose=bool(wn))
+
+def decode(data,units=1.,bind_pose=False):
+    r=Reader(data);result=decode_stream(r,units,bind_pose=bind_pose)
+    if r.pos!=len(r.data):raise ValueError("Unexpected trailing mesh bytes")
+    return result
 
 def load(path,units=1.):
     p=Path(path)
