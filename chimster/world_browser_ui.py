@@ -653,7 +653,7 @@ def mount(parent, game, open_preview=None, viewport_drop=None):
             if index.profile=="oblivion":
                 from .world_lod_oblivion import export as export_oblivion
                 show(export_oblivion(index,world,out))
-                status.set("Oblivion terrain intermediates exported; native TES4 mesh encoding pending.")
+                status.set("Oblivion native terrain candidates exported; runtime verification pending.")
                 return
             show(export(index,world,out,assets=assets,previous=previous))
             status.set("Built-in native LOD candidates exported. Runtime verification pending.")
@@ -685,7 +685,10 @@ def mount(parent, game, open_preview=None, viewport_drop=None):
             previous=None
             if messagebox.askyesno("Incremental object LOD","Reuse unchanged tiles from a previous package?",parent=parent):
                 previous=filedialog.askdirectory(title="Select previous object LOD package") or None
-            show(export(index,world,out,Assets(root,archives),previous=previous))
+            if index.profile=="oblivion":
+                from .world_lod_oblivion_objects import export as export_oblivion_objects
+                show(export_oblivion_objects(index,world,out,Assets(root,archives)))
+            else:show(export(index,world,out,Assets(root,archives),previous=previous))
             status.set("Built-in native object LOD candidates exported; review unsupported models and materials.")
         except (ValueError,OSError,TypeError,KeyError) as exc:messagebox.showerror("Object LOD",str(exc),parent=parent)
     ttk.Button(nav,text="Build object LOD",command=object_lod).pack(side="left")
