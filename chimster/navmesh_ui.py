@@ -12,13 +12,16 @@ def mount(parent):
     canvas=tk.Canvas(pane,bg="#202832");pane.add(canvas,weight=3)
     editor.insert("1.0",json.dumps({"schema":1,"origin":[0,0,0],"spacing":1,
         "heights":[[0]*11 for _ in range(11)],"agent":{"radius":.3,"height":1.8,"max_slope":45,"max_step":.4}},indent=2))
-    status=tk.StringVar(value="Load a heightfield or room layout, then generate.")
+    status=tk.StringVar(value="Load a heightfield, room layout or collision triangle source, then generate.")
     ttk.Label(parent,textvariable=status,wraplength=900).pack(fill="x")
     mesh=None;past=[];selected=[];corridor=set();closed=set()
+    elevation=tk.StringVar(value="All")
     mode=tk.BooleanVar(value=False);spacing=tk.DoubleVar(value=.5);radius=tk.DoubleVar(value=.3);height=tk.DoubleVar(value=1.8)
     ttk.Checkbutton(bar,text="Room layout",variable=mode).pack(side="left")
     for label,var in (("Spacing",spacing),("Radius",radius),("Height",height)):
         ttk.Label(bar,text=label).pack(side="left");ttk.Entry(bar,width=5,textvariable=var).pack(side="left")
+    ttk.Label(bar,text="Layer").pack(side="left")
+    layer_select=ttk.Combobox(bar,textvariable=elevation,values=("All",),state="readonly",width=7);layer_select.pack(side="left")
     def guard(fn):
         try:fn()
         except (ValueError,KeyError,TypeError,OSError,tk.TclError) as e:messagebox.showerror("Navmesh",str(e))
@@ -33,7 +36,11 @@ def mount(parent):
         h=max(canvas.winfo_height(),60);w=max(canvas.winfo_width(),60)
         s=min((w-24)/max(hi[0]-lo[0],.001),(h-24)/max(hi[1]-lo[1],.001))
         def xy(p):return 12+(p[0]-lo[0])*s,h-12-(p[1]-lo[1])*s
+        layers=mesh.get("triangle_layers")
+        layer_select.configure(values=("All",)+tuple(str(i) for i in sorted(set(layers or []))))
+        if elevation.get() not in layer_select["values"]:elevation.set("All")
         for i,t in enumerate(ts):
+            if layers is not None and elevation.get()!="All" and layers[i]!=int(elevation.get()):continue
             coords=[v for j in t for v in xy(vs[j])]
             canvas.create_polygon(*coords,fill="#eab65b" if i in selected else "#48a7c2" if i in corridor else "#426b58",outline="#233a34",tags=(f"tri:{i}",))
         for link in mesh.get("links",[]):
@@ -43,7 +50,10 @@ def mount(parent):
     def auto():
         nonlocal mesh
         spec=json.loads(editor.get("1.0","end-1c"))
-        candidate=build(spec,spacing.get(),{"radius":radius.get(),"height":height.get()}) if mode.get() else generate(spec)
+        if "vertices" in spec and "triangles" in spec:
+            from .navmesh_collision import generate_collision
+            candidate=generate_collision(spec)
+        else:candidate=build(spec,spacing.get(),{"radius":radius.get(),"height":height.get()}) if mode.get() else generate(spec)
         if mesh is not None:past.append(mesh);past[:]=past[-5:]
         mesh=candidate;selected.clear();corridor.clear();closed.clear();draw()
     def pick(e):
@@ -97,4 +107,5 @@ def mount(parent):
     buttons=ttk.Frame(parent);buttons.pack(fill="x")
     for label,fn in (("Load source",load),("Auto generate",auto),("Route",path),("Portal states",links),("Exclude selected",exclude),("Undo",undo),("Quality",review),("Save mesh",save)):
         ttk.Button(buttons,text=label,command=lambda fn=fn:guard(fn)).pack(side="left")
+    layer_select.bind("<<ComboboxSelected>>",draw)
     canvas.bind("<Button-1>",pick);canvas.bind("<Configure>",draw)
