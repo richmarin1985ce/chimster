@@ -369,6 +369,15 @@ def mount(parent):
         yaw=camera.yaw+({"viewport-left":-15,"viewport-right":15}.get(action,0))
         pitch=max(-85,min(85,camera.pitch+({"viewport-up":15,"viewport-down":-15}.get(action,0))))
         camera=replace(camera,yaw=yaw,pitch=pitch);draw()
+    def snapshot():
+        if not messagebox.askyesno("Share current viewport", "Allow the requesting local client to read current camera and selected object transform? This may include unsaved values.",parent=parent):
+            return None
+        from dataclasses import asdict
+        obj=next((i for i in scene.instances if i.id==selected),None)
+        return {"scope":"current viewport only; may differ from saved project","native_preview":native_preview,
+                "camera":asdict(camera),"selected":asdict(obj) if obj else None,
+                "instance_count":len(scene.instances),"unsaved_state":True}
+    load_cell_preview.snapshot=snapshot
     load_cell_preview.camera_command=camera_command
     load_cell_preview.drop_position=drop_position
     def drop_json(path):
