@@ -117,3 +117,20 @@ class NativeTypedWorkbench(unittest.TestCase):
         data,_=self.fixture("morrowind")
         updated=edit("morrowind",data,(2,),b"INTV",0,{"value":12},sha256(data).hexdigest())
         self.assertEqual(dict(subrecords("morrowind",parse("morrowind",updated)[2]))[b"INTV"],struct.pack("<i",12))
+
+    def test_global_exact_integer_and_compressed_preservation(self):
+        from chimster.native_typed_edit import edit
+        from hashlib import sha256
+        for profile in ("fallout3","new-vegas","skyrim","skyrim-se","fallout4"):
+            with self.subTest(profile=profile):
+                parts=[(b"EDID",b"Counter\0"),(b"FNAM",b"s"),(b"FLTV",struct.pack("<f",2)),(b"ZZZZ",b"opaque")]
+                raw=b"".join(struct.pack("<4sH",tag,len(value))+value for tag,value in parts)
+                packed=struct.pack("<I",len(raw))+zlib.compress(raw)
+                data=struct.pack("<4sIIIII",b"GLOB",len(packed),0x40000,3,0,0)+packed
+                rev=sha256(data).hexdigest()
+                out=edit(profile,data,(0,),b"FLTV",0,{"value":15},rev)
+                node=parse(profile,out)[0]
+                self.assertEqual(struct.unpack_from("<I",node.header,8)[0],0x40000)
+                self.assertEqual(list(subrecords(profile,node)),parts[:2]+[(b"FLTV",struct.pack("<f",15)),parts[-1]])
+                for bad in (32768,2.5,True):
+                    with self.assertRaises(ValueError):edit(profile,data,(0,),b"FLTV",0,{"value":bad},rev)
