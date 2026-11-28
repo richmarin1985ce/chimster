@@ -8,7 +8,7 @@ from collections import defaultdict
 from .navmesh import num,point,topology
 from .navmesh_collision import generate_collision
 
-VERSION=2
+VERSION=3
 
 def digest(value):
     return hashlib.sha256(json.dumps(value,sort_keys=True,separators=(",",":"),allow_nan=False).encode()).hexdigest()
@@ -16,7 +16,7 @@ def digest(value):
 def tile_key(x,y):return f"{x},{y}"
 
 def build(spec,previous=None,tile_cells=32):
-    if spec.get("schema")!=1 or set(spec)-{"schema","vertices","triangles","spacing","agent","min_region_cells"}:
+    if spec.get("schema")!=1 or set(spec)-{"schema","vertices","triangles","spacing","agent","min_region_cells","solid_obstacles"}:
         raise ValueError("expected collision triangle source")
     if spec.get("min_region_cells",1)!=1:raise ValueError("tile-local region pruning is unsafe; use 1")
     if type(tile_cells) is not int or not 8<=tile_cells<=128:raise ValueError("tile size must be 8–128 cells")
@@ -43,12 +43,19 @@ def build(spec,previous=None,tile_cells=32):
         for y in range(b,d+1):
             for x in range(a,c+1):buckets[x,y].append(tri)
     if len(buckets)>4096:raise ValueError("tile count limit; partition the world")
+    from .collision_obstacles import normalize
+    solids=normalize(spec.get("solid_obstacles",[]))
+    if len(solids)*len(buckets)>4000000:raise ValueError("tile obstacle assignment limit")
     old=previous.get("tiles",{}) if previous and previous.get("settings_hash")==settings_hash else {}
     tiles={};rebuilt=[];reused=[]
     for (x,y),faces in sorted(buckets.items()):
         key=tile_key(x,y)
         # Order independent of source vertex IDs or face list order; preserve winding.
-        faces=sorted(faces);fingerprint=digest([settings_hash,faces])
+        faces=sorted(faces)
+        lo=(x*size-(halo+1)*spacing-radius,y*size-(halo+1)*spacing-radius)
+        hi=((x+1)*size+(halo+1)*spacing+radius,(y+1)*size+(halo+1)*spacing+radius)
+        local_solids=sorted((o for o in solids if all(o["min"][i]<hi[i] and o["max"][i]>lo[i] for i in (0,1))),key=lambda o:(o["min"],o["max"]))
+        fingerprint=digest([settings_hash,faces,local_solids])
         saved=old.get(key)
         if saved and saved.get("source_hash")==fingerprint and saved.get("mesh_hash")==digest(saved.get("mesh")):
             mesh=saved["mesh"];reused.append(key)
@@ -61,7 +68,7 @@ def build(spec,previous=None,tile_cells=32):
                     row.append(index[p])
                 if len(set(row))==3:triangles.append(tuple(row))
             if not triangles:continue
-            mesh=generate_collision({"schema":1,"vertices":verts,"triangles":triangles,"spacing":spacing,"agent":agent},
+            mesh=generate_collision({"schema":1,"vertices":verts,"triangles":triangles,"spacing":spacing,"agent":agent,"solid_obstacles":local_solids},
                 grid_origin=(0.,0.),window=(x*tile_cells-halo,y*tile_cells-halo,(x+1)*tile_cells+halo,(y+1)*tile_cells+halo))
             rebuilt.append(key)
         tiles[key]={"source_hash":fingerprint,"mesh_hash":digest(mesh),"mesh":mesh}
