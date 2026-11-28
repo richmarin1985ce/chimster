@@ -2,6 +2,9 @@
 import argparse
 import json
 import sys
+import os
+import subprocess
+import wave
 from .project import Project, identifier
 from .mcp_operations import (CreationSession, diagnose, read_text, MAX_TEXT,
                              inspect_plugin_artifact, inspect_record, check_world, revision_diff, inspect_asset)
@@ -21,7 +24,7 @@ def schema(properties=None, required=()):
             "required": list(required), "additionalProperties": False}
 
 class Bridge:
-    def __init__(self, project=None, allow_create=False, allow_edit=False, allow_native=False, allow_ui=False, require_approval=False):
+    def __init__(self, project=None, allow_create=False, allow_edit=False, allow_native=False, allow_ui=False, require_approval=False, audio_tools=None):
         self.project = project
         self.creation = CreationSession(project, allow_create, allow_edit) if project is not None else None
         if allow_native and (not allow_edit or project is None or native_profile(project.read()["game"]) not in REFERENCE_PROFILES):
@@ -41,16 +44,19 @@ class Bridge:
         self.audit_session=secrets.token_hex(16)
         self.transport="stdio"
         self.allow_ui=bool(allow_ui and project is not None)
+        self.snapshot_requests={}
+        if self.production and audio_tools:self.production.audio_tools=dict(audio_tools)
         self.registry = {}
         self.subscriptions=Subscriptions(self.read_resource)
         self.register("chimster_capabilities", "Discover available Chimster commands and their scope.", schema(), self.capabilities)
         if project is not None:
             self.register("editor_context","Read active dashboard instance and selection for this explicitly scoped project.",schema(),self.editor_context)
             if self.allow_ui:
-                self.register("editor_request","Queue refresh, select, viewport-show, viewport-fit, viewport-left/right/up/down or viewport-zoom-in/out; no scene or file changes.",
+                self.register("editor_request","Queue refresh, select, viewport-state (requires GUI consent), viewport-show, viewport-fit, viewport-left/right/up/down or viewport-zoom-in/out; no scene or file changes.",
                               schema({"instance":{"type":"string","maxLength":32},"action":{"type":"string","maxLength":16},
                                       "revision":{"type":"integer","minimum":0},"artifact":{"type":"string","maxLength":80}},
                                      ["instance","action","revision"]),self.editor_request,write=True)
+                self.register("editor_snapshot_result","Read a single GUI-approved viewport state response from this session.",schema({"request_id":{"type":"string","maxLength":32}},["request_id"]),self.editor_snapshot_result)
             self.register("project_status", "Read selected project name, game, revision and artifact count.", schema(), self.status)
             self.register("project_artifacts", "List selected project's artifact metadata, with pagination.",
                           schema({"offset": {"type": "integer", "minimum": 0}, "limit": {"type": "integer", "minimum": 1, "maximum": 100}}), self.artifacts)
@@ -115,7 +121,8 @@ class Bridge:
                     continue
                 self.register("asset_inspect_"+op, "Inspect a selected project "+op+" artifact using existing Chimster tooling.",
                               schema({"id":key},["id"]),lambda id,op=op:inspect_asset(project,id,op))
-            operations=["navmesh","fuz","mesh-lod","mesh-preview"]
+            operations=["navmesh","fuz","mesh-lod","mesh-preview","mesh-model","audio-normalize"]
+            operations.extend(self.production.audio_tools)
             if importlib.util.find_spec("moderngl") is not None:operations.append("scene-render")
             if project.read()["game"]=="newvegas":operations.append("native-build")
             if importlib.util.find_spec("fontTools") is not None:operations.append("font")
@@ -123,7 +130,7 @@ class Bridge:
             self.production_operations=tuple(operations)
             self.register("production_preview","Stage a new derived artifact or atomic bundle without writing the project. Available operations: "+", ".join(operations),
                           schema({"operation":{"type":"string","maxLength":32},"id":key,"output_id":key,"revision":{"type":"integer","minimum":0},
-                                  "master_ids":{"type":"array","minItems":0,"maxItems":4,"items":key},"aux_id":key},
+                                  "master_ids":{"type":"array","minItems":0,"maxItems":4,"items":key},"aux_id":key,"edits_json":{"type":"string","maxLength":65536}},
                                  ["operation","id","output_id","revision"]),self.production_preview)
             if allow_create:
                 self.register("production_apply","Publish exactly the staged new artifacts in one project revision; never overwrite.",
@@ -168,15 +175,11 @@ class Bridge:
         return {"discarded":True}
     def start_job(self, operation, id):
         identifier(id)
-        if operation in ("quest","interior","papyrus","legacy-script","navmesh-registration"):
-            return self.jobs.start(operation,lambda:diagnose(self.project,id,operation))
-        if "asset_inspect_"+operation in self.registry and operation in ("audio","mesh","scene","font"):
-            return self.jobs.start(operation,lambda:inspect_asset(self.project,id,operation))
-        if operation=="native" and "native_record_browse" in self.registry:
-            return self.jobs.start(operation,lambda:native_browse(self.project,id,validate=True))
-        if operation=="plugin":
-            return self.jobs.start(operation,lambda:inspect_plugin_artifact(self.project,id))
-        raise ValueError("unsupported diagnostic")
+        allowed=operation in ("quest","interior","papyrus","legacy-script","navmesh-registration","plugin")
+        allowed=allowed or (operation in ("audio","mesh","scene","font") and "asset_inspect_"+operation in self.registry)
+        allowed=allowed or (operation=="native" and "native_record_browse" in self.registry)
+        if not allowed:raise ValueError("unsupported diagnostic")
+        return self.jobs.start_isolated(operation,id)
     def apply_proposal(self, token, replace):
         if self.creation.pending is None or self.creation.pending[-1] is not replace:
             raise ValueError("proposal operation mismatch")
@@ -193,7 +196,25 @@ class Bridge:
     def editor_request(self,instance,action,revision,artifact=None):
         from .editor_commands import submit
         if not self.allow_ui or self.transport!="stdio":raise ValueError("local UI permission required")
-        return submit(self.project,instance,action,revision,artifact)
+        import time
+        self.snapshot_requests={k:v for k,v in self.snapshot_requests.items() if time.monotonic()-v[1]<=120}
+        if action=="viewport-state" and len(self.snapshot_requests)>=8:raise ValueError("snapshot request limit")
+        result=submit(self.project,instance,action,revision,artifact)
+        if action=="viewport-state":
+            import time
+            self.snapshot_requests[result["request_id"]]=(instance,time.monotonic())
+        return result
+    def editor_snapshot_result(self,request_id):
+        import time
+        from .editor_commands import snapshot_result
+        if not self.allow_ui or self.transport!="stdio" or request_id not in self.snapshot_requests:raise ValueError("snapshot not granted")
+        instance,started=self.snapshot_requests[request_id]
+        if time.monotonic()-started>120:
+            self.snapshot_requests.pop(request_id,None)
+            return {"state":"expired"}
+        result=snapshot_result(self.project,instance,request_id)
+        if result["state"]!="pending_or_expired":self.snapshot_requests.pop(request_id,None)
+        return result
     def editor_context(self):
         from .editor_presence import discover
         rows=[{"id":row["id"],"revision":row["revision"],"selected":row["selected"]}
@@ -310,7 +331,7 @@ class Bridge:
                 if started:return response({"result_omitted":True,"note":"Operation returned; result exceeded size limit. Verify project state."})
                 raise ValueError("result exceeds size limit")
             return {"content":[{"type":"text","text":result}]}
-        except (ValueError,KeyError,OSError,TypeError,AttributeError,IndexError,OverflowError,RecursionError,StopIteration):
+        except (ValueError,KeyError,OSError,TypeError,AttributeError,IndexError,OverflowError,RecursionError,StopIteration,ImportError,RuntimeError,EOFError,wave.Error,subprocess.SubprocessError):
             if started:
                 try:record("failed_or_unconfirmed")
                 except (OSError,ValueError,KeyError,TypeError):pass
@@ -417,6 +438,7 @@ def main(argv=None):
     selection.add_argument("--active-instance", help="Explicitly select a locally discovered editor instance ID")
     selection.add_argument("--discover-active", action="store_true", help="List active local editor projects and exit")
     selection.add_argument("--active", action="store_true", help="Select the sole active local editor project; fail if ambiguous")
+    parser.add_argument("--diagnostic-worker",nargs=2,help=argparse.SUPPRESS)
     parser.add_argument("--review-approval", metavar="REQUEST_ID", help="Review an exact pending operation in an interactive local terminal")
     parser.add_argument("--remote-config", metavar="PATH", help="Explicit read-only OAuth HTTPS server configuration; no automatic hosting")
     parser.add_argument("--http", type=int, metavar="PORT", help="Start authenticated read-only loopback HTTP; 0 selects an available port")
@@ -432,6 +454,12 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         from .editor_presence import discover, select
+        if args.diagnostic_worker:
+            if not args.project or any((args.allow_create,args.allow_edit,args.allow_native_edit,args.allow_ui,args.describe,args.client_config,args.register_client_config,args.http is not None,args.token_file,args.create_token,args.review_approval,args.remote_config)):
+                raise ValueError("worker requires explicit project only")
+            from .mcp_jobs import worker
+            worker(Project(args.project),*args.diagnostic_worker)
+            return
         if args.remote_config:
             if not args.project or any((args.allow_create,args.allow_edit,args.allow_native_edit,args.allow_ui,args.describe,args.client_config,args.register_client_config,args.http is not None,args.token_file,args.create_token,args.review_approval)):
                 raise ValueError("remote configuration requires explicit read-only project")
@@ -476,7 +504,16 @@ def main(argv=None):
             raise ValueError("write permission requires an explicit project path")
         if args.register_client_config and (args.allow_create or args.allow_edit or args.allow_native_edit or args.allow_ui or args.describe or args.client_config or not args.project):
             raise ValueError("registration requires an explicit read-only project")
-        bridge = Bridge(project, args.allow_create, args.allow_edit, args.allow_native_edit,args.allow_ui,require_approval=bool(args.allow_create or args.allow_edit or args.allow_native_edit or args.allow_ui))
+        audio_tools={}
+        if args.allow_create:
+            from pathlib import Path
+            for operation,var in (("audio-decode","CHIMSTER_MCP_FFMPEG"),("audio-encode","CHIMSTER_MCP_XWMA_ENCODER"),("lip-preview","CHIMSTER_MCP_RHUBARB")):
+                value=os.environ.get(var)
+                if value:
+                    p=Path(value)
+                    if not p.is_absolute() or not p.is_file():raise ValueError("audio backend must be an explicit absolute executable path")
+                    audio_tools[operation]=str(p.resolve())
+        bridge = Bridge(project, args.allow_create, args.allow_edit, args.allow_native_edit,args.allow_ui,require_approval=bool(args.allow_create or args.allow_edit or args.allow_native_edit or args.allow_ui),audio_tools=audio_tools)
     except (ValueError, OSError, KeyError, TypeError):
         parser.exit(2, "Invalid or unavailable Chimster project\n")
     if args.client_config or args.register_client_config:
