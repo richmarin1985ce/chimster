@@ -13,6 +13,16 @@ The output must be a new directory outside the source/import/flags directories. 
 
 References: https://open-papyrus.github.io/docs/Creation_Kit/Skyrim/Compiler_Reference.html and https://github.com/Orvid/Caprica/blob/master/Caprica/main_options.cpp .
 
+### Script editor and syntax definitions
+Open Narrative → Script editor. Supports local source opening, new-copy saves, undo, line numbers, scoped highlighting, Papyrus advisory checks, explicit local compilation of unchanged saved source and compiler results. The game determines the default language for ambiguous extensions when opening a file; manual selection is available. UTF-8 sources only.
+
+The original grammar library uses the Sublime Text v2 model: ordered regular-expression matches, scopes and named push/pop contexts. Initial grammars cover Papyrus, GECK, Oblivion, Morrowind and OpenMW Lua. These are bounded highlighting definitions, not complete language parsers. No arbitrary third-party grammar imports or existing Sublime package code are included. Lua long brackets are covered through four equals signs. Versioned game API symbol libraries are pending.
+
+    python -m chimster script-syntax-export papyrus Papyrus.sublime-syntax
+    python -m chimster script-syntax-export geck GECK.sublime-syntax
+
+Copy exports into Sublime Text's User packages folder. Actual Sublime loading, desktop execution and compiler execution remain unverified; synthetic regression fixtures are committed but execution deferred. Reference: https://www.sublimetext.com/docs/syntax.html
+
 ## Voice
 The formats module packs and unpacks supported FUZ containers. A FUZ is not a speech synthesizer: it contains separate lip-sync and audio payloads. XWM encoding, actual lip-sync generation and Wwise conversion remain unimplemented. Do not republish extracted game voice assets.
 
