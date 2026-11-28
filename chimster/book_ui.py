@@ -4,6 +4,7 @@ from tkinter import ttk,filedialog,messagebox
 from pathlib import Path
 from .books import Book,GAMES,load,export
 def mount(parent):
+    imported_model=tk.StringVar(value="")
     fields={k:tk.StringVar(value=v) for k,v in {"editor_id":"ChimsterBook","title":"Untitled","author":"","kind":"book","game":"newvegas"}.items()}
     for k,var in fields.items():
         row=ttk.Frame(parent);row.pack(fill="x",pady=2)
@@ -37,6 +38,7 @@ def mount(parent):
         if not p:return
         try:
             b=load(p)
+            imported_model.set("")
             for k,v in fields.items():v.set(getattr(b,k))
             text.delete("1.0","end");text.insert("1.0","\n---PAGE---\n".join(b.pages))
         except (OSError,ValueError,TypeError) as e:messagebox.showerror("Book",str(e))
@@ -49,18 +51,19 @@ def mount(parent):
             messagebox.showerror("Import",str(e));return
         win=tk.Toplevel(parent);win.title("Import native book as draft")
         listing=tk.Listbox(win,width=75,height=20);listing.pack(fill="both",expand=True)
-        for row in rows:listing.insert("end",row["kind"]+" | "+row["editor_id"]+" | "+row["title"])
+        for row in rows:listing.insert("end",row["origin"]+" | "+row["kind"]+" | "+row["editor_id"]+" | "+row["title"])
         def choose():
             selection=listing.curselection()
             if not selection:return
             row=rows[selection[0]]
+            imported_model.set(row["model"])
             fields["editor_id"].set(row["editor_id"]);fields["title"].set(row["title"])
             fields["author"].set("");fields["game"].set("newvegas")
             fields["kind"].set("book" if row["kind"]=="BOOK" else "note")
             text.delete("1.0","end");text.insert("1.0",row["body"])
             win.destroy()
         ttk.Button(win,text="Import text draft",command=choose).pack()
-        ttk.Label(win,text="Uncompressed text records only. Export creates a new record, not an override.").pack()
+        ttk.Label(win,text="Text records only. Export creates a new record, not an override.").pack()
     def write():
         parentdir=filedialog.askdirectory(title="Choose parent for new book output")
         if not parentdir:return
@@ -113,7 +116,7 @@ def mount(parent):
         try:
             b=book();model=None
             if b.kind=="book":
-                model=simpledialog.askstring("Book model","Relative NIF path under meshes (required)")
+                model=simpledialog.askstring("Book model","Relative NIF path under meshes (required)",initialvalue=imported_model.get())
                 if not model:return
             p=filedialog.asksaveasfilename(defaultextension=".esp",filetypes=[("New Vegas plugin","*.esp")])
             if not p:return
