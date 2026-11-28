@@ -116,3 +116,39 @@ class BuiltinLODTests(unittest.TestCase):
             for path in result["files"]:self.assertTrue((out/path).is_file())
             nif=next(p for p in result["files"] if p.endswith(".nif"))
             self.assertIn("NiAlphaProperty",check((out/nif).read_bytes(),8)["block_types"])
+
+    def test_skyrim_tree_binary_layout(self):
+        from chimster.world_lod_tree_tiles import encode_types,decode_types,encode_tile,decode_tile
+        from chimster.world_lod_metadata import skyrim_settings,read_skyrim_settings
+        rows=[(0,128.,256.,0.,0.,.5,.5,0)]
+        raw=encode_types(rows)
+        self.assertEqual(len(raw),36)
+        self.assertEqual(decode_types(raw),rows)
+        group={0:[(-100.,200.,300.,0.,1.,0x01001234,0,0)]}
+        raw=encode_tile(group)
+        self.assertEqual(len(raw),44)
+        self.assertEqual(decode_tile(raw),group)
+        with self.assertRaises(ValueError):decode_tile(raw[:-1])
+        with self.assertRaises(ValueError):encode_tile({0:group[0]*2})
+        settings=read_skyrim_settings(skyrim_settings([(-5,-2),(20,33)]))
+        self.assertEqual(settings["southwest"],(-32,-32))
+        self.assertEqual(settings["stride"],128)
+
+    def test_shared_fine_macro_perimeters(self):
+        # The two edge heights are identical but deliberately non-linear.
+        grid=[[float((y%7)**2) for x in range(33)] for y in range(33)]
+        coarse=macro_mesh({(7,0):grid},0,0,8,stitch=True)
+        fine=macro_mesh({(8,0):grid},8,0,4,stitch=True)
+        a=sorted((y,z) for x,y,z in coarse.vertices if x==8*4096)
+        b=sorted((y,z) for x,y,z in fine.vertices if x==0)
+        self.assertEqual(a,b)
+        self.assertEqual(len(a),17)
+
+    def test_cutout_nif_roundtrip(self):
+        from chimster.fnv_lod_nif import read_static_groups
+        mesh=terrain_grid([[0.,0.],[0.,0.]])
+        raw=encode(mesh,"textures/tree.dds","textures/tree_n.dds","companion",cutout=True)
+        self.assertIn("NiAlphaProperty",check(raw,2)["block_types"])
+        groups=read_static_groups(raw,include_cutout=True)
+        self.assertEqual(groups[0][1:],("textures/tree.dds","textures/tree_n.dds",True))
+        with self.assertRaises(ValueError):read_static_groups(raw)
