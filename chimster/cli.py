@@ -353,7 +353,7 @@ def main(argv=None):
   elif n.cmd=='navmesh-auto':
    from .navmesh import generate
    from .navmesh_rooms import build
-   from .quest_editor import load
+   from .navmesh_tiles import load
    spec=load(n.project)
    if 'vertices' in spec and 'triangles' in spec:
     from .navmesh_collision import generate_collision
@@ -367,8 +367,7 @@ def main(argv=None):
    with Path(n.output).open("x",encoding="utf-8") as stream:json.dump(mesh,stream)
    result={"output":n.output,"vertices":len(mesh["vertices"]),"triangles":len(mesh["triangles"]),"regions":len(mesh["regions"]),"issues":mesh.get("issues",[]),"scope":mesh["scope"]}
   elif n.cmd=='navmesh-tiled':
-   from .navmesh_tiles import build
-   from .quest_editor import load
+   from .navmesh_tiles import build,load
    from pathlib import Path
    previous=load(n.previous)["cache"] if n.previous else None
    bundle=build(load(n.project),previous,n.tile_cells)
@@ -384,14 +383,14 @@ def main(argv=None):
    with Path(n.output).open("x",encoding="utf-8") as stream:json.dump(mesh,stream)
    result={"output":n.output,"triangles":len(mesh["triangles"]),"simplification":mesh["simplification"]}
   elif n.cmd=='navmesh-simplify':
-   from .quest_editor import load
+   from .navmesh_tiles import load
    from .navmesh_simplify import simplify
    from pathlib import Path
    source=load(n.project);mesh=simplify(source.get("mesh",source))
    with Path(n.output).open("x",encoding="utf-8") as stream:json.dump(mesh,stream)
    result={"output":n.output,**mesh["simplification"]}
   elif n.cmd=='navmesh-route':
-   from .quest_editor import load
+   from .navmesh_tiles import load
    from .navmesh import route
    mesh=load(n.project);mesh=mesh.get("mesh",mesh);result=route(mesh,n.start,n.end,mesh.get("links",[]),n.closed)
   elif n.cmd=='navmesh-draft':
