@@ -10,3 +10,9 @@ class EffectsTests(unittest.TestCase):
         for fx in (Effects(shadow_size=4096),Effects(ao_radius=0),Effects(lights=(LocalLight(),)*5),Effects(water_level=float("nan")),Effects(fog_density=-1)):
             with self.assertRaises(ValueError):fx.validate()
         with self.assertRaises(ValueError):LocalLight(radius=0).validate()
+
+    def test_reflection_math(self):
+        from chimster.panda_reflection import mirror_point,mirror_vector
+        self.assertEqual(mirror_point((2,3,8),2),(2,3,-4))
+        self.assertEqual(mirror_vector((0,1,2)),(0,1,-2))
+        with self.assertRaises(ValueError):Effects(refraction=True).validate()

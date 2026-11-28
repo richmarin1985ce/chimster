@@ -120,7 +120,7 @@ class Preview:
         sun=DirectionalLight("sun");sun.set_color((.8,.8,.8,1))
         a=self.root.attach_new_node(ambient);s=self.root.attach_new_node(sun)
         s.set_hpr(-35,-50,0);self.root.set_light(a);self.root.set_light(s)
-        self.ambient=a;self.sun=s;self.effect_nodes=[];self.effects_key=None;self.water=None
+        self.ambient=a;self.sun=s;self.effect_nodes=[];self.effects_key=None;self.water=None;self.water_targets=None;self.water_error=None
     def configure_effects(self,effects,settings,center,eye):
         from panda3d.core import Fog,PointLight,Vec3
         from .panda_water import create_water
@@ -130,6 +130,7 @@ class Preview:
             for node in self.effect_nodes:
                 self.root.clear_light(node);node.remove_node()
             self.effect_nodes=[]
+            self.close_water_targets()
             if self.water is not None:self.water.remove_node();self.water=None
             self.ambient.node().set_color((*([effects.ambient]*3),1))
             self.sun.node().set_color((*([effects.sun_intensity]*3),1))
@@ -160,6 +161,20 @@ class Preview:
             self.water.set_shader_input("eye",eye)
             self.water.set_shader_input("sun",settings.light)
             self.water.set_shader_input("time",monotonic()%3600)
+
+    def close_water_targets(self):
+        if self.water_targets is not None:self.water_targets.close();self.water_targets=None
+        self.water_error=None
+
+    def update_water_targets(self,effects,w,h,eye,center,up):
+        if self.water is None or not effects.reflection_size or self.visibility is not None or eye[2]<=effects.water_level:
+            self.close_water_targets()
+            return
+        if self.water_targets is None and self.water_error is None:
+            from .panda_reflection import WaterTargets
+            try:self.water_targets=WaterTargets(self,effects,w,h)
+            except Exception as exc:self.water_error=str(exc)[:150]
+        if self.water_targets is not None:self.water_targets.update(eye,center,up)
 
     def configure_visibility(self,layout=None,membership=None,occluders=()):
         from copy import deepcopy
@@ -195,17 +210,19 @@ class Preview:
             self.visibility=visibility
             if self.model is not None:self.model.remove_node()
             self.model=candidate;self.model.reparent_to(self.root);self.key=key
-        eye,_,_,_,_,_=basis(camera,w,h,settings)
+        eye,_,up,_,_,_=basis(camera,w,h,settings)
         self.lens.set_aspect_ratio(w/h);self.lens.set_fov(*lens_fov(settings.fov,w/h));self.lens.set_near_far(settings.near,settings.far)
         self.visibility_report=self.visibility.update(eye) if self.visibility is not None else None
         self.camera.set_pos(*eye);self.camera.look_at(*camera.center)
         self.configure_effects(effects,settings,camera.center,eye)
+        self.update_water_targets(effects,w,h,eye,camera.center,up)
         self.engine.render_frame();self.engine.sync_frame()
         raw=bytes(self.texture.get_ram_image_as("RGBA"))
         if len(raw)!=w*h*4:raise RuntimeError("Incomplete framebuffer")
         stride=w*4
         return b"".join(raw[y:y+stride] for y in range((h-1)*stride,-1,-stride))
     def close_buffer(self):
+        self.close_water_targets()
         if self.output is not None:
             self.engine.remove_window(self.output);self.output=None
     def close(self):

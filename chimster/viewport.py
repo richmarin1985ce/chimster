@@ -38,7 +38,7 @@ def mount(parent):
                 raw=panda.render(scene,replace(camera,zoom=camera.zoom*factor),rw,rh,materials,settings,effects)
                 photo=ImageTk.PhotoImage(Image.frombytes("RGBA",(rw,rh),raw).resize((w,h)))
                 canvas.create_image(0,0,image=photo,anchor="nw",tags=("gl",))
-                status.set("Panda3D | shadows / fog / water | AO: ModernGL only | select objects in sidebar")
+                status.set("Panda3D | shadows / fog / water | AO: ModernGL only"+(" | reflection fallback: "+panda.water_error if panda.water_error else ""))
                 return
             except Exception as e:
                 failure="Panda3D: "+str(e)[:150];backend.set("ModernGL")
