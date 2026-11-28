@@ -103,6 +103,32 @@ def launch(parent):
         data=mc.preview(state["rows"],duration,json.loads(Path(p).read_text(encoding="utf-8")))
         out=filedialog.asksaveasfilename(parent=win,defaultextension=".json")
         if out:audio.publish(Path(out),json.dumps(data,indent=2,ensure_ascii=False).encode())
+    from . import drop_import as di
+    def dropped(paths):
+        if busy[0]:raise ValueError("Finish current operation first")
+        found=di.classify(paths);tier="phones"
+        if "timeline" in found and found["timeline"].suffix.lower()==".textgrid":
+            tier=simpledialog.askstring("Interval tier","Exact phoneme tier name",initialvalue="phones",parent=win)
+            if tier is None:return
+        if "wav" in found and state["rows"] and "timeline" not in found:
+            if not messagebox.askyesno("Replace WAV","Replace audio and clear its phoneme timeline?",parent=win):return
+        updated=di.load_bundle(paths,state,tier=tier)
+        state.update(updated)
+        if state["duration"] is not None:refresh()
+        status.set("Imported "+", ".join(p.name for p in paths))
+    if di.bind_files(tree,dropped,lambda msg:messagebox.showerror("Drop import",msg,parent=win)):
+        ttk.Label(win,text="Drop WAV, phoneme timeline and/or profile onto the table.").pack(anchor="w")
+    else:
+        ttk.Label(win,text="File drop unavailable; use Browse or install the dragdrop extra.").pack(anchor="w")
+    def character_preview():
+        duration=require()
+        cal=state.get("profile")
+        if cal is None:
+            p=filedialog.askopenfilename(parent=win,title="Observed morph profile",filetypes=[("JSON","*.json")])
+            if not p:return
+            cal=mc.profile(json.loads(Path(p).read_text(encoding="utf-8")))
+        from .face_preview_ui import launch as launch_face
+        launch_face(win,list(state["rows"]),duration,cal,state["wav"])
     def profile_editor():
         from .morph_profile_ui import launch as launch_profile
         launch_profile(win)
@@ -118,7 +144,7 @@ def launch(parent):
         rows=list(state["rows"]);source=state["wav"]
         start("native",lambda:build(source,rows,cal,out,experimental=True))
     tools=ttk.Frame(win);tools.pack(fill="x")
-    for label,fn in (("Edit morph profile",profile_editor),("Export native Skyrim LIP",native_export)):
+    for label,fn in (("Edit morph profile",profile_editor),("Export native Skyrim LIP",native_export),("Character preview",character_preview)):
         b=ttk.Button(tools,text=label,command=guard(fn));b.pack(side="left");buttons.append(b)
     for label,fn in (("Open WAV",wav),("Import phonemes",imported),("Save timeline",save),("MFA align",align),("Generate probes",probes),("Mapped preview",preview)):
         b=ttk.Button(bar,text=label,command=guard(fn));b.pack(side="left");buttons.append(b)
