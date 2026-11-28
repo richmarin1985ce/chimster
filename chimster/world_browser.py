@@ -103,8 +103,10 @@ def read_plugin(path, profile="new-vegas"):
                         row["grid"] = struct.unpack_from("<2i", grid)
                     data = fields.get(b"DATA", b"")
                     row["interior"] = bool(data and data[0] & 1)
-                if profile in ("new-vegas","fallout3","skyrim","skyrim-se","fallout4"):
-                    if sig=="LTEX" and len(fields.get(b"TNAM",b""))==4:
+                if profile in ("oblivion","new-vegas","fallout3","skyrim","skyrim-se","fallout4"):
+                    if sig=="LTEX" and profile=="oblivion":
+                        row["land_texture"]=text_field(fields.get(b"ICON",b""))
+                    elif sig=="LTEX" and len(fields.get(b"TNAM",b""))==4:
                         tx=slots.decode(struct.unpack("<I",fields[b"TNAM"])[0])
                         if tx:row["texture_set"]=(tx.origin,tx.local)
                     elif sig=="TXST":
