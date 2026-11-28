@@ -7,7 +7,7 @@ Section 3 remains the overriding engineering priority. These original fan expans
 | Fallout New Vegas | Fallout: Route 66 | Existing Flagstaff campaign and surrounding highway region |
 | Skyrim | Provisional: Realm of Order | Jyggalag, original realm interpretation; no major Skyrim questline; lore review required |
 | Fallout 3 | Fallout: Baltimore (working title) | Baltimore harbor, industrial districts and surrounding neighborhoods |
-| Fallout 4 | Fallout Nautica | Nantucket and maritime locations |
+| Fallout 4 | Fallout: Nautica | Nantucket and maritime locations |
 | Classic Oblivion | The Hunting Grounds (working title) | Great Forest werewolf questline leading to an island in Hircine's realm; Remastered compatibility target |
 | Morrowind | Coldharbour (working title) | Ruined, distorted reflections of selected Vvardenfell locations; distinct from Project Tamriel |
 
