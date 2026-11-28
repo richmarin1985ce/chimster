@@ -60,6 +60,9 @@ Follow-up code: VR catalog entries explicitly empty rather than crashing or inhe
 ### Follow-up: bounded master-set changes
 Section 3 now supports explicitly opted-in master addition/removal for the same generated flat New Vegas layouts as the existing reorder operation. Removed live references, incompatible override origins, duplicate/deleted identities and known wrong-type targets are rejected. Same-name staging and dependency checks retained. Synthetic tests cover insertion, removal, live-reference rejection and removing the last unused master; execution deferred. Nested groups, opaque schemas, general cross-game remapping and runtime equivalence remain pending. The equal-weight estimates remain 65% / 60%: remapping has advanced within the partial milestone, not completed it.
 
+### Follow-up: nested exterior world and compressed remapping
+The New Vegas master-set writer now covers the exact generated WRLD/CELL/LAND/REFR hierarchy plus TXST/LTEX and generated BOOK/NOTE layouts, with typed base-object/terrain-texture links. World and cell group owners are remapped; block/subblock coordinate labels are preserved and checked on reopen. Bounded compressed known-schema records are decoded and recompressed. Unknown layouts, unsupported hierarchy types, non-text notes, and unsupported flags remain blocked. Synthetic world insertion and compressed reference fixtures added; execution deferred. This advances the partial master-remapping milestone; estimates remain 65% compatibility and 60% records.
+
 ## Critical path
 1. Stable project FormID allocation, typed native record schema and dependency-safe edits.
 2. Integrated native interior cells, architectural assets, room/portal/trigger volumes, placed references and collision.
