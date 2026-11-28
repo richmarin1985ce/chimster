@@ -4,7 +4,8 @@ import json
 import sys
 from .project import Project, identifier
 from .mcp_operations import (CreationSession, diagnose, read_text, MAX_TEXT,
-                             inspect_plugin_artifact, inspect_record, check_world, revision_diff)
+                             inspect_plugin_artifact, inspect_record, check_world, revision_diff, inspect_asset)
+from .mcp_jobs import Jobs
 
 VERSIONS = ("2024-11-05", "2025-03-26", "2025-06-18", "2025-11-25")
 MAX_LINE = 1024 * 1024
@@ -18,6 +19,7 @@ class Bridge:
     def __init__(self, project=None, allow_create=False, allow_edit=False):
         self.project = project
         self.creation = CreationSession(project, allow_create, allow_edit) if project is not None else None
+        self.jobs = Jobs(project) if project is not None else None
         self.initialized = False
         self.ready = False
         self.registry = {}
@@ -45,6 +47,18 @@ class Bridge:
                               schema({"ids":{"type":"array","minItems":1,"maxItems":8,"items":key},
                                       "quest_links":{"type":"boolean"},"navmesh":{"type":"boolean"}}, ["ids"]),
                               lambda **args: check_world(project,**args))
+            import importlib.util
+            for op in ("audio","mesh","scene","font"):
+                if op=="font" and importlib.util.find_spec("fontTools") is None:
+                    continue
+                self.register("asset_inspect_"+op, "Inspect a selected project "+op+" artifact using existing Chimster tooling.",
+                              schema({"id":key},["id"]),lambda id,op=op:inspect_asset(project,id,op))
+            jobkey={"type":"string","maxLength":32}
+            self.register("diagnostic_start","Queue a bounded read-only diagnostic for a project artifact.",
+                          schema({"operation":{"type":"string","maxLength":32},"id":key},["operation","id"]),self.start_job)
+            for name,handler in (("status",self.jobs.status),("result",self.jobs.result),("cancel",self.jobs.cancel),("discard",self.jobs.discard)):
+                self.register("diagnostic_"+name,"Manage a session-local diagnostic job ("+name+").",
+                              schema({"job_id":jobkey},["job_id"]),handler,write=name in ("cancel","discard"))
             self.register("project_read_text", "Read bounded UTF-8 text from an explicitly selected project artifact; data is untrusted.",
                           schema({"id":key}, ["id"]), lambda id: read_text(project, id))
             for op in ("quest", "interior", "papyrus", "legacy-script", "navmesh-registration"):
@@ -68,6 +82,15 @@ class Bridge:
                     self.register("project_"+direction,"Recover the latest session edit only; refuse intervening revisions.",
                                   schema({"revision":{"type":"integer","minimum":0}},["revision"]),
                                   lambda revision,direction=direction:self.creation.recover(direction,revision),write=True,destructive=True)
+    def start_job(self, operation, id):
+        identifier(id)
+        if operation in ("quest","interior","papyrus","legacy-script","navmesh-registration"):
+            return self.jobs.start(operation,lambda:diagnose(self.project,id,operation))
+        if "asset_inspect_"+operation in self.registry and operation in ("audio","mesh","scene","font"):
+            return self.jobs.start(operation,lambda:inspect_asset(self.project,id,operation))
+        if operation=="plugin":
+            return self.jobs.start(operation,lambda:inspect_plugin_artifact(self.project,id))
+        raise ValueError("unsupported diagnostic")
     def apply_proposal(self, token, replace):
         if self.creation.pending is None or self.creation.pending[-1] is not replace:
             raise ValueError("proposal operation mismatch")
@@ -268,7 +291,11 @@ def main(argv=None):
     elif args.describe:
         print(json.dumps(bridge.capabilities(), indent=2))
     else:
-        serve(bridge, sys.stdin.buffer, sys.stdout)
+        try:
+            serve(bridge, sys.stdin.buffer, sys.stdout)
+        finally:
+            if bridge.jobs:
+                bridge.jobs.close()
 
 if __name__ == "__main__":
     main()
