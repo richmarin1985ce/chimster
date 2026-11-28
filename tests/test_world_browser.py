@@ -216,5 +216,37 @@ class WorldBrowserTests(unittest.TestCase):
 
 
 
+    def test_duplicate_static_cell_single_undo(self):
+        from chimster.world_draft import Draft
+        browser=Browser.open([self.base])
+        draft=Draft(browser)
+        key,report=draft.duplicate(self.cell,"Duplicated",(-1,3))
+        self.assertEqual(report["copied"],1)
+        children=draft.index().object_rows(key)
+        self.assertEqual(len(children),1)
+        self.assertEqual(children[0]["position"],(-2904,13000,5))
+        self.assertNotEqual(children[0]["key"],self.ref)
+        self.assertEqual(children[0]["base"],self.static)
+        draft.undo()
+        self.assertNotIn(key,draft.index().active)
+        draft.redo()
+        self.assertEqual(len(draft.index().object_rows(key)),1)
+        with self.assertRaises(ValueError):
+            draft.duplicate(self.cell,"Another",(-1,3))
+        self.assertEqual(len(draft.index().object_rows(key)),1)
+
+    def test_world_properties_draft(self):
+        from chimster.world_draft import Draft
+        browser=Browser.open([self.base])
+        draft=Draft(browser)
+        draft.world_properties(self.world,"RenamedWorld","New World Title")
+        self.assertEqual(draft.index().worlds[self.world]["name"],"New World Title")
+        self.assertEqual(draft.index().worlds[self.world]["editor_id"],"RenamedWorld")
+        self.assertEqual(browser.worlds[self.world]["editor_id"],"TestWorld")
+        draft.undo()
+        self.assertEqual(draft.index().worlds[self.world]["editor_id"],"TestWorld")
+
+
+
 if __name__ == "__main__":
     unittest.main()
