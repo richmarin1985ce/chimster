@@ -85,6 +85,7 @@ def build_parser():
  a=s.add_parser('navmesh-adaptive'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--levels',type=int,default=3); a.add_argument('--tile-cells',type=int,default=32); a.add_argument('--triangle-budget',type=int,default=250000); a.add_argument('--policy'); a.add_argument('--previous')
  a=s.add_parser('navmesh-areas'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--policy')
  a=s.add_parser('navmesh-tiled'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--previous'); a.add_argument('--tile-cells',type=int,default=32)
+ a=s.add_parser('navmesh-fo4'); a.add_argument('nif'); a.add_argument('output'); a.add_argument('--unit-scale',type=float,required=True); a.add_argument('--spacing',type=float,required=True); a.add_argument('--radius',type=float,default=0.3); a.add_argument('--height',type=float,default=1.8); a.add_argument('--max-step',type=float,default=0.4); a.add_argument('--max-slope',type=float,default=45)
  a=s.add_parser('navmesh-nif'); a.add_argument('nif'); a.add_argument('output'); a.add_argument('helper'); a.add_argument('--unit-scale',type=float,required=True); a.add_argument('--spacing',type=float,required=True); a.add_argument('--radius',type=float,default=0.3); a.add_argument('--height',type=float,default=1.8); a.add_argument('--max-step',type=float,default=0.4); a.add_argument('--max-slope',type=float,default=45)
  a=s.add_parser('navmesh-simplify'); a.add_argument('project'); a.add_argument('output')
  a=s.add_parser('navmesh-route'); a.add_argument('project'); a.add_argument('start',type=int); a.add_argument('end',type=int); a.add_argument('--closed',action='append',default=[]); a.add_argument('--avoid-area',action='append',default=[])
@@ -467,6 +468,15 @@ def main(argv=None):
    bundle=build(load(n.project),previous,n.tile_cells)
    with Path(n.output).open("x",encoding="utf-8") as stream:json.dump(bundle,stream)
    result={"output":n.output,"rebuilt":bundle["rebuilt"],"reused":bundle["reused"],"removed":bundle["removed"],"triangles":len(bundle["mesh"]["triangles"]),"seam_edges":bundle["mesh"]["seam_edges"]}
+  elif n.cmd=='navmesh-fo4':
+   from .fo4_collision import extract
+   from .navmesh_collision import generate_collision
+   from .navmesh_simplify import simplify
+   from pathlib import Path
+   source=extract(n.nif,n.unit_scale)
+   mesh=simplify(generate_collision({"schema":1,**source,"spacing":n.spacing,"agent":{"radius":n.radius,"height":n.height,"max_step":n.max_step,"max_slope":n.max_slope}}))
+   with Path(n.output).open("x",encoding="utf-8") as stream:json.dump(mesh,stream)
+   result={"output":n.output,"triangles":len(mesh["triangles"]),"scope":"experimental optional FO4 native physics backend; portable output"}
   elif n.cmd=='navmesh-nif':
    from .modern_nif import extract_collision
    from .navmesh_collision import generate_collision
