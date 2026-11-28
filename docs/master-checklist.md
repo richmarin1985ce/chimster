@@ -38,6 +38,11 @@ Current baseline: PR23 merged at 7c356fbde0c879c0de46c47290e0bd7cb812635e; eight
 | 24 Wiki | Formatted offline manual, navigation, HTML export and link audit | Rich links, game-specific verified format catalog |
 | 25 Distribution | Versioned offline installs and rollback, three-platform installer smoke tests | Archive validation, signed installers, conditional packages, dependency manifests, publishing |
 | 26 Flagstaff | Campaign design, original cast/quests, provisional DEM, native terrain fixture, original minigame | Playable slaver-pit slice, city/road/ranch production, Legion politics, Enclave reconnaissance, endgame, full New Vegas-scale campaign |
+## Sections 2 and 3 — active-scope closure pass (2026-11-27)
+- Section 2: centralized active profile aliases, including SE/AE file-family alias and both VR desktop identifiers. Compatibility and native record workbenches share the resolver; deferred Remastered is not offered in the native workbench. Runtime identities remain gated for VR and deferred profiles. The partial reference catalog capability is distinct from exact generated FNV schema support; no retail verification or AE runtime-version certification is implied.
+- Section 3: exact generated FNV perk effects now carry QUST/SPEL type constraints, and consumable ENIT offsets carry SPEL/SOUN constraints. Shared graph and native catalog use these constraints; one-pass field iterables are materialized and existing catalog type information is retained. Synthetic regression tests added.
+- Open release gates: independent local retail plugin/archive/engine validation for all nine active targets, version-specific VR and AE behavior, comprehensive per-game native field and nested record schemas, general master addition/removal/renumbering, unknown layouts, and full typed reference traversal. CI execution remains deferred under the existing quota policy. No section-wide completion claim.
+
 ## Critical path
 1. Stable project FormID allocation, typed native record schema and dependency-safe edits.
 2. Integrated native interior cells, architectural assets, room/portal/trigger volumes, placed references and collision.
