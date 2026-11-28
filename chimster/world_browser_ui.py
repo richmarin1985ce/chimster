@@ -733,6 +733,29 @@ def mount(parent, game, open_preview=None, viewport_drop=None):
             status.set("Source-textured vegetation candidate exported; runtime verification pending.")
         except (ValueError,OSError,TypeError,KeyError) as exc:messagebox.showerror("Source foliage",str(exc),parent=parent)
     ttk.Button(nav,text="Bake source foliage",command=source_vegetation).pack(side="left")
+    def speedtree_project():
+        import json
+        from .speedtree_project import import_file,export_project,read_bounded
+        action=messagebox.askyesnocancel("SpeedTree project","Import SPT into an editable project? Choose No to export an existing project.",parent=parent)
+        if action is None:return
+        try:
+            if action:
+                src=filedialog.askopenfilename(title="Import SpeedTree",filetypes=[("SpeedTree SPT","*.spt")])
+                if not src:return
+                folder=filedialog.askdirectory(title="Choose project parent directory")
+                if not folder:return
+                project=Path(folder)/(Path(src).stem+"_spt_project")
+                show(import_file(src,project))
+                status.set("SPT project imported: "+str(project))
+            else:
+                project=filedialog.askdirectory(title="Select SPT project")
+                if not project:return
+                dest=filedialog.asksaveasfilename(title="Export native SPT",defaultextension=".spt",filetypes=[("SpeedTree SPT","*.spt")])
+                if not dest:return
+                show(export_project(project,dest))
+                status.set("Native SPT exported without external tools.")
+        except (ValueError,OSError,TypeError,UnicodeError) as exc:messagebox.showerror("SpeedTree project",str(exc),parent=parent)
+    ttk.Button(nav,text="SPT import/export",command=speedtree_project).pack(side="left")
     def tree_tiles():
         index=state["index"];world=state["world"]
         if index is None or world is None:return
