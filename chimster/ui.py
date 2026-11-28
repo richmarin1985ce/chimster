@@ -221,6 +221,9 @@ def launch():
  f=tab('Terrain editor')
  from .terrain_ui import mount as mount_terrain
  mount_terrain(f)
+ f=tab('Interior editor')
+ from .interior_ui import mount as mount_interior
+ mount_interior(f)
  f=tab('Books & notes')
  from .book_ui import mount as mount_books
  mount_books(f)
