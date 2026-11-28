@@ -15,81 +15,44 @@ def texture(path):
     if not path.isascii() or not path.lower().startswith("textures/") or not path.lower().endswith(".dds") or any(p in ("",".","..") or ":" in p or "\0" in p for p in path.split("/")):raise ValueError("Unsafe TES4 texture")
     return path.replace("/","\\")
 
-def encode(mesh,diffuse,cutout=False):
-    data,_,_=geometry(mesh)
-    path=texture(diffuse)
-    props=(3,4,6) if cutout else (3,4)
-    root=av("Chimster LOD")+pack("IiI",1,1,0)
-    # No shader assigned, because the legacy geometry material has an inline bool.
-    shape=av("LOD geometry",props)+pack("iiB",2,-1,0)
-    material=net()+pack("14f",1,1,1,1,1,1,0,0,0,0,0,0,10,1)
-    # Six texture slots, base only; normal map discovered by game naming convention.
-    texturing=net()+pack("IIBiIIIB",2,6,1,5,3,2,0,0)+bytes(5)+pack("I",0)
-    source=net()+pack("B",1)+string(path)+pack("iIIIBB",-1,6,1,3,1,1)
-    blocks=[("NiNode",root),("NiTriShape",shape),("NiTriShapeData",data),
-            ("NiMaterialProperty",material),("NiTexturingProperty",texturing),("NiSourceTexture",source)]
-    if cutout:blocks.append(("NiAlphaProperty",net()+pack("HB",0x1200,128)))
-    types=[t for t,b in blocks]
+DEFAULT_MATERIAL=(1.,1.,1.,1.,1.,1.,0.,0.,0.,0.,0.,0.,10.,1.)
+def encode_groups(groups):
+    if not 1<=len(groups)<=128:raise ValueError("Legacy material group limit")
+    blocks=[None];children=[]
+    for mesh,diffuse,cutout,material in groups:
+        if len(material)!=14 or not all(isfinite(v) for v in material) or material[-1]!=1:raise ValueError("Unsupported material")
+        data,_,_=geometry(mesh)
+        colors=getattr(mesh,"colors",[])
+        if colors:
+            if len(colors)!=len(mesh.vertices) or any(len(v)!=4 or any(not isfinite(x) or not 0<=x<=1 for x in v) for v in colors):raise ValueError("Invalid vertex colors")
+            # Classic geometry has one byte Has Vertex Colors immediately after the bounding sphere.
+            pos=9+len(mesh.vertices)*12+3+len(mesh.vertices)*36+16
+            if data[pos]!=0:raise ValueError("Unexpected geometry layout")
+            data=data[:pos]+b"\x01"+b"".join(pack("4f",*v) for v in colors)+data[pos+1:]
+        path=texture(diffuse);i=len(blocks);children.append(i)
+        props=(i+2,i+3,i+5) if cutout else (i+2,i+3)
+        shape=av("LOD geometry "+str(len(children)),props)+pack("iiB",i+1,-1,0)
+        texturing=net()+pack("IIBiIIIB",2,6,1,i+4,3,2,0,0)+bytes(5)+pack("I",0)
+        source=net()+pack("B",1)+string(path)+pack("iIIIBB",-1,6,1,3,1,1)
+        blocks.extend([("NiTriShape",shape),("NiTriShapeData",data),("NiMaterialProperty",net()+pack("14f",*material)),("NiTexturingProperty",texturing),("NiSourceTexture",source)])
+        if cutout:blocks.append(("NiAlphaProperty",net()+pack("HB",0x1200,128)))
+    blocks[0]=("NiNode",av("Chimster LOD")+pack("I",len(children))+b"".join(pack("i",i) for i in children)+pack("I",0))
+    types=list(dict.fromkeys(t for t,b in blocks))
     header=MAGIC+pack("IBIII",0x14000005,1,11,len(blocks),11)+b"\x09Chimster\0\x01\0\x01\0"
-    header+=pack("H",len(types))+b"".join(string(t) for t in types)+b"".join(pack("H",i) for i in range(len(types)))+pack("I",0)
+    header+=pack("H",len(types))+b"".join(string(t) for t in types)+b"".join(pack("H",types.index(t)) for t,b in blocks)+pack("I",0)
     return header+b"".join(b for t,b in blocks)+pack("Ii",1,0)
 
+def encode(mesh,diffuse,cutout=False):
+    return encode_groups([(mesh,diffuse,cutout,DEFAULT_MATERIAL)])
+
 def inspect(raw):
-    """Parse the supported layout independently of the serialized block lengths."""
-    r=Reader(raw)
-    if r.take(len(MAGIC))!=MAGIC:raise ValueError("Not Oblivion NIF")
-    version,endian,user,count,stream=r.get("IBIII")
-    if (version,endian,user,stream)!=(0x14000005,1,11,11) or count not in (6,7):raise ValueError("Unsupported TES4 candidate header")
-    for _ in range(3):r.take(r.get("B")[0])
-    n,=r.get("H")
-    expected=["NiNode","NiTriShape","NiTriShapeData","NiMaterialProperty","NiTexturingProperty","NiSourceTexture"]
-    if count==7:expected.append("NiAlphaProperty")
-    if n!=count or [r.string().decode("ascii") for _ in range(n)]!=expected:raise ValueError("Unexpected block types")
-    if [r.get("H")[0] for _ in range(n)]!=list(range(n)) or r.get("I")[0]!=0:raise ValueError("Unexpected block mapping")
-    def net_read():
-        r.string()
-        if r.get("Ii")!=(0,-1):raise ValueError("Unsupported extra data/controller")
-    def av_read():
-        net_read();flags,*transform=r.get("H13f")
-        if flags!=14 or not all(isfinite(v) for v in transform):raise ValueError("Invalid transform")
-        n,=r.get("I")
-        if n>8:raise ValueError("Property limit")
-        refs=tuple(r.get("i")[0] for _ in range(n))
-        if r.get("i")[0]!=-1:raise ValueError("Unexpected collision")
-        return refs
-    if av_read() or r.get("IiI")!=(1,1,0):raise ValueError("Invalid root")
-    if av_read()!=((3,4,6) if count==7 else (3,4)) or r.get("iiB")!=(2,-1,0):raise ValueError("Invalid shape")
-    start=r.i
-    _,vertices,_,_,has=r.get("iHBBB")
-    if not vertices or not has:raise ValueError("Missing vertices")
-    r.take(vertices*12)
-    flags,normal=r.get("HB")
-    if flags!=0x1001 or not normal:raise ValueError("Unexpected geometry flags")
-    r.take(vertices*36+16)
-    if r.get("B")[0]:raise ValueError("Unexpected colors")
-    r.take(vertices*8)
-    _,extra,triangles,points,has=r.get("HiHIB")
-    if extra!=-1 or not has or points!=triangles*3 or not triangles:raise ValueError("Invalid triangle header")
-    r.take(triangles*6)
-    if r.get("H")[0]:raise ValueError("Unexpected match groups")
-    mesh=decode_geometry(raw[start:r.i])
-    net_read()
-    if not all(isfinite(v) for v in r.get("14f")):raise ValueError("Invalid material")
-    net_read()
-    if r.get("IIBiIIIB")!=(2,6,1,5,3,2,0,0) or r.take(5)!=bytes(5) or r.get("I")[0]!=0:raise ValueError("Invalid texturing property")
-    net_read()
-    if r.get("B")[0]!=1:raise ValueError("Embedded texture unsupported")
-    diffuse=r.string().decode("ascii");texture(diffuse)
-    if r.get("iIIIBB")!=(-1,6,1,3,1,1):raise ValueError("Unexpected texture preferences")
-    if count==7:
-        net_read()
-        if r.get("HB")!=(0x1200,128):raise ValueError("Unexpected alpha flags")
-    if r.get("Ii")!=(1,0) or r.i!=len(raw):raise ValueError("Invalid footer")
-    return {"triangles":len(mesh.faces),"vertices":len(mesh.vertices),"diffuse":diffuse,"cutout":count==7,
-            "block_types":expected,"runtime_verified":False}
+    groups,types=read_static_groups(raw,with_types=True)
+    return {"triangles":sum(len(m.faces) for m,*_ in groups),"vertices":sum(len(m.vertices) for m,*_ in groups),
+            "diffuse":groups[0][1] if len(groups)==1 else None,"cutout":any(c for _,_,c,_ in groups),
+            "material_groups":len(groups),"colored_vertices":sum(len(getattr(m,"colors",[])) for m,*_ in groups),
+            "block_types":types,"runtime_verified":False}
 
-
-def read_static(raw):
+def read_static_groups(raw,with_types=False):
     """Read a bounded subset of actual TES4 static NIFs, including strip geometry.
     Unrecognized blocks cannot be skipped safely in this unsized legacy stream.
     """
@@ -134,9 +97,10 @@ def read_static(raw):
         if flags&~0x1001 or not flags&1:raise ValueError("Unsupported UV layout")
         if has:r.take(n*12*(3 if flags&0x1000 else 1))
         r.take(16)
+        mesh.colors=[]
         if r.get("B")[0]:
-            for _ in range(n):
-                if r.get("4f")!=(1.,1.,1.,1.):raise ValueError("Nonwhite vertex colors require preservation")
+            mesh.colors=[r.get("4f") for _ in range(n)]
+            if any(not all(isfinite(v) and 0<=v<=1 for v in rgba) for rgba in mesh.colors):raise ValueError("Invalid vertex colors")
         mesh.uv=[(u,1-v) for u,v in (r.get("2f") for _ in range(n))]
         _,additional,t=r.get("HiH")
         if additional!=-1 or not t:raise ValueError("Unsupported geometry extras")
@@ -177,7 +141,7 @@ def read_static(raw):
         elif kind=="NiMaterialProperty":
             if obj():raise ValueError("Material extras")
             value=r.get("14f")
-            if not all(isfinite(v) for v in value) or value[:6]!=(1.,)*6 or value[9:12]!=(0.,)*3 or value[-1]!=1:raise ValueError("Non-default source material")
+            if not all(isfinite(v) for v in value) or value[-1]!=1:raise ValueError("Unsupported translucent material")
         elif kind=="NiTexturingProperty":
             if obj():raise ValueError("Texture property extras")
             apply,n=r.get("II")
@@ -224,21 +188,33 @@ def read_static(raw):
             return
         if kind not in ("NiTriShape","NiTriStrips"):raise ValueError("Unsupported render node")
         t,props,extra,data=value;chain=(t,)+chain
-        paths=[];cut=False
+        paths=[];cut=False;material=DEFAULT_MATERIAL;material_seen=False
         for p in props:
             if not 0<=p<len(blocks):raise ValueError("Invalid property")
             k,v=blocks[p]
             if k=="NiTexturingProperty":paths.append(ref(v,{"NiSourceTexture"}))
             elif k=="NiAlphaProperty":cut=True
-            elif k!="NiMaterialProperty":raise ValueError("Unsupported property")
+            elif k=="NiMaterialProperty":
+                if material_seen:raise ValueError("Multiple material properties")
+                material=v;material_seen=True
+            else:raise ValueError("Unsupported property")
         if len(paths)!=1:raise ValueError("Exactly one diffuse texture required")
-        mesh=ref(data,{"NiTriShapeData","NiTriStripsData"});target=groups.setdefault((paths[0],cut),Mesh());offset=len(target.vertices)
+        mesh=ref(data,{"NiTriShapeData","NiTriStripsData"});target=groups.setdefault((paths[0],cut,material),Mesh());offset=len(target.vertices)
         if offset+len(mesh.vertices)>65535 or len(target.faces)+len(mesh.faces)>65535:raise ValueError("Legacy shape budget")
         for p in mesh.vertices:
             for t in chain:p=tuple(t[i]+t[12]*sum(t[3+i*3+j]*p[j] for j in range(3)) for i in range(3))
             target.vertices.append(p)
+        colors=getattr(mesh,"colors",[]);old=getattr(target,"colors",[])
+        if colors or old:target.colors=(old or [(1.,)*4]*offset)+(colors or [(1.,)*4]*len(mesh.vertices))
         target.uv.extend(mesh.uv);target.faces.extend((tuple(v+offset for v in f),"lod") for f,_ in mesh.faces)
     for root in root_ids:visit(root)
-    if len(groups)!=1:raise ValueError("Multi-material legacy source requires atlas conversion")
-    (path,cut),mesh=next(iter(groups.items()));validate_mesh(mesh)
-    return mesh,path,cut
+    if not groups:raise ValueError("No supported legacy geometry")
+    result=[(mesh,*key) for key,mesh in sorted(groups.items())]
+    for mesh,*_ in result:validate_mesh(mesh)
+    return (result,[kind for kind,_ in blocks]) if with_types else result
+
+def read_static(raw):
+    groups=read_static_groups(raw)
+    if len(groups)!=1:raise ValueError("Multiple material groups; use grouped reader")
+    mesh,path,cutout,_=groups[0]
+    return mesh,path,cutout
