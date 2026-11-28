@@ -633,6 +633,48 @@ def mount(parent, game, open_preview=None, viewport_drop=None):
             status.set("Portable multi-resolution terrain LOD exported; not engine-native tiles.")
         except (ValueError,OSError,TypeError,KeyError) as exc:messagebox.showerror("World LOD",str(exc),parent=parent)
     ttk.Button(nav,text="Generate LOD",command=export_world_lod).pack(side="left")
+    def native_lod():
+        index=state["index"];world=state["world"]
+        if index is None or world is None:return
+        from .world_lod_native import prepare,launch,audit,world_name
+        from .xedit import Workspace
+        profile=filedialog.askopenfilename(title="Select staged LOD workspace JSON",filetypes=[("Workspace JSON","*.json")])
+        if not profile:return
+        executable=filedialog.askopenfilename(title="Select trusted xLODGen executable")
+        if not executable:return
+        try:
+            workspace=Workspace.load(profile)
+            plan=prepare(index,world,workspace,executable)
+            show(plan)
+            if plan["settings_missing"]:
+                messagebox.showwarning("LODSettings missing","Create the matching LODSettings in a disposable game workspace, then retry.",parent=parent)
+                return
+            if not messagebox.askyesno("Native LOD","Launch xLODGen against the staged load order? Select "+plan["world"]+" in the external tool. Output is separate from Data.",parent=parent):return
+            proc,plan=launch(index,world,workspace,executable)
+            status.set("xLODGen running; finish generation in the external tool.")
+            def poll():
+                code=proc.poll()
+                if code is None:
+                    parent.after(1000,poll);return
+                if code:
+                    status.set("xLODGen exited with code "+str(code));return
+                try:
+                    report=audit(plan["output"],plan["world"],plan["game"]);show(report)
+                    status.set("Native output audited; review before installation.")
+                except (OSError,ValueError) as exc:status.set("LOD output: "+str(exc))
+            parent.after(1000,poll)
+        except (OSError,ValueError,KeyError,TypeError) as exc:messagebox.showerror("Native LOD",str(exc),parent=parent)
+    ttk.Button(nav,text="Native LOD",command=native_lod).pack(side="left")
+    def audit_lod():
+        index=state["index"];world=state["world"]
+        if index is None or world is None:return
+        folder=filedialog.askdirectory(title="Choose generated native LOD output")
+        if not folder:return
+        try:
+            from .world_lod_native import audit,world_name,GAME
+            show(audit(folder,world_name(index,world),GAME.get(index.profile,index.profile)))
+        except (ValueError,OSError) as exc:messagebox.showerror("Audit LOD",str(exc),parent=parent)
+    ttk.Button(nav,text="Audit LOD",command=audit_lod).pack(side="left")
     def profile_changed(*_):
         # Preserve staged work; changing the game selector must not discard it.
         if state.get('draft') and state['draft'].operations:
