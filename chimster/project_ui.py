@@ -6,13 +6,20 @@ from .project import Project,KINDS
 def mount(parent,game):
     current=None;revision=None
     from .editor_presence import Presence
+    from .editor_commands import mailbox,consume
     presence=None
-    try:presence=Presence()
+    try:
+        presence=Presence()
+        mailbox(presence.id,create=True)
     except (OSError,ValueError):pass
     def close_presence(event):
         if event.widget is parent and presence:
-            try:presence.close()
-            except OSError:pass
+            try:
+                presence.close()
+                box=mailbox(presence.id)
+                for p in box.glob("*.json"):p.unlink(missing_ok=True)
+                box.rmdir()
+            except (OSError,ValueError):pass
     parent.bind("<Destroy>",close_presence,add="+")
     label=tk.StringVar(value="Create or open a local project.")
     ttk.Label(parent,textvariable=label,wraplength=900).pack(fill="x")
@@ -31,10 +38,15 @@ def mount(parent,game):
         table.delete(*table.get_children())
         for k,a in sorted(m["artifacts"].items()):table.insert("","end",iid=k,text=k,values=(a["kind"],a["filename"],a["size"]))
         if previous and table.exists(previous[0]):table.selection_set(previous[0])
+    def dashboard_command(action,artifact):
+        refresh()
+        if action=="select" and table.exists(artifact):
+            table.selection_set(artifact);table.see(artifact)
     def heartbeat():
         if current:
             try:
                 if current.read()["revision"]!=revision:refresh()
+                if presence:consume(current,presence.id,dashboard_command)
                 selection=table.selection()
                 if presence:presence.publish(current,selection[0] if selection else None)
             except (OSError,ValueError,KeyError,TypeError):pass
