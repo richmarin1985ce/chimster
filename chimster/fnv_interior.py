@@ -15,6 +15,8 @@ def export(spec,output,masters=(),allocator=None):
     p=Path(output)
     if p.suffix.lower()!=".esp" or p.exists() or p.is_symlink():
         raise ValueError("expected new ESP")
+    from .interior_edit import check as check_project
+    check_project(spec)
     cells=spec["cells"];statics=spec.get("statics",[]);doors=spec.get("doors",[])
     if not isinstance(cells,list) or not 1<=len(cells)<=10000 or not isinstance(statics,list) or len(statics)>50000 or not isinstance(doors,list) or len(doors)>50000:
         raise ValueError("interior size limit")
@@ -40,7 +42,7 @@ def export(spec,output,masters=(),allocator=None):
         base[door["id"]]=fid;base_types[door["id"]]="DOOR"
     count=0;groups=1+bool(top)+bool(door_top);cell_ids={}
     for cell in cells:
-        if set(cell)-{"id","title","placements","layout","portal_doors","native_markers"}:raise ValueError("unknown cell fields")
+        if set(cell)-{"id","title","placements","layout","portal_doors","native_markers","activation_chains","environment","visibility"}:raise ValueError("unknown cell fields")
         register(cell["id"]);cid=alloc("CELL",cell["id"]);cell_ids[cell["id"]]=cid;expected[cid]="CELL"
         for r in cell.get("placements",[]):
             ident(r["id"]);key=cell["id"]+"/"+r["id"]
@@ -195,4 +197,4 @@ def export(spec,output,masters=(),allocator=None):
     except Exception:
         if created:p.unlink()
         raise
-    return {"output":str(p),"cells":len(cells),"placements":count,"records":len(expected),"portal_bindings":portal_bindings,"native_marker_bindings":native_bindings,"doors":len(door_top),"scope":"experimental generated FNV interiors and door links; template-derived native room and portal records; geometry conventions and runtime behavior unverified"}
+    return {"output":str(p),"cells":len(cells),"placements":count,"records":len(expected),"portal_bindings":portal_bindings,"native_marker_bindings":native_bindings,"portable_only_fields":[{"cell":c["id"],"fields":[k for k in ("activation_chains","environment","visibility") if k in c]} for c in cells if any(k in c for k in ("activation_chains","environment","visibility"))],"doors":len(door_top),"scope":"experimental generated FNV interiors and door links; template-derived native room and portal records; geometry conventions and runtime behavior unverified"}
