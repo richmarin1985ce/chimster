@@ -359,6 +359,17 @@ def mount(parent):
         return preview_cell,(128*(x+cos(a)*right+sin(a)*forward)+preview_origin[0],
             128*(y-sin(a)*right+cos(a)*forward)+preview_origin[1],
             128*z+preview_origin[2])
+    def camera_command(action):
+        nonlocal camera
+        if action=="viewport-fit":fit();return
+        if action=="viewport-zoom-in":zoom(1);return
+        if action=="viewport-zoom-out":zoom(-1);return
+        if action=="viewport-show":draw();return
+        if action not in ("viewport-left","viewport-right","viewport-up","viewport-down"):raise ValueError("unsupported camera action")
+        yaw=camera.yaw+({"viewport-left":-15,"viewport-right":15}.get(action,0))
+        pitch=max(-85,min(85,camera.pitch+({"viewport-up":15,"viewport-down":-15}.get(action,0))))
+        camera=replace(camera,yaw=yaw,pitch=pitch);draw()
+    load_cell_preview.camera_command=camera_command
     load_cell_preview.drop_position=drop_position
     def drop_json(path):
         from tkinter import messagebox
