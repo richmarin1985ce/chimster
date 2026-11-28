@@ -6,3 +6,5 @@ Local landing tiles now have individual instance centers for distance LOD/cullin
 Landing streaming uses a moving 3x3 window, a fixed geographic tangent chart, shared overlap mesh identities and a cache of at most 54 tier meshes. Finite imported heightfields stay within their original extent. Surface array summaries retain raw IDs rather than assuming native remapping.
 
 The viewport now recenters the planetary camera after panning, retains preview materials, displays updated geographic coordinates, and exposes native surface-tree summary inspection. Pan-release streaming is enabled for illustrative terrain; imported heightfields remain fixed.
+
+Native CLMT weather/settings references and timing bytes are indexed and exposed through biome climate inspection. Approximate planetary solar lighting uses local latitude and Dawn/Day/Dusk/Night controls, with atmospheric scattering and sun direction updated in both renderers. This is a local solar-time preview, not native weather scheduling or astronomical ephemerides; raw tilt/rotation fields are retained but not assumed to be degrees.

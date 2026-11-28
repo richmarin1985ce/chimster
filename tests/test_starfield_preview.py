@@ -228,3 +228,16 @@ class StarfieldPreviewTests(unittest.TestCase):
         summary=surface_summary({"signature":"SFPT","arrays":[("BNAM",struct.pack("<256I",*[0]*254,3,3))]})
         self.assertEqual(summary[0]["top"],[("00000003",2)])
         self.assertEqual(summary[0]["nonzero"],2)
+
+    def test_planet_solar_and_climate(self):
+        from chimster.starfield_planets import solar_preview,decode_climate
+        from chimster.record_graph import Slots
+        noon,n=solar_preview(0,12,atmosphere=(0,.5,.2,.4))
+        midnight,m=solar_preview(0,0,atmosphere=(0,.5,.2,.4))
+        self.assertAlmostEqual(noon[2],1.)
+        self.assertAlmostEqual(midnight[2],-1.)
+        self.assertGreater(n["sun_intensity"],m["sun_intensity"])
+        self.assertGreater(n["scatter_strength"],m["scatter_strength"])
+        row=decode_climate([(b"WLST",struct.pack("<IiI",0x801,100,0)),(b"TNAM",bytes((1,2,3,4,5)))],Slots("test.esm",[]))
+        self.assertEqual(row["weather"][0][0],Identity("test.esm",0x801))
+        self.assertEqual(row["timing_raw"],(1,2,3,4,5))

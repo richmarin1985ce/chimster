@@ -25,6 +25,9 @@ def decode_planet(fields,slots):
             vals=struct.unpack("<d3fi",raw)
             if all(isfinite(v) for v in vals[:4]):
                 out.update(mass_kg=vals[1],radius_km=vals[2],gravity=vals[3])
+        if tag==b"ENAM" and body and len(raw)==72:
+            tilt,velocity=struct.unpack_from("<2f",raw,48)
+            if isfinite(tilt) and isfinite(velocity):out.update(axial_tilt_raw=tilt,rotation_velocity_raw=velocity)
         if tag==b"GNAM" and body and len(raw)==12:out["system_ids"]=struct.unpack("<3I",raw)
         if tag==b"INAM" and body and len(raw)==16:
             aid,density,ray,mie=struct.unpack("<I3f",raw)
@@ -60,17 +63,18 @@ def decode_biome(fields,slots):
 
 class Planets:
     def __init__(self,paths):
-        self.plugins=[];loaded=set();self.planets={};self.biomes={};self.worlds={};self.stars={}
+        self.plugins=[];loaded=set();self.planets={};self.biomes={};self.worlds={};self.stars={};self.climates={}
         for path in paths:
             p=Plugin(path);name=p.slots.names[-1]
             if name in loaded or any(m not in loaded for m in p.slots.names[:-1]):raise ValueError("Select masters before dependents")
             loaded.add(name);self.plugins.append(p)
-            for k,sig,flags,w,c,fields,owner in p.scan(lambda sig,*_:sig in (b"PNDT",b"BIOM",b"WRLD",b"STDT")):
-                target={b"PNDT":self.planets,b"BIOM":self.biomes,b"WRLD":self.worlds,b"STDT":self.stars}[sig]
+            for k,sig,flags,w,c,fields,owner in p.scan(lambda sig,*_:sig in (b"PNDT",b"BIOM",b"WRLD",b"STDT",b"CLMT")):
+                target={b"PNDT":self.planets,b"BIOM":self.biomes,b"WRLD":self.worlds,b"STDT":self.stars,b"CLMT":self.climates}[sig]
                 if flags&0x20:target.pop(k,None);continue
                 if sig==b"PNDT":row=decode_planet(fields,p.slots)
                 elif sig==b"BIOM":row=decode_biome(fields,p.slots)
                 elif sig==b"WRLD":row={"name":string(one(fields,b"EDID")),"biome":link(fields,b"BNAM",p.slots),"climate":link(fields,b"CNAM",p.slots)}
+                elif sig==b"CLMT":row=decode_climate(fields,p.slots)
                 else:
                     raw=one(fields,b"DNAM",4);row={"name":string(one(fields,b"ANAM")),"system_id":struct.unpack("<I",raw)[0] if raw else None}
                 target[k]=row
@@ -236,6 +240,7 @@ def terrain(catalog,k,lat,lon,span_km=8.,resolution=32,heightfield=None,center=(
         _,density,ray,mie=p["atmosphere"]
         fx=dict(fog_density=min(.12,density*.012),scatter_strength=min(2.,(ray+mie)*.5),fog_falloff=.02,volume_distance=160.)
     r=report(k,mats,fx,9,"landing")
+    r["render_preview"]["planet_solar"]={"latitude":lat,"atmosphere":p.get("atmosphere"),"axial_tilt_raw":p.get("axial_tilt_raw")}
     r.update(latitude=lat,longitude=lon,span_km=span_km,meters_per_unit=meters_per_unit,stream_center=center,origin_game_units=(center[0]*32,center[1]*32,0),height_source="imported meters" if heightfield is not None else "illustrative procedural")
     if heightfield is not None:r["issues"]=["User-supplied heightfield; native biome placement remains illustrative"]
     return Scene(assets,instances),r
@@ -256,6 +261,7 @@ class LandingStream:
         self.center=center
         q=direction_at(self.lat,self.lon,center[0]*self.span/3,center[1]*self.span/3,radius)
         info["latitude"]=degrees(asin(max(-1.,min(1.,q[2]))));info["longitude"]=degrees(atan2(q[1],q[0]))
+        info["render_preview"]["planet_solar"]["latitude"]=info["latitude"]
         info["planet_stream"]=True
         return scene,info
 
@@ -268,3 +274,32 @@ def surface_summary(row):
         counts=Counter(v[0] for v in struct.iter_unpack("<I",raw) if v[0])
         results.append(dict(tag=tag,side=16 if size==256 else 256,nonzero=sum(counts.values()),unique=len(counts),top=[(f"{v:08X}",n) for v,n in counts.most_common(12)]))
     return results
+
+def decode_climate(fields,slots):
+    row={"name":string(one(fields,b"EDID")),"weather":[],"settings":[]}
+    for tag,raw in fields:
+        if tag not in (b"WLST",b"WSLT") or len(raw)%12:continue
+        for fid,chance,global_id in struct.iter_unpack("<IiI",raw):
+            if chance>=0:row["weather" if tag==b"WLST" else "settings"].append((slots.decode(fid),chance,slots.decode(global_id)))
+    timing=one(fields,b"TNAM",5)
+    if timing is not None:row["timing_raw"]=tuple(timing)
+    return row
+
+def solar_preview(latitude,hour,declination=0.,atmosphere=None):
+    """Local east/north/up solar vector and approximate diurnal atmosphere.
+
+    Hour is local solar time, not game simulation time. Declination is an
+    explicit preview parameter, not inferred from undocumented orbital units.
+    """
+    if not all(isfinite(x) for x in (latitude,hour,declination)) or not -90<=latitude<=90 or not 0<=hour<=24 or not -90<=declination<=90:raise ValueError("Invalid planetary solar parameters")
+    lat=radians(latitude);dec=radians(declination);angle=(hour-12)*pi/12
+    east=-cos(dec)*sin(angle)
+    north=sin(dec)*cos(lat)-cos(dec)*cos(angle)*sin(lat)
+    up=sin(dec)*sin(lat)+cos(dec)*cos(angle)*cos(lat)
+    daylight=max(0.,up)
+    twilight=max(0.,min(1.,(up+.18)/.36))
+    density=0. if atmosphere is None else atmosphere[1]
+    scatter=0. if atmosphere is None else min(2.,sum(atmosphere[2:4])*.5)
+    color=(1.,.55+.45*twilight,.3+.7*twilight) if density else (1.,1.,1.)
+    fog=tuple(a+(b-a)*twilight for a,b in zip((.025,.035,.06),(.38,.48,.58)))
+    return (east,north,up),dict(sun_intensity=1.2*daylight,ambient=.025+.24*twilight if density else .015+.05*daylight,sun_color=color,fog_color=fog,fog_density=min(.12,density*.012),scatter_strength=scatter*twilight)

@@ -46,6 +46,13 @@ def mount(parent):
                 if sum(bool(l.shadows) for l in lights)>1:
                     first=next(i for i,l in enumerate(lights) if l.shadows)
                     lights=tuple(replace(l,shadows=False) if i!=first else l for i,l in enumerate(lights))
+            render_settings=settings
+            if native_preview and native_lighting_enabled.get() and native_render.get("planet_solar"):
+                from .starfield_planets import solar_preview
+                solar=native_render["planet_solar"]
+                direction,diurnal=solar_preview(solar["latitude"],{"Dawn":6,"Day":12,"Dusk":18,"Night":0}.get(native_day.get(),12),atmosphere=solar.get("atmosphere"))
+                native_values={**native_values,**diurnal}
+                render_settings=replace(settings,light=direction)
             effects=replace(preset(effect_name.get()),water_level=float(water_height.get()) if water_enabled.get() else None,lights=lights,fog_volumes=extra_volumes,**{**weather_effects(),**native_values,**custom_fx}).validate()
         except ValueError as exc:
             status.set("Effects: "+str(exc));return
@@ -56,7 +63,7 @@ def mount(parent):
                 if panda is None:panda=Preview({"Panda3D":"native","Panda3D PBR":"pbr","Panda3D Filters":"filters"}[backend.get()])
                 w,h=canvas.winfo_width(),canvas.winfo_height()
                 factor=min(1,1280/w,720/h);rw,rh=max(1,int(w*factor)),max(1,int(h*factor))
-                raw=panda.render(scene,replace(camera,zoom=camera.zoom*factor),rw,rh,materials,settings,effects)
+                raw=panda.render(scene,replace(camera,zoom=camera.zoom*factor),rw,rh,materials,render_settings,effects)
                 photo=ImageTk.PhotoImage(Image.frombytes("RGBA",(rw,rh),raw).resize((w,h)))
                 canvas.create_image(0,0,image=photo,anchor="nw",tags=("gl",))
                 status.set(backend.get()+(" | underwater native fog" if panda.underwater else " | water" if water_enabled.get() else "")+(" | post fallback: "+panda.post_error if panda.post_error else "")+(" | reflection fallback: "+panda.water_error if panda.water_error else ""))
@@ -75,7 +82,7 @@ def mount(parent):
                 factor=min(1,1280/w,720/h);rw,rh=max(1,int(w*factor)),max(1,int(h*factor))
                 # Keep camera magnification consistent with the canvas.
                 scaled=replace(camera,zoom=camera.zoom*factor)
-                raw,stats=renderer.render(scene,scaled,rw,rh,materials,settings,selected,effects)
+                raw,stats=renderer.render(scene,scaled,rw,rh,materials,render_settings,selected,effects)
                 image=Image.frombytes("RGBA",(rw,rh),raw)
                 if (rw,rh)!=(w,h):image=image.resize((w,h),Image.Resampling.BILINEAR)
                 photo=ImageTk.PhotoImage(image);render_size=(rw,rh)
@@ -348,7 +355,7 @@ def mount(parent):
     ttk.Label(fxbar,text="Light XYZ").pack(side="left")
     ttk.Entry(fxbar,textvariable=light_pos,width=12).pack(side="left")
     ttk.Button(fxbar,text="Apply",command=draw).pack(side="left")
-    day_choice=ttk.Combobox(fxbar,textvariable=native_day,values=("Day","Night"),state="readonly",width=6)
+    day_choice=ttk.Combobox(fxbar,textvariable=native_day,values=("Dawn","Day","Dusk","Night"),state="readonly",width=6)
     day_choice.pack(side="left");day_choice.bind("<<ComboboxSelected>>",lambda e:draw())
     def advanced_lighting():
         nonlocal custom_fx,local_fx,extra_volumes,settings
@@ -550,6 +557,16 @@ def mount(parent):
                     messagebox.showinfo("Native surface array inspection (raw IDs)", "\n".join(lines),parent=win)
                 except (ValueError,OSError,KeyError) as exc:messagebox.showerror("Surface inspection",str(exc),parent=win)
             ttk.Button(win,text="Inspect native surface tree",command=inspect_surface).pack(fill="x")
+            def inspect_climate():
+                k,p=chosen()
+                if k is None:return
+                lines=[]
+                for biome,chance in p["biomes"]:
+                    b=catalog.biomes.get(biome,{})
+                    climate=catalog.climates.get(b.get("climate"),{})
+                    lines.append(f"{b.get('name','Unknown biome')} ({chance:g}) | {climate.get('name','No decoded climate')} | {len(climate.get('weather',[]))} weather entries | {len(climate.get('settings',[]))} settings")
+                messagebox.showinfo("Native biome climates", "\n".join(lines[:100]) or "No biome climate links",parent=win)
+            ttk.Button(win,text="Inspect biome climates",command=inspect_climate).pack(fill="x")
         except (ValueError,OSError,KeyError) as exc:messagebox.showerror("Planet browser",str(exc),parent=parent)
     ttk.Button(toolbar,text="Starfield planets",command=open_planets).pack(side="left")
     load_cell_preview.drop_position=drop_position
