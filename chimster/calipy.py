@@ -1,6 +1,7 @@
 """Calipy: a deliberately non-AI, local, optional office-assistant parody."""
 import math
 import tkinter as tk
+from .calipy_help import LocalHelp
 
 TIPS = {
     "Project": ("It looks like you're starting a mod. Want to set up a project first?", "A tidy project is a measurable improvement."),
@@ -33,11 +34,15 @@ class Calipy:
     """A child overlay, never a global or always-on-top desktop window."""
     def __init__(self, root, tabs, menu):
         self.root, self.tabs = root, tabs
+        self.help_engine = self.open_wiki = None
+        self.guides = ()
+        self.guide_index = self.card_index = 0
+        self.guide_active = False
         self.enabled = tk.BooleanVar(master=root, value=False)
         self.frame = tk.Frame(root, bg="#313942", bd=0)
         self.bubble = tk.Frame(self.frame, bg="#fff7ce", bd=1, relief="solid")
         self.message = tk.Label(self.bubble, bg="#fff7ce", fg="#171717",
-                                wraplength=196, justify="left", padx=6, pady=5)
+                                wraplength=280, justify="left", padx=6, pady=5)
         self.message.pack(fill="x")
         controls = tk.Frame(self.bubble, bg="#fff7ce")
         controls.pack(fill="x")
@@ -45,11 +50,25 @@ class Calipy:
                   relief="flat", bg="#fff7ce", takefocus=True).pack(side="left")
         tk.Button(controls, text="Dismiss", command=self.dismiss,
                   relief="flat", bg="#fff7ce", takefocus=True).pack(side="right")
+        self.askbar = tk.Frame(self.bubble, bg="#fff7ce")
+        self.askbar.pack(fill="x")
+        self.question = tk.Entry(self.askbar, width=26)
+        self.question.pack(side="left", fill="x", expand=True)
+        self.question.bind("<Return>", lambda _: self.ask())
+        tk.Button(self.askbar, text="Ask", command=self.ask).pack(side="right")
+        self.guidebar = tk.Frame(self.bubble, bg="#fff7ce")
+        for label, action in (("Back", lambda: self.move_card(-1)),
+                              ("Next", lambda: self.move_card(1)),
+                              ("Other topic", self.other_topic),
+                              ("Wiki", self.show_wiki)):
+            tk.Button(self.guidebar, text=label, command=action,
+                      relief="flat", bg="#fff7ce").pack(side="left")
         self.canvas = tk.Canvas(self.frame, width=112, height=132,
                                 bg="#313942", highlightthickness=0,
                                 cursor="hand2", takefocus=True)
         self.canvas.pack()
         self.popup = tk.Menu(self.canvas, tearoff=False)
+        self.popup.add_command(label="Ask Calipy", command=self.ask_prompt)
         self.popup.add_command(label="Talk", command=self.next_tip)
         self.popup.add_command(label="Hide Calipy", command=self.hide)
         self.canvas.bind("<ButtonPress-1>", self.press)
@@ -71,6 +90,62 @@ class Calipy:
         self.talking = False
         self.frame.bind("<Configure>", lambda _: self.place(), add="+")
         self.draw()
+
+    def attach_wiki(self, wiki, open_page):
+        self.help_engine = LocalHelp(wiki)
+        self.open_wiki = open_page
+
+    def ask_prompt(self):
+        self.guide_active = True
+        self.guides = ()
+        self.say("What are we working on? Ask me about the manual.", persistent=True)
+        self.question.focus_set()
+
+    def ask(self):
+        question = self.question.get().strip() or self.current_tab()
+        self.guide_active = True
+        self.guides = ()
+        if self.help_engine is None:
+            self.say("My manual is missing. Try Help > Local wiki.", persistent=True)
+            return
+        try:
+            self.guides = self.help_engine.find(question, self.current_tab())
+        except (OSError, ValueError):
+            self.say("I couldn't read that part of the manual.", persistent=True)
+            return
+        self.guide_index = self.card_index = 0
+        if not self.guides:
+            self.say("Hmm. I can't find that in my manual. Try a tool name.", persistent=True)
+            return
+        self.render_card()
+
+    def render_card(self):
+        guide = self.guides[self.guide_index]
+        self.guide_active = True
+        title = guide.title
+        if guide.section and guide.section != title:
+            title += " / " + guide.section
+        prefix = "Found it! " if self.card_index == 0 else "Here we go. "
+        line = (prefix + title + "\n" + str(self.card_index+1) + "/" +
+                str(len(guide.cards)) + "\n" + guide.cards[self.card_index])
+        self.say(line, persistent=True)
+        self.guidebar.pack(fill="x")
+
+    def move_card(self, delta):
+        if self.guides and self.guide_active:
+            guide = self.guides[self.guide_index]
+            self.card_index = max(0, min(self.card_index+delta, len(guide.cards)-1))
+            self.render_card()
+
+    def other_topic(self):
+        if self.guides and self.guide_active:
+            self.guide_index = (self.guide_index+1) % len(self.guides)
+            self.card_index = 0
+            self.render_card()
+
+    def show_wiki(self):
+        if self.guides and self.guide_active and self.open_wiki:
+            self.open_wiki(self.guides[self.guide_index].page)
 
     def context_menu(self, event):
         try:
@@ -96,7 +171,7 @@ class Calipy:
             self.x = self.root.winfo_width() - 250
             self.y = self.root.winfo_height() - 245
             self.positioned = True
-        self.say("Hi! I'm Calipy. It looks like you're making a mod.")
+        self.say("Hi! I'm Calipy. It looks like you're making a mod. Ask me about the manual!", persistent=True)
         self.animate()
 
     def hide(self):
@@ -107,6 +182,9 @@ class Calipy:
                 self.root.after_cancel(job)
                 setattr(self, name, None)
         self.talking = False
+        self.guide_active = False
+        self.guides = ()
+        self.guidebar.pack_forget()
         self.anchor = None
         self.bubble.pack_forget()
         self.frame.place_forget()
@@ -145,31 +223,41 @@ class Calipy:
         self.anchor = None
 
     def tab_changed(self, _event):
-        if self.enabled.get():
+        if self.enabled.get() and not self.guide_active:
             self.index = 0
             self.say(tip_for(self.current_tab()))
 
     def next_tip(self):
         if self.enabled.get():
+            if self.guide_active and self.guides:
+                self.move_card(1)
+                return
+            self.guide_active = False
             self.index += 1
             self.say(tip_for(self.current_tab(), self.index))
 
-    def say(self, line):
+    def say(self, line, persistent=False):
         if not self.enabled.get():
             return
         if self.speech_timer is not None:
             self.root.after_cancel(self.speech_timer)
+            self.speech_timer = None
+        self.guidebar.pack_forget()
         self.message.configure(text=line)
         self.bubble.pack(before=self.canvas, fill="x")
         self.talking = True
         self.place()
-        self.speech_timer = self.root.after(9000, self.dismiss)
+        if not persistent:
+            self.speech_timer = self.root.after(9000, self.dismiss)
 
     def dismiss(self):
         if self.speech_timer is not None:
             self.root.after_cancel(self.speech_timer)
             self.speech_timer = None
         self.talking = False
+        self.guide_active = False
+        self.guides = ()
+        self.guidebar.pack_forget()
         self.bubble.pack_forget()
         self.place()
 
