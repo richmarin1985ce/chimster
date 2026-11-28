@@ -114,8 +114,8 @@ def mount(parent):
                 else:closed.add(name)
                 corridor.clear();draw()
             ttk.Checkbutton(win,text=name,variable=v,command=toggle).pack(anchor="w")
-    def load():
-        p=filedialog.askopenfilename(filetypes=[("Navigation source JSON","*.json")])
+    def load(dropped=None):
+        p=dropped if dropped is not None else filedialog.askopenfilename(filetypes=[("Navigation source JSON","*.json")])
         if p:
             src=Path(p)
             if src.stat().st_size>32*1024*1024:raise ValueError("source too large")
@@ -131,3 +131,5 @@ def mount(parent):
         ttk.Button(buttons,text=label,command=lambda fn=fn:guard(fn)).pack(side="left")
     layer_select.bind("<<ComboboxSelected>>",draw)
     canvas.bind("<Button-1>",pick);canvas.bind("<Configure>",draw)
+    from .drop_import import editor_drop
+    editor_drop(parent,[([".json"],load,False)])
