@@ -93,10 +93,11 @@ def mount(frame, game):
             return
         report(check(source()))
     # Explicit extender opt-in: API availability is not inferred from game files.
-    from .script_symbols import complete, lookup
+    from .script_symbols import complete, lookup, index_papyrus_library
     from dataclasses import asdict
     import re
     extender = tk.StringVar(value="")
+    library = {"game":None,"symbols":()}
     api_bar = ttk.Frame(frame); api_bar.pack(fill="x",before=pane)
     ttk.Label(api_bar,text="API extension").pack(side="left")
     ttk.Combobox(api_bar,textvariable=extender,values=["","skse","f4se","obse","fose","xnvse"],state="readonly",width=10).pack(side="left")
@@ -107,9 +108,23 @@ def mount(frame, game):
         return prefix
     def enabled():
         return [extender.get()] if extender.get() else []
+    def current_library():
+        return library["symbols"] if language.get()=="papyrus" and library["game"]==game.get() else ()
+    def load_library():
+        if language.get()!="papyrus":
+            status.set("Library indexing is available for Papyrus");return
+        root=filedialog.askdirectory(title="Select local Papyrus source library")
+        if not root:return
+        target=game.get()
+        try:
+            result=index_papyrus_library(root)
+            library.update(game=target,symbols=result["symbols"])
+            report({k:v for k,v in result.items() if k!="symbols"} | {"symbols":len(result["symbols"]),"game":target})
+            status.set("Indexed %d symbols"%len(result["symbols"]))
+        except (ValueError,OSError) as exc:messagebox.showerror("Index library",str(exc))
     def suggest(_=None):
         prefix=symbol_prefix()
-        try:items=complete(game.get(),language.get(),source(),prefix,enabled())
+        try:items=complete(game.get(),language.get(),source(),prefix,enabled(),library=current_library())
         except ValueError as exc:status.set(str(exc));return "break"
         if not items:status.set("No known symbols");return "break"
         popup=tk.Toplevel(frame);popup.title("Script completions");popup.transient(frame.winfo_toplevel())
@@ -139,13 +154,14 @@ def mount(frame, game):
         b=re.match(r"[A-Za-z0-9_]+",after)
         name=(a.group() if a else "")+(b.group() if b else "")
         if not name:status.set("Place cursor on a symbol");return "break"
-        try:items=lookup(game.get(),language.get(),source(),name,enabled())
+        try:items=lookup(game.get(),language.get(),source(),name,enabled(),library=current_library())
         except ValueError as exc:status.set(str(exc));return "break"
         report({"symbol":name,"matches":[asdict(s) for s in items],
                 "scope":"advisory seed catalog and current source; unknown is not an error"})
         if len(items)==1 and items[0].origin=="local" and items[0].line:
             editor.mark_set("insert",f"{items[0].line}.0");editor.see("insert")
         return "break"
+    ttk.Button(api_bar,text="Index local PSC",command=load_library).pack(side="left")
     ttk.Button(api_bar,text="Complete (Ctrl+Space)",command=suggest).pack(side="left")
     ttk.Button(api_bar,text="Symbol help / definition (F12)",command=symbol_help).pack(side="left")
     editor.bind("<Control-space>",suggest)
