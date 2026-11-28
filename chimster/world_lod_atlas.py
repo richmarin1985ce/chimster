@@ -49,6 +49,9 @@ def build(groups,assets,size=128,maximum=2048):
     merged=Mesh()
     for i,(mesh,d,n) in enumerate(eligible):
         offset=len(merged.vertices);merged.vertices.extend(mesh.vertices)
+        if mesh.colors or merged.colors:
+            if not merged.colors:merged.colors=[(1.,)*4]*offset
+            merged.colors.extend(mesh.colors or [(1.,)*4]*len(mesh.vertices))
         rect=layout[str(i)]
         # NIF writer flips V; atlas image has top-left origin.
         for u,v in mesh.uv:
