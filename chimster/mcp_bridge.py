@@ -345,6 +345,11 @@ class Bridge:
         if "id" in msg and (type(ident) not in (int, str)):
             return error(-32600, "Invalid Request")
         method = msg["method"]
+        from .mcp_modern import modern_request,dispatch as modern_dispatch
+        if modern_request(msg):
+            if self.gate or self.allow_ui or (self.creation and (self.creation.enabled or self.creation.allow_edit)):
+                return error(-32022,"Use legacy initialization for privileged sessions",ident)
+            return modern_dispatch(self,msg)
         params = msg.get("params", {})
         if "id" not in msg:
             if method == "notifications/initialized" and self.initialized and isinstance(params, dict):
