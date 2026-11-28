@@ -194,12 +194,16 @@ def launch():
  f=tab('Installed tools'); bar=ttk.Frame(f);bar.pack(fill='x');det=output(f)
  from .tooling import discover_tools
  ttk.Button(bar,text='Detect executables',command=lambda:show(det,discover_tools())).pack(side='left')
- f=tab('3D viewport')
+ viewport_tab=tab('3D viewport')
  from .viewport import mount
- mount(f)
+ load_cell_preview=mount(viewport_tab)
  f=tab('Worldspace browser')
  from .world_browser_ui import mount as mount_world_browser
- mount_world_browser(f,game)
+ def open_cell_preview(scene,report,focus=None):
+  if not load_cell_preview(scene,report,focus):return False
+  tabs.select(viewport_tab)
+  return True
+ mount_world_browser(f,game,open_cell_preview)
  f=tab('Worldspace validator')
  ttk.Label(f,text='Add copied plugins in active load order, masters first. Read-only.').pack(anchor='w')
  pathlist=tk.Listbox(f,height=6);pathlist.pack(fill='x')
