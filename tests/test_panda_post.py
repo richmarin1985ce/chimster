@@ -98,3 +98,27 @@ class PostTests(unittest.TestCase):
             preview.engine.render_frame();preview.engine.sync_frame()
             self.assertEqual(len(preview.texture.get_ram_image_as("RGBA")),len(base))
         finally:preview.close()
+
+    def test_water_framebuffer(self):
+        import os
+        if not os.environ.get("CHIMSTER_TEST_PANDA_GL"):self.skipTest("Optional framebuffer test")
+        from panda3d.core import load_prc_file_data
+        load_prc_file_data("chimster-test","load-display p3headlessgl\naudio-library-name null")
+        from chimster.panda_viewport import Preview
+        from chimster.gpu_viewport import make_demo
+        from chimster.scene import Camera
+        from chimster.render_effects import Effects
+        scene,materials=make_demo();preview=Preview()
+        try:
+            fx=Effects(water_level=.3,reflection_size=128,refraction=True)
+            cam=Camera(zoom=4,pitch=40)
+            raw=preview.render(scene,cam,96,72,materials,effects=fx)
+            self.assertEqual(len(raw),96*72*4)
+            self.assertIsNone(preview.water_error)
+            self.assertIsNotNone(preview.water_targets)
+            self.assertEqual(len(preview.water_targets.buffers),2)
+            raw2=preview.render(scene,Camera(zoom=4,pitch=-40),96,72,materials,effects=fx)
+            self.assertEqual(len(raw2),len(raw))
+            self.assertTrue(preview.underwater)
+            self.assertIsNone(preview.water_targets)
+        finally:preview.close()

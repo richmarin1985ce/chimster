@@ -7,7 +7,7 @@ def mirror_vector(v):
 
 class WaterTargets:
     def __init__(self,preview,effects,w,h):
-        from panda3d.core import Camera,BitMask32,NodePath,Plane,PlaneNode,Vec3,Point3
+        from panda3d.core import Camera,BitMask32,NodePath,Plane,PlaneNode,Vec3,Point3,Texture,GraphicsOutput
         self.preview=preview
         self.buffers=[];self.nodes=[];self.cameras={}
         self.level=effects.water_level
@@ -31,6 +31,13 @@ class WaterTargets:
                 camera.node().set_initial_state(tmp.get_state())
                 region=buf.make_display_region();region.set_camera(camera)
                 preview.water.set_shader_input(name+"_tex",buf.get_texture())
+                if name=="refraction":
+                    depth=Texture("water-refraction-depth")
+                    depth.set_format(Texture.F_depth_component)
+                    depth.set_minfilter(Texture.FT_nearest);depth.set_magfilter(Texture.FT_nearest)
+                    depth.set_wrap_u(Texture.WM_clamp);depth.set_wrap_v(Texture.WM_clamp)
+                    buf.add_render_texture(depth,GraphicsOutput.RTM_bind_or_copy,GraphicsOutput.RTP_depth)
+                    preview.water.set_shader_input("refraction_depth",depth)
             preview.water.hide(BitMask32.bit(2))
             preview.water.set_shader_input("use_reflection",1.)
             preview.water.set_shader_input("use_refraction",float(effects.refraction))
@@ -52,3 +59,4 @@ class WaterTargets:
         if self.preview.water is not None:
             self.preview.water.set_shader_input("use_reflection",0.)
             self.preview.water.set_shader_input("use_refraction",0.)
+            self.preview.water.show(__import__("panda3d.core",fromlist=["BitMask32"]).BitMask32.bit(2))

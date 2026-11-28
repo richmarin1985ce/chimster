@@ -64,6 +64,9 @@ class Effects:
     water_color:tuple=(.05,.25,.31)
     reflection_size:int=0
     refraction:bool=False
+    water_absorption:float=.18
+    water_foam:float=.65
+    underwater_density:float=.08
     def validate(self):
         if self.volume_steps not in (4,8,16,24):raise ValueError("Invalid volume step count")
         if not isfinite(self.volume_distance) or not 1<=self.volume_distance<=10000:raise ValueError("Invalid volume distance")
@@ -72,6 +75,8 @@ class Effects:
         for volume in self.fog_volumes:volume.validate()
         if not isfinite(self.scatter_strength) or not 0<=self.scatter_strength<=2 or not isfinite(self.scatter_anisotropy) or not -.9<=self.scatter_anisotropy<=.9:
             raise ValueError("Invalid scattering parameters")
+        for value,lo,hi in ((self.water_absorption,0,4),(self.water_foam,0,1),(self.underwater_density,0,1)):
+            if not isfinite(value) or not lo<=value<=hi:raise ValueError("Invalid water optics")
         if self.reflection_size not in (0,128,256,512):
             raise ValueError("Invalid reflection resolution")
         if self.refraction and not self.reflection_size:raise ValueError("Refraction requires water buffers")

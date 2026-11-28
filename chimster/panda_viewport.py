@@ -143,7 +143,7 @@ class Preview:
         sun=DirectionalLight("sun");sun.set_color((.8,.8,.8,1))
         a=self.root.attach_new_node(ambient);s=self.root.attach_new_node(sun)
         s.set_hpr(-35,-50,0);self.root.set_light(a);self.root.set_light(s)
-        self.ambient=a;self.sun=s;self.effect_nodes=[];self.effects_key=None;self.water=None;self.water_targets=None;self.water_error=None
+        self.ambient=a;self.sun=s;self.effect_nodes=[];self.effects_key=None;self.water=None;self.water_targets=None;self.water_error=None;self.underwater=None
     def set_glb_preview(self,path=None):
         candidate=None
         if path is not None:
@@ -198,13 +198,24 @@ class Preview:
             if effects.shadow_size:self.root.set_shader_auto()
             else:self.root.clear_shader()
             if effects.water_level is not None:self.water=create_water(self.root,effects)
-            self.effects_key=key
+            self.effects_key=key;self.underwater=None
         direction=Vec3(*settings.light);direction.normalize()
         from .shadow_math import snap_center
         anchor=snap_center(center,settings.light,effects.shadow_extent,effects.shadow_size)
         self.sun.set_pos(*(anchor[i]+direction[i]*effects.shadow_extent for i in range(3)))
         self.sun.look_at(Point3(*anchor),Vec3(0,0,1) if abs(direction[2])<.99 else Vec3(0,1,0))
+        below=self.water is not None and eye[2]<effects.water_level
+        if below!=self.underwater:
+            if below or effects.fog_density:
+                fog=Fog("water-haze" if below else "preview-haze")
+                fog.set_color(*(effects.water_color if below else effects.fog_color))
+                fog.set_exp_density(effects.underwater_density if below else effects.fog_density)
+                self.root.set_fog(fog)
+            else:self.root.clear_fog()
+            self.underwater=below
         if self.water is not None:
+            self.water.set_shader_input("nearp",settings.near);self.water.set_shader_input("farp",settings.far)
+            self.water.set_shader_input("fog_density",effects.underwater_density if below else effects.fog_density)
             self.water.set_shader_input("eye",eye)
             self.water.set_shader_input("sun",settings.light)
             self.water.set_shader_input("time",monotonic()%3600)
