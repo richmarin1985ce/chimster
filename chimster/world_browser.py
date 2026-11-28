@@ -83,6 +83,9 @@ def read_plugin(path, profile="new-vegas"):
                     spec=decode_region(parts,slots)
                     if spec is not None:row["region_spec"]=spec
                 if sig == "WTHR" and profile=="new-vegas":
+                    from .world_weather import decode as decode_weather
+                    weather_spec=decode_weather(parts,slots)
+                    if weather_spec is not None:row["weather_spec"]=weather_spec
                     from .world_climate import weather_preview
                     spec=weather_preview(parts)
                     if spec is not None:row["weather_preview"]=spec
