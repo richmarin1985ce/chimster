@@ -7,7 +7,7 @@ def directory(stream):
     header=stream.read(24)
     if len(header)!=24:raise ValueError("Truncated BA2")
     magic,version,kind,count,names=struct.unpack("<4sI4sIQ",header)
-    if (magic,version,kind)!=(b"BTDX",1,b"GNRL"):raise ValueError("Unsupported BA2 variant")
+    if magic!=b"BTDX" or version not in (1,7,8) or kind!=b"GNRL":raise ValueError("Unsupported BA2 variant")
     if count>1000000 or not 24+36*count<=names<=size:raise ValueError("Invalid directory extent")
     rows=[]
     for _ in range(count):
