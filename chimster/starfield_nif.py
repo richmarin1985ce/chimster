@@ -32,12 +32,12 @@ def blocks(data):
     sizes=r.read("<"+"I"*n)
     if any(i>=nt for i in indices):raise ValueError("Invalid block type index")
     ns=r.count(100000);maxlen=r.count(65536)
-    for _ in range(ns):r.take(r.count(maxlen))
+    strings=[sized(r,maxlen) for _ in range(ns)]
     r.take(r.count(10000)*4)
     rows=[(kinds[i],bytes(r.take(size))) for i,size in zip(indices,sizes)]
     roots=r.read("<"+"i"*r.count(n))
     if r.pos!=len(r.data) or any(i<0 or i>=n for i in roots):raise ValueError("Invalid NIF footer")
-    return rows,roots
+    return rows,roots,strings
 
 def av(r):
     r.take(4);r.take(r.count(10000)*4)
@@ -48,7 +48,7 @@ def av(r):
     return flags,values
 
 def geometry(data):
-    rows,roots=blocks(data);out=[];active=set()
+    rows,roots,strings=blocks(data);out=[];active=set()
     def visit(index,chain,depth):
         if depth>32 or index in active or not 0<=index<len(rows):raise ValueError("Cyclic/invalid NIF scene graph")
         active.add(index);kind,raw=rows[index];r=Reader(raw)
@@ -69,7 +69,13 @@ def geometry(data):
                     entries.append((mesh_path(sized(r)),indices,verts))
                 else:entries.append(None)
             if not entries[0]:raise ValueError("Missing base BSGeometry mesh")
-            out.append((chain,entries))
+            material=None
+            if 0<=shader<len(rows) and rows[shader][0]=="BSLightingShaderProperty":
+                idx,=Reader(rows[shader][1]).read("<I")
+                if idx<len(strings) and strings[idx].casefold().endswith(".mat"):
+                    from .starfield_materials import key
+                    material=key(strings[idx])
+            out.append((chain,entries,material))
             if len(out)>256:raise ValueError("NIF shape limit")
         else:raise ValueError("Unsupported NIF scene node: "+kind)
         if r.pos!=len(r.data):raise ValueError("Unsupported trailing NIF block data")
@@ -97,8 +103,8 @@ def join(meshes):
     validate_mesh(result);return result
 
 class AutoMeshes:
-    def __init__(self,sources,units=1.,fallback=None):
-        self.sources=sources;self.units=units;self.fallback=fallback;self.cache={};self.vertices=0
+    def __init__(self,sources,units=1.,fallback=None,materials=None):
+        self.sources=sources;self.units=units;self.fallback=fallback;self.cache={};self.vertices=0;self.material_source=materials;self.materials={};self.material_issues=[]
     def __call__(self,model):
         key=normalize(model)
         if not key.startswith("meshes/"):key="meshes/"+key
@@ -110,7 +116,13 @@ class AutoMeshes:
             if self.fallback is not None:return self.fallback(model)
             raise
         levels=[[],[],[],[]];has=[False]*4
-        for chain,entries in shapes:
+        for chain,entries,material in shapes:
+            if material and self.material_source is not None and material not in self.materials:
+                try:
+                    value=self.material_source(material)
+                    if value is not None:self.materials[material]=value
+                except (ValueError,OSError,TypeError,ImportError) as exc:
+                    self.material_issues.append(material+": "+str(exc)[:120])
             previous=None
             for i,entry in enumerate(entries):
                 if entry:
@@ -118,6 +130,7 @@ class AutoMeshes:
                     m,lods,meta=decode(self.sources.read(path),self.units)
                     if len(m.vertices)!=nv or len(m.faces)*3!=ni:raise ValueError("BSGeometry external counts mismatch")
                     previous=transformed(m,chain,self.units);has[i]=True
+                    if material:previous.faces=[(tri,material) for tri,_ in previous.faces]
                 elif i==0:raise ValueError("Missing base geometry")
                 levels[i].append(previous)
         last=max(i for i,on in enumerate(has) if on)

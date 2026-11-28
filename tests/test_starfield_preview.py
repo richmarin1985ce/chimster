@@ -105,3 +105,17 @@ class StarfieldPreviewTests(unittest.TestCase):
         self.assertEqual(m.vertices[1],(7.,0.,0.))
         self.assertEqual(lods,[])
         with self.assertRaises(ValueError):geometry(raw[:-1])
+
+    def test_material_mapping(self):
+        from chimster.starfield_materials import PreviewMaterials,key
+        from chimster.gpu_viewport import Material
+        import json
+        with tempfile.TemporaryDirectory() as directory:
+            p=Path(directory)/"mat.json"
+            p.write_text(json.dumps({"version":1,"materials":{"example.mat":{"tint":[.2,.3,.4],"roughness":.5,"metallic":.7}}}))
+            m=PreviewMaterials(p,None)("materials/example.mat")
+            self.assertEqual(m.tint,(.2,.3,.4))
+            self.assertEqual(m.gloss,6.)
+            self.assertEqual(m.metallic,.7)
+            self.assertEqual(key("Example.MAT"),"materials/example.mat")
+            with self.assertRaises(ValueError):Material(metallic=2.).validate()

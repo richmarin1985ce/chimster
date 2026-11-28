@@ -93,12 +93,15 @@ class Material:
     spec_strength:float=.18
     gloss:float=24.
     reflectivity:float=0.
+    metallic:float=0.
+    roughness:float=None
     def validate(self):
         for image in (self.diffuse,self.normal,self.specular):
             if image is not None:image.validate()
         if len(self.tint)!=3 or any(not isfinite(x) or not 0<=x<=1 for x in self.tint):raise ValueError("invalid tint")
         if not all(isfinite(v) for v in (self.cutout,self.normal_strength,self.spec_strength,self.gloss)) or not 0<=self.cutout<=1 or not 0<=self.normal_strength<=4 or not 0<=self.spec_strength<=1 or not 1<=self.gloss<=256:raise ValueError("invalid material")
         if not isfinite(self.reflectivity) or not 0<=self.reflectivity<=1:raise ValueError("invalid reflectivity")
+        if not isfinite(self.metallic) or not 0<=self.metallic<=1 or self.roughness is not None and (not isfinite(self.roughness) or not .04<=self.roughness<=1):raise ValueError("invalid PBR material")
         return self
 
 def image_from_file(path):

@@ -85,8 +85,8 @@ def build_scene(scene, materials=None, settings=None):
                 part.set_texture(texture(mat.diffuse),1)
             material_state=PandaMaterial(material)
             material_state.set_base_color((1,1,1,1))
-            material_state.set_metallic(0.)
-            material_state.set_roughness(max(.08,min(1.,sqrt(2/(mat.gloss+2)))))
+            material_state.set_metallic(mat.metallic)
+            material_state.set_roughness(mat.roughness if mat.roughness is not None else max(.08,min(1.,sqrt(2/(mat.gloss+2)))))
             part.set_material(material_state)
             if mat.normal is not None and mat.normal_strength:
                 key=(id(mat.normal),mat.directx,mat.normal_strength)

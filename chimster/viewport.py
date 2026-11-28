@@ -405,7 +405,7 @@ def mount(parent):
         nonlocal scene,materials,camera,selected,native_preview,selection_callback,stream_callback,preview_origin,preview_cell,starfield_preview
         if not native_preview and not messagebox.askyesno("Cell preview", "Replace the current portable viewport scene? Save any edits first.",parent=parent):
             return False
-        scene=candidate;materials={};native_preview=True;starfield_preview=bool(report.get("starfield"));selection_callback=on_select;stream_callback=on_stream;preview_origin=report["origin_game_units"];preview_cell=report["cell"]
+        scene=candidate;materials=dict(report.get("preview_materials",{}));native_preview=True;starfield_preview=bool(report.get("starfield"));selection_callback=on_select;stream_callback=on_stream;preview_origin=report["origin_game_units"];preview_cell=report["cell"]
         selected=focus if any(i.id==focus for i in scene.instances) else None
         camera=Camera()
         apply_world_environment(report)
@@ -453,7 +453,13 @@ def mount(parent):
                         from .starfield_nif import AutoMeshes
                         archives=filedialog.askopenfilenames(parent=win,title="Select BA2 archives in low-to-high priority",filetypes=[("BA2 archives","*.ba2")])
                         loose=filedialog.askdirectory(parent=win,title="Optional loose Data directory")
-                        if archives or loose:mapped=AutoMeshes(Sources(archives,loose),units)
+                        if archives or loose:
+                            sources=Sources(archives,loose);preview_materials=None
+                            if messagebox.askyesno("Starfield material preview","Use an optional .mat-to-texture preview mapping?",parent=win):
+                                from .starfield_materials import PreviewMaterials
+                                material_map=filedialog.askopenfilename(parent=win,filetypes=[("Preview material mapping","*.json")])
+                                if material_map:preview_materials=PreviewMaterials(material_map,sources)
+                            mapped=AutoMeshes(sources,units,materials=preview_materials)
                     elif messagebox.askyesno("Starfield geometry","Use an optional NIF-to-.mesh manifest for native static geometry?",parent=win):
                         manifest=filedialog.askopenfilename(parent=win,filetypes=[("Mesh manifest","*.json")])
                         if manifest:
