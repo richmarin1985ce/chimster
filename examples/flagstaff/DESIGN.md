@@ -1,4 +1,4 @@
-# Fallout Route 66: Flagstaff — Courier's Road
+# Fallout: Flagstaff
 Status: user-established direction plus provisional creative proposals, 2026-11-26. Standalone fan expansion for Fallout: New Vegas, built with Chimster. No official affiliation. Names may evolve.
 ## Creative requirements
 - 2281, contemporary with the events of New Vegas and before its final battle. No direct appearances by existing New Vegas characters. References to established history are allowed; do not assume any post-2281 events or later franchise outcomes.
