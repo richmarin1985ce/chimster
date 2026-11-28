@@ -46,6 +46,14 @@ def edit(profile,data,path,tag,occurrence,changes,revision):
         elif sig in (b"NPC_",b"CREA") and tag==b"FLAG":
             updated=tes3_actor_data.flags_edit(sig,raw,**changes)
         else:raise ValueError("No registered typed editor for field")
+    elif profile in ("fallout3","new-vegas") and sig in (b"MISC",b"KEYM") and tag==b"DATA":
+        import struct,math
+        if len(raw)!=8 or set(changes)-{"value","weight"}:raise ValueError("Unsupported item DATA")
+        value,weight=struct.unpack("<if",raw)
+        value=changes.get("value",value);weight=changes.get("weight",weight)
+        if type(value)!=int or not 0<=value<=2147483647:raise ValueError("Invalid value")
+        if type(weight) not in (int,float) or not math.isfinite(weight) or not 0<=weight<=1e6:raise ValueError("Invalid weight")
+        updated=struct.pack("<if",value,weight)
     elif profile=="oblivion" and (sig,tag) in native_items.OBLIVION_FIELDS:
         updated=native_items.edit_oblivion_properties(sig,tag,raw,**changes)
     elif profile in ("fallout3","new-vegas") and (sig,tag)==(b"BOOK",b"DATA"):
