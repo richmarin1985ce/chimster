@@ -50,9 +50,9 @@ def geometry(mesh):
         if sum(v*v for v in ortho)<1e-20:
             axis=(1,0,0) if abs(normal[0])<.9 else (0,1,0)
             ortho=cross(axis,normal)
-        t=unit(ortho);b=cross(normal,t)
+        tangent_unit=unit(ortho);b=cross(normal,tangent_unit)
         sign=-1 if sum(x*y for x,y in zip(b,bitangent))<0 else 1
-        ts.append(t);bs.append(tuple(sign*v for v in b))
+        ts.append(tangent_unit);bs.append(tuple(sign*v for v in b))
     body=pack("iHBBB",0,n,0,0,1)+b"".join(pack("3f",*v) for v in verts)
     body+=pack("HB",0x1001,1)+b"".join(pack("3f",*v) for v in ns+ts+bs)
     colors=getattr(mesh,"colors",[])
