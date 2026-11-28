@@ -22,8 +22,11 @@ class GeographyTest(unittest.TestCase):
     def test_distinct_plans(self):
         b,n=g.plan("baltimore"),g.plan("nautica")
         self.assertEqual((b["epsg"],n["epsg"]),(32618,32619))
-        self.assertEqual((len(b["urls"]),len(n["urls"])),(4,2))
+        self.assertEqual((len(b["urls"]),len(n["urls"])),(7,3))
         self.assertLess(b["xy_scale"],n["xy_scale"])
+        self.assertIn("tl_2025_24510_areawater.zip",b["urls"])
+        self.assertIn("tl_2025_25019_areawater.zip",n["urls"])
+        self.assertTrue(all("/AREAWATER/" in u for k,u in b["urls"].items() if k.endswith("_areawater.zip")))
         for p in (b,n):
             x,y,X,Y=p["bounds"]
             self.assertEqual(X-x,p["width"]*10)
