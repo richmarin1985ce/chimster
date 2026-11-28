@@ -49,19 +49,35 @@ def mount(parent,game=None):
         paths=filedialog.askopenfilenames(title="Select plugins in load order; review displayed order")
         if paths:return validate(profile.get(),[(Path(p).name,Path(p).read_bytes()) for p in paths])
     def assets():
-        from .compatibility_asset_lookup import index,resolve
+        from .archive_overlay import build
+        from .compatibility_asset_lookup import resolve
         from tkinter import simpledialog
-        layers=[]
-        while True:
-            folder=filedialog.askdirectory(title="Add loose asset layer (lowest precedence first; Cancel to finish)")
-            if not folder:break
-            root=Path(folder)
-            layers.append((str(root),[(p.relative_to(root).as_posix(),str(p)) for p in root.rglob("*") if p.is_file() and not p.is_symlink()]))
-        if not layers:return None
-        catalog=index(layers)
-        query=simpledialog.askstring("Asset lookup","Relative asset path")
-        if query:return resolve(catalog,query)
-        return {"indexed_paths":len(catalog),"layers":[name for name,_ in layers]}
+        win=tk.Toplevel(parent);win.title("Asset layers — lowest priority first")
+        sources=[]
+        listing=tk.Listbox(win,width=85,height=10);listing.pack(fill="both",expand=True)
+        def refresh():
+            listing.delete(0,"end")
+            for source in sources:listing.insert("end",source)
+        def add(packed):
+            path=filedialog.askopenfilename(parent=win,filetypes=[("Archives","*.bsa *.ba2")]) if packed else filedialog.askdirectory(parent=win)
+            if path and path not in sources:sources.append(path);refresh()
+        def move(delta):
+            sel=listing.curselection()
+            if not sel:return
+            i=sel[0];j=i+delta
+            if 0<=j<len(sources):
+                sources[i],sources[j]=sources[j],sources[i];refresh();listing.selection_set(j)
+        def remove():
+            sel=listing.curselection()
+            if sel:sources.pop(sel[0]);refresh()
+        def lookup():
+            query=simpledialog.askstring("Asset lookup","Relative asset path",parent=win)
+            if query:run(lambda:resolve(build(sources),query))
+        buttons=ttk.Frame(win);buttons.pack(fill="x")
+        for label,fn in [("Add archive",lambda:add(True)),("Add directory",lambda:add(False)),("Up",lambda:move(-1)),("Down",lambda:move(1)),("Remove",remove),("Find asset",lookup)]:
+            ttk.Button(buttons,text=label,command=fn).pack(side="left")
+        ttk.Label(win,text="Last layer wins in this preview; actual game precedence may differ.").pack()
+        return None
     def packed_assets():
         from .archive_reader import directory,read
         from tkinter import simpledialog
