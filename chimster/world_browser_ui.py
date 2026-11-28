@@ -318,6 +318,18 @@ def mount(parent, game, open_preview=None):
                 coords=simpledialog.askstring("Place static","World X,Y,Z in game units",initialvalue=default,parent=parent)
                 if coords is None:return
                 draft.place(key,found[0]["key"],tuple(float(v) for v in coords.split(",")))
+            elif action=="transform":
+                selected=objects.selection()
+                if not selected or selected[0] not in state["objects"]:return
+                ref=state["objects"][selected[0]]
+                from math import degrees,radians
+                if ref["key"].origin!=draft.name or ref["signature"]!="REFR":
+                    raise ValueError("Select a newly staged static reference")
+                current=(*ref["position"],degrees(ref["rotation"][2]),ref["scale"])
+                values=simpledialog.askstring("Transform reference","X,Y,Z, yaw degrees, scale",initialvalue=",".join(map(str,current)),parent=parent)
+                if values is None:return
+                x,y,z,yaw,scale=map(float,values.split(","))
+                draft.transform(ref["key"],(x,y,z),radians(yaw),scale)
             elif action=="undo":draft.undo()
             elif action=="redo":draft.redo()
             elif action=="esp":
@@ -337,7 +349,7 @@ def mount(parent, game, open_preview=None):
             messagebox.showerror("World edit draft",str(exc),parent=parent)
     editbar=ttk.Frame(parent)
     editbar.pack(fill="x",before=pane)
-    for title,action in (("New cell","new"),("Rename","rename"),("Place static","place"),("Undo","undo"),("Redo","redo"),("Export draft","export"),("Export ESP","esp")):
+    for title,action in (("New cell","new"),("Rename","rename"),("Place static","place"),("Transform","transform"),("Undo","undo"),("Redo","redo"),("Export draft","export"),("Export ESP","esp")):
         ttk.Button(editbar,text=title,command=lambda a=action:edit_draft(a)).pack(side="left")
     def profile_changed(*_):
         # Preserve staged work; changing the game selector must not discard it.
