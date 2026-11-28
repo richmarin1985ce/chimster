@@ -14,6 +14,7 @@ class Production:
         self.recovery=recovery
         self.enabled=enabled
         self.pending=None
+        self.audio_tools={}
 
     def preview(self,operation,id,output_id,revision,master_ids=(),aux_id=None,edits_json=None):
         self.pending=None
@@ -32,7 +33,7 @@ class Production:
             return a,self.project._object(a)
         if edits_json is not None and operation!="mesh-model":raise ValueError("unexpected modeling edits")
         if operation!="native-build" and master_ids:raise ValueError("unexpected masters")
-        if operation not in ("fuz","texture-material") and aux_id is not None:raise ValueError("unexpected auxiliary input")
+        if operation not in ("fuz","texture-material","lip-preview") and aux_id is not None:raise ValueError("unexpected auxiliary input")
         with tempfile.TemporaryDirectory(prefix="chimster-production-") as d:
             root=Path(d)
             name="generated-"+output_id
@@ -85,6 +86,35 @@ class Production:
                 target=root/(name+".ttf")
                 summary=create(spec["family"],glyphs,target)
                 outputs.append((output_id,"other",target.name,target.read_bytes()))
+            elif operation in ("audio-normalize","audio-decode","audio-encode","lip-preview"):
+                from .mcp_audio import normalize_pcm,lip_preview
+                from .audio import wav_info,xwma_info,convert
+                a,p=source(id,"audio",8*1024*1024)
+                ext=Path(a["filename"]).suffix.lower()
+                if operation=="audio-normalize":
+                    if ext!=".wav":raise ValueError("PCM WAV required")
+                    raw=normalize_pcm(p.read_bytes())
+                    outputs.append((output_id,"audio",name+".wav",raw))
+                    summary=wav_info(raw)
+                else:
+                    expected=".xwm" if operation=="audio-decode" else ".wav"
+                    if ext!=expected or operation not in self.audio_tools:raise ValueError("unsupported input or host backend unavailable")
+                    src=root/("input"+ext);src.write_bytes(p.read_bytes())
+                    if operation=="lip-preview":
+                        transcript=None
+                        if aux_id is not None:
+                            _,q=source(aux_id,limit=16384)
+                            transcript=q.read_text(encoding="utf-8")
+                        target=root/(name+".cues.json")
+                        lip_preview(src,target,self.audio_tools[operation],transcript)
+                        summary={"format":"Rhubarb mouth cues","native_lip":False}
+                        kind="other"
+                    else:
+                        target=root/(name+(".xwm" if operation=="audio-encode" else ".wav"))
+                        convert(src,target,self.audio_tools[operation],operation.split("-")[1])
+                        summary=(xwma_info if operation=="audio-encode" else wav_info)(target.read_bytes())
+                        kind="audio"
+                    outputs.append((output_id,kind,target.name,target.read_bytes()))
             elif operation=="fuz":
                 from .audio import pack_fuz,xwma_info
                 a,p=source(id,"audio")
