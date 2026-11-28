@@ -409,6 +409,7 @@ def main(argv=None):
     selection.add_argument("--discover-active", action="store_true", help="List active local editor projects and exit")
     selection.add_argument("--active", action="store_true", help="Select the sole active local editor project; fail if ambiguous")
     parser.add_argument("--review-approval", metavar="REQUEST_ID", help="Review an exact pending operation in an interactive local terminal")
+    parser.add_argument("--remote-config", metavar="PATH", help="Explicit read-only OAuth HTTPS server configuration; no automatic hosting")
     parser.add_argument("--http", type=int, metavar="PORT", help="Start authenticated read-only loopback HTTP; 0 selects an available port")
     parser.add_argument("--token-file", help="Private bearer token file for local HTTP")
     parser.add_argument("--create-token", metavar="PATH", help="Create a new private token file and exit")
@@ -422,6 +423,12 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         from .editor_presence import discover, select
+        if args.remote_config:
+            if not args.project or any((args.allow_create,args.allow_edit,args.allow_native_edit,args.allow_ui,args.describe,args.client_config,args.register_client_config,args.http is not None,args.token_file,args.create_token,args.review_approval)):
+                raise ValueError("remote configuration requires explicit read-only project")
+            from .mcp_http import run_remote
+            run_remote(Project(args.project),args.remote_config)
+            return
         if args.review_approval:
             if not args.project or any((args.allow_create,args.allow_edit,args.allow_native_edit,args.allow_ui,args.describe,args.client_config,args.register_client_config,args.http is not None,args.token_file,args.create_token)):
                 raise ValueError("approval review requires only explicit project and request ID")
