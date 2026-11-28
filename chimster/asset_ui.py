@@ -10,7 +10,7 @@ def mount(parent):
     sources={"Rock":(rock_gen.RockRecipe,rock_gen.generate),
              "Tree / shrub / grass":(flora.Recipe,flora.generate),
              "Modular building":(architecture.Building,lambda r:architecture.generate(r)[0])}
-    state={"session":None,"camera":None};fields={}
+    state={"session":None,"camera":None,"yaw":35,"pitch":32,"zoom":1.0,"orbit":None};fields={}
     mode=tk.StringVar(value="vertex");selected=tk.StringVar(value="")
     controls=ttk.Frame(parent);controls.pack(fill="x")
     source=tk.StringVar(value="Rock")
@@ -41,7 +41,7 @@ def mount(parent):
         s=session();m=s.mesh;b=bounds(m);center=tuple((lo+hi)/2 for lo,hi in b)
         span=max(max(hi-lo for lo,hi in b),.001)
         w=max(canvas.winfo_width(),100);h=max(canvas.winfo_height(),100)
-        camera=Camera(center=center,zoom=min(w,h)*.65/span)
+        camera=Camera(yaw=state["yaw"],pitch=state["pitch"],center=center,zoom=min(w,h)*.65/span*state["zoom"])
         state["camera"]=(camera,w,h)
         canvas.delete("all")
         for _,_,coords,color in frame(Scene({"mesh":m},[Instance("preview","mesh")]),camera,w,h,budget=6000):
@@ -104,8 +104,55 @@ def mount(parent):
                 if abs(area)>1e-9 and (min(vals)>=0 or max(vals)<=0):hits.append((sum(p[2] for p in (a,b,c)),i))
             if not hits:return
             i=max(hits)[1]
-        selected.set(str(i));draw()
+        if event.state & 1:
+            ids=set(indices());ids.symmetric_difference_update({i});selected.set(" ".join(map(str,sorted(ids))))
+        else:selected.set(str(i))
+        draw()
     canvas.bind("<Button-1>",pick)
+    def orbit_start(e):state["orbit"]=(e.x,e.y)
+    def orbit(e):
+        if state["orbit"] is None:return
+        x,y=state["orbit"];state["orbit"]=(e.x,e.y)
+        state["yaw"]=(state["yaw"]+(e.x-x)*.4)%360
+        state["pitch"]=max(-85,min(85,state["pitch"]+(e.y-y)*.4));draw()
+    def zoom(factor):
+        state["zoom"]=max(.2,min(8,state["zoom"]*factor));draw()
+    canvas.bind("<ButtonPress-3>",orbit_start);canvas.bind("<B3-Motion>",orbit)
+    canvas.bind("<ButtonRelease-3>",lambda e:state.update(orbit=None))
+    canvas.bind("<MouseWheel>",lambda e:zoom(1.15 if e.delta>0 else 1/1.15))
+    canvas.bind("<Button-4>",lambda e:zoom(1.15));canvas.bind("<Button-5>",lambda e:zoom(1/1.15))
+    def extrude():
+        if mode.get()!="face":raise ValueError("Select faces")
+        val=simpledialog.askstring("Extrude","XYZ extrusion vector",initialvalue="0 0 1")
+        if val is not None:
+            ids=session().extrude_faces(indices(),tuple(map(float,val.split())))
+            selected.set(" ".join(map(str,ids)));draw()
+    def weld():
+        if mode.get()!="vertex":raise ValueError("Select vertices")
+        val=simpledialog.askfloat("Weld","Maximum distance from lowest selected vertex; identical UV/material membership required",initialvalue=.001,minvalue=0,maxvalue=1e6)
+        if val is not None and messagebox.askyesno("Weld","Merge selected vertices and remove collapsed triangles?"):
+            session().weld_vertices(indices(),val);selected.set("");draw()
+    def uv_project():
+        if mode.get()!="face":raise ValueError("Select faces")
+        val=simpledialog.askstring("Planar UV","Projection plane: XY, XZ, YZ",initialvalue="XY")
+        if val is not None:session().project_uv(indices(),val.strip().upper());draw()
+    def uv_transform():
+        val=simpledialog.askstring("UV transform","U scale, V scale, U offset, V offset (space-separated)",initialvalue="1 1 0 0")
+        if val is not None:
+            a,b,c,d=map(float,val.split());session().transform_uv(mode.get(),indices(),(a,b),(c,d));draw()
+    def uv_view():
+        s=session();m=s.mesh;ids=set(indices());s.selection_vertices(mode.get(),ids)
+        verts=s.selection_vertices(mode.get(),ids)
+        win=tk.Toplevel(parent);win.title("UV layout (read-only preview)")
+        cv=tk.Canvas(win,width=440,height=440,background="#202631");cv.pack()
+        cv.create_rectangle(20,20,420,420,outline="#8293a1")
+        def uv(i):
+            u,v=m.uv[i];return 20+400*u,420-400*v
+        step=max(1,(len(m.faces)+5999)//6000)
+        for t,_ in m.faces[::step]:
+            cv.create_polygon(*(a for i in t for a in uv(i)),fill="",outline="#efc15d" if set(t)<=verts else "#637889")
+    def redo():
+        session().redo();selected.set("");draw()
     def move_selected():
         vals=simpledialog.askstring("Move selection","X Y Z displacement",initialvalue="0 0 0")
         if vals is not None:session().move_selection(mode.get(),indices(),tuple(map(float,vals.split())));draw()
@@ -181,6 +228,10 @@ def mount(parent):
     entry=ttk.Entry(editbar,textvariable=selected,width=20);entry.pack(side="left");entry.bind("<Return>",draw)
     for label,fn in (("Move",move_selected),("Split edge",split_selected),("Delete faces",delete_selected),("Assign faces",assign_selected)):
         ttk.Button(editbar,text=label,command=guard(fn)).pack(side="left")
+    more=ttk.Frame(parent);more.pack(fill="x")
+    for label,fn in (("Extrude",extrude),("Weld",weld),("Planar UV",uv_project),("UV transform",uv_transform),("UV view",uv_view),("Redo",redo)):
+        ttk.Button(more,text=label,command=guard(fn)).pack(side="left")
+    ttk.Label(more,text="Shift-click multi-select; right-drag orbit; wheel zoom").pack(side="left")
     for actions in ((("Generate preview",generate),("Import OBJ",import_obj),("Import NIF",import_nif),("Transform",transform),("Material binding",material)),
                     (("Simplify LOD",simplify),("Undo",undo),("Export OBJ",export_obj),("Export NIF",export_nif))):
         bar=ttk.Frame(parent);bar.pack(fill="x")
