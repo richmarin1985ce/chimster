@@ -93,7 +93,7 @@ def encode_groups(groups,profile,kind="terrain"):
     blocks.extend([("BSMultiBound",pack("i",i+1)),("BSMultiBoundAABB",pack("6f",*center,*extent))])
     return header(blocks,names,stream)
 
-def inspect(raw,profile):
+def read_blocks(raw,profile):
     """Bounded structural audit of own candidate stream, not game verification."""
     stream=STREAMS[profile];r=Reader(raw)
     if r.take(len(MAGIC))!=MAGIC or r.get("IBIII")[:3]!=(0x14020007,1,12):raise ValueError("Invalid header")
@@ -111,6 +111,10 @@ def inspect(raw,profile):
     if r.get("I")[0]!=0:raise ValueError("Unsupported groups")
     blocks=[(types[i],r.take(s)) for i,s in zip(ids,sizes)]
     if r.get("Ii")!=(1,0) or r.i!=len(raw):raise ValueError("Invalid footer")
+    return blocks
+
+def inspect(raw,profile):
+    stream=STREAMS[profile];blocks=read_blocks(raw,profile)
     triangles=vertices=0
     for typ,data in blocks:
         if typ=="NiTriShapeData":
@@ -154,3 +158,84 @@ def export_tile(profile,kind,world,level,x,y,mesh,diffuse,normal,output,cutout=F
     with dest.open("xb") as f:f.write(raw)
     return {**report,"path":str(dest),"sha256":sha256(raw).hexdigest(),"external_tools":False,
             "scope":"Author-supplied tile mesh in local game units, material and runtime layout require validation"}
+
+
+def read_static_groups(raw,profile):
+    """Read supported ordinary modern source geometry with explicit shader guards.
+    No animation, skinning, external material files or complex shader conversion.
+    """
+    from .fnv_lod_nif import decode_geometry
+    blocks=read_blocks(raw,profile);stream=STREAMS[profile]
+    inert={"NiStringExtraData","NiIntegerExtraData","BSXFlags","BSBound","NiBinaryExtraData","BSBehaviorGraphExtraData"}
+    def ref(i,kinds):
+        if not 0<=i<len(blocks) or blocks[i][0] not in kinds:raise ValueError("Unexpected source block reference")
+        return blocks[i][1]
+    def av_read(data):
+        r=Reader(data);_,count=r.get("iI")
+        if count>64:raise ValueError("Extra data limit")
+        for _ in range(count):ref(r.get("i")[0],inert)
+        if r.get("i")[0]!=-1:raise ValueError("Animated source")
+        flags,*t=r.get("I13f");collision,=r.get("i")
+        if not all(isfinite(v) for v in t) or not 0<t[12]<=100:raise ValueError("Invalid source transform")
+        if any(abs(sum(t[3+3*i+k]*t[3+3*j+k] for k in range(3))-(1 if i==j else 0))>1e-3 for i in range(3) for j in range(3)):raise ValueError("Invalid source rotation")
+        if collision!=-1 and (not 0<=collision<len(blocks) or not blocks[collision][0].startswith("bhk")):raise ValueError("Unsupported collision")
+        return r,t
+    def material(sid,aid):
+        r=Reader(ref(sid,{"BSLightingShaderProperty"}))
+        typ,shader_name,extra,controller=r.get("IiIi")
+        if typ not in (0,9,13) or extra or controller!=-1 or shader_name!=-1:raise ValueError("Unsupported named, animated or complex material")
+        f1,f2,u,v,s,t,tid=r.get("II4fi")
+        if (u,v,s,t)!=(0,0,1,1) or f1&~0x80404301 or f2&~0x8037:raise ValueError("Unsupported shader flags or UV transform")
+        # No alpha blending, parallax, environment mapping or vertex-color loss.
+        q=Reader(ref(tid,{"BSShaderTextureSet"}));n,=q.get("I")
+        if not 2<=n<=10:raise ValueError("Texture set count")
+        paths=[q.string().decode("ascii").replace("\\","/") for _ in range(n)]
+        if not paths[0] or not paths[1] or any(paths[2:]) or q.i!=len(q.raw):raise ValueError("Unsupported additional texture layers")
+        cut=aid!=-1
+        if cut:
+            a=Reader(ref(aid,{"NiAlphaProperty"}))
+            _,extra,controller=a.get("iIi");flags,threshold=a.get("HB")
+            if extra or controller!=-1 or flags!=0x1200 or threshold!=128:raise ValueError("Unsupported alpha test")
+        return paths[0],paths[1],cut
+    seen=set();groups={}
+    def visit(i,chain=()):
+        if i in seen or len(chain)>32 or not 0<=i<len(blocks):raise ValueError("Invalid source graph")
+        seen.add(i);kind,data=blocks[i];r,t=av_read(data);chain=(t,)+chain
+        if kind in ("NiNode","BSFadeNode","BSMultiBoundNode"):
+            count,=r.get("I")
+            if count>1024:raise ValueError("Source child limit")
+            for _ in range(count):visit(r.get("i")[0],chain)
+            if stream<130 and r.get("I")[0]!=0:raise ValueError("Unsupported node effects")
+            if kind=="BSMultiBoundNode":r.take(8)
+            if r.i!=len(data):raise ValueError("Unsupported source node tail")
+            return
+        if kind=="NiTriShape" and stream==83:
+            geom,skin,n,active,update,sid,aid=r.get("iiIiBii")
+            if skin!=-1 or n:raise ValueError("Unsupported skin/material data")
+            raw=ref(geom,{"NiTriShapeData"});q=Reader(raw);_,n,_,_,_=q.get("iHBBB");pos=9+n*12+2
+            mesh=decode_geometry(raw[:pos]+raw[pos+4:])
+        elif kind=="BSTriShape" and stream>=100:
+            r.take(16);skin,sid,aid,desc=r.get("iiiQ")
+            if skin!=-1:raise ValueError("Skinned source")
+            t,n=r.get("IH" if stream==130 else "HH");size,=r.get("I")
+            flags=desc>>44;stride=(desc&15)*4
+            if flags not in (0x1b,0x41b) or stride!=28 or size!=n*28+t*6 or not n or not t:raise ValueError("Unsupported packed source attributes")
+            mesh=Mesh()
+            for _ in range(n):
+                x,y,z,bx,u,v,*_=r.get("4f2e8B")
+                mesh.vertices.append((x,y,z));mesh.uv.append((u,1-v))
+            mesh.faces=[(r.get("3H"),"lod") for _ in range(t)]
+            if stream==100 and r.get("I")[0]!=0:raise ValueError("Particle data unsupported")
+        else:raise ValueError("Unsupported source shape "+kind)
+        if r.i!=len(data):raise ValueError("Unsupported source shape tail")
+        key=material(sid,aid);target=groups.setdefault(key,Mesh());offset=len(target.vertices)
+        if offset+len(mesh.vertices)>100000 or len(target.faces)+len(mesh.faces)>100000:raise ValueError("Source geometry budget")
+        validate_mesh(mesh)
+        for p in mesh.vertices:
+            for t in chain:p=tuple(t[i]+t[12]*sum(t[3+3*i+j]*p[j] for j in range(3)) for i in range(3))
+            target.vertices.append(p)
+        target.uv.extend(mesh.uv);target.faces.extend((tuple(v+offset for v in f),"lod") for f,_ in mesh.faces)
+    visit(0)
+    if not groups:raise ValueError("No supported source geometry")
+    for mesh in groups.values():validate_mesh(mesh)
+    return [(m,*key) for key,m in sorted(groups.items())]
