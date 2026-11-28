@@ -4,3 +4,5 @@ Read-only full-master scan of PNDT (body, radius, gravity, atmosphere, seed, bio
 Local landing tiles now have individual instance centers for distance LOD/culling, shared sampled edges and downward skirts to conceal mixed-tier cracks. A user-supplied heightfield can replace illustrative heights: {"version":1,"units":"meters","heights":[[0,100],[200,300]]}. Square 2–513 sample arrays, bilinear sampling, explicit geographic span. This imports provided elevations; it does not decode Starfield terrain assets. Added high-frequency relief for procedural local previews.
 
 Landing streaming uses a moving 3x3 window, a fixed geographic tangent chart, shared overlap mesh identities and a cache of at most 54 tier meshes. Finite imported heightfields stay within their original extent. Surface array summaries retain raw IDs rather than assuming native remapping.
+
+The viewport now recenters the planetary camera after panning, retains preview materials, displays updated geographic coordinates, and exposes native surface-tree summary inspection. Pan-release streaming is enabled for illustrative terrain; imported heightfields remain fixed.

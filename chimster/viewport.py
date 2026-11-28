@@ -29,7 +29,7 @@ def mount(parent):
     native_preview=False
     selection_callback=None
     stream_callback=None;preview_origin=(0,0,0);pan_drag=None;preview_cell=None
-    native_weather={};native_render={};starfield_preview=False
+    native_weather={};native_render={};starfield_preview=False;planet_stream=False
     native_lighting_enabled=tk.BooleanVar(value=True)
     native_day=tk.StringVar(value="Day")
     def draw():
@@ -218,17 +218,19 @@ def mount(parent):
         nonlocal pan_drag,camera,scene,materials,selected,preview_origin,preview_cell
         pan_drag=None
         if not native_preview or stream_callback is None:return
-        absolute=tuple(camera.center[i]*128+preview_origin[i] for i in range(3))
+        scale=1 if planet_stream else 128
+        absolute=tuple(camera.center[i]*scale+preview_origin[i] for i in range(3))
         try:result=stream_callback(absolute[0],absolute[1])
         except (OSError,ValueError,TypeError,KeyError) as exc:
             status.set("Cell streaming: "+str(exc));return
         if result is None:return
         candidate,report=result
-        scene=candidate;materials={};preview_origin=report["origin_game_units"];preview_cell=report["cell"]
-        camera=replace(camera,center=tuple((absolute[i]-preview_origin[i])/128 for i in range(3)))
+        scene=candidate;materials=dict(report.get("preview_materials",{}));preview_origin=report["origin_game_units"];preview_cell=report["cell"]
+        camera=replace(camera,center=tuple((absolute[i]-preview_origin[i])/scale for i in range(3)))
         apply_world_environment(report)
         if not any(i.id==selected for i in scene.instances):selected=None
-        source.set(f"Read-only cell {report['cell']} | {report['cells']} cells | {report['land_tiles']} LAND tiles | {report.get('model_references',0)} models")
+        if planet_stream:source.set(f"Starfield landing | {report['latitude']:.5f}, {report['longitude']:.5f} | {report['land_tiles']} tiles (illustrative)")
+        else:source.set(f"Read-only cell {report['cell']} | {report['cells']} cells | {report['land_tiles']} LAND tiles | {report.get('model_references',0)} models")
         sync()
     def zoom(delta):
         nonlocal camera
@@ -402,10 +404,10 @@ def mount(parent):
     canvas.bind("<Button-2>",pan_start);canvas.bind("<B2-Motion>",pan_move);canvas.bind("<ButtonRelease-2>",pan_end)
     canvas.bind("<Configure>",lambda e:draw());sync()
     def load_cell_preview(candidate, report, focus=None, on_select=None, on_stream=None):
-        nonlocal scene,materials,camera,selected,native_preview,selection_callback,stream_callback,preview_origin,preview_cell,starfield_preview
+        nonlocal scene,materials,camera,selected,native_preview,selection_callback,stream_callback,preview_origin,preview_cell,starfield_preview,planet_stream
         if not native_preview and not messagebox.askyesno("Cell preview", "Replace the current portable viewport scene? Save any edits first.",parent=parent):
             return False
-        scene=candidate;materials=dict(report.get("preview_materials",{}));native_preview=True;starfield_preview=bool(report.get("starfield"));selection_callback=on_select;stream_callback=on_stream;preview_origin=report["origin_game_units"];preview_cell=report["cell"]
+        scene=candidate;materials=dict(report.get("preview_materials",{}));native_preview=True;starfield_preview=bool(report.get("starfield"));planet_stream=bool(report.get("planet_stream"));selection_callback=on_select;stream_callback=on_stream;preview_origin=report["origin_game_units"];preview_cell=report["cell"]
         selected=focus if any(i.id==focus for i in scene.instances) else None
         camera=Camera()
         apply_world_environment(report)
@@ -482,7 +484,7 @@ def mount(parent):
         except Exception as exc:messagebox.showerror("Starfield preview",str(exc),parent=parent)
     ttk.Button(toolbar,text="Starfield cell preview",command=open_starfield).pack(side="left")
     def open_planets():
-        from .starfield_planets import Planets,globe,terrain,Heightfield
+        from .starfield_planets import Planets,globe,terrain,Heightfield,LandingStream,surface_summary
         from .starfield_preview import label
         paths=filedialog.askopenfilenames(parent=parent,title="Select Starfield full masters in load order",filetypes=[("Starfield plugins","*.esm *.esp")])
         if not paths:return
@@ -507,6 +509,7 @@ def mount(parent):
                 k,p=chosen()
                 if k is None:return
                 try:
+                    stream=None
                     if local:
                         lat=simpledialog.askfloat("Landing latitude","Latitude in degrees",initialvalue=0,minvalue=-90,maxvalue=90,parent=win)
                         if lat is None:return
@@ -518,9 +521,12 @@ def mount(parent):
                         if messagebox.askyesno("Landing heightfield","Use a user-supplied square JSON heightfield in meters instead of illustrative terrain?",parent=win):
                             heightpath=filedialog.askopenfilename(parent=win,filetypes=[("Heightfield JSON","*.json")])
                             if heightpath:heights=Heightfield.load(heightpath)
-                        candidate,report=terrain(catalog,k,lat,lon,span,heightfield=heights)
+                        if heights is None:
+                            stream=LandingStream(catalog,k,lat,lon,span)
+                            candidate,report=stream.update()
+                        else:candidate,report=terrain(catalog,k,lat,lon,span,heightfield=heights)
                     else:candidate,report=globe(catalog,k)
-                    if load_cell_preview(candidate,report):source.set("Starfield "+p["name"]+" | "+report.get("height_source","illustrative")+" "+report["planet_mode"]+" preview")
+                    if load_cell_preview(candidate,report,on_stream=stream.update if stream else None):source.set("Starfield "+p["name"]+" | "+report.get("height_source","illustrative")+" "+report["planet_mode"]+" preview")
                 except (ValueError,OSError,KeyError) as exc:messagebox.showerror("Planet preview",str(exc),parent=win)
             def inspect():
                 k,p=chosen()
@@ -530,6 +536,20 @@ def mount(parent):
             ttk.Button(win,text="Globe preview",command=lambda:preview(False)).pack(fill="x")
             ttk.Button(win,text="Landing terrain preview",command=lambda:preview(True)).pack(fill="x")
             ttk.Button(win,text="Inspect native landing sites",command=inspect).pack(fill="x")
+            def inspect_surface():
+                k,p=chosen()
+                if k is None:return
+                try:
+                    tree=p.get("tree")
+                    if tree is None:raise ValueError("No linked surface tree")
+                    row=catalog.surface_record(tree);summaries=surface_summary(row)
+                    lines=[f"{row['name']} | {row['signature']} | filter: {row['filter']}"] if row else ["Missing linked surface record"]
+                    for item in summaries:
+                        lines.append(f"{item['tag']}: {item['side']} x {item['side']} | {item['unique']} distinct raw IDs | {item['nonzero']} occupied")
+                        lines.extend(f"  {raw}: {count}" for raw,count in item["top"])
+                    messagebox.showinfo("Native surface array inspection (raw IDs)", "\n".join(lines),parent=win)
+                except (ValueError,OSError,KeyError) as exc:messagebox.showerror("Surface inspection",str(exc),parent=win)
+            ttk.Button(win,text="Inspect native surface tree",command=inspect_surface).pack(fill="x")
         except (ValueError,OSError,KeyError) as exc:messagebox.showerror("Planet browser",str(exc),parent=parent)
     ttk.Button(toolbar,text="Starfield planets",command=open_planets).pack(side="left")
     load_cell_preview.drop_position=drop_position
