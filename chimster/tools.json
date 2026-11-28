@@ -489,65 +489,6 @@
     "note": "Verify exact version, game support and distribution terms before integration."
   },
   {
-    "name": "xLODGen",
-    "category": "terrain LOD",
-    "games": [
-      "oblivion",
-      "fallout3",
-      "newvegas",
-      "skyrim",
-      "skyrimse",
-      "skyrimvr",
-      "fallout4",
-      "fallout4vr",
-      "starfield",
-      "oblivionremastered"
-    ],
-    "source": "https://dyndolod.info/Help/xLODGen",
-    "integration": "external",
-    "status": "catalog only",
-    "note": "Verify exact version, game support and distribution terms before integration."
-  },
-  {
-    "name": "DynDOLOD",
-    "category": "object LOD",
-    "games": [
-      "skyrim",
-      "skyrimse",
-      "skyrimvr"
-    ],
-    "source": "https://dyndolod.info/Quickstart",
-    "integration": "external",
-    "status": "catalog only",
-    "note": "Verify exact version, game support and distribution terms before integration."
-  },
-  {
-    "name": "TexGen",
-    "category": "texture LOD",
-    "games": [
-      "skyrim",
-      "skyrimse",
-      "skyrimvr"
-    ],
-    "source": "https://dyndolod.info/Quickstart",
-    "integration": "external",
-    "status": "catalog only",
-    "note": "Verify exact version, game support and distribution terms before integration."
-  },
-  {
-    "name": "TreeLODGen",
-    "category": "object LOD",
-    "games": [
-      "skyrim",
-      "skyrimse",
-      "skyrimvr"
-    ],
-    "source": "https://dyndolod.info/Help/LODGen",
-    "integration": "external",
-    "status": "catalog only",
-    "note": "Verify exact version, game support and distribution terms before integration."
-  },
-  {
     "name": "MWSE",
     "category": "scripts",
     "games": [
