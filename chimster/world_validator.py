@@ -131,9 +131,21 @@ def validate(paths,max_records=2000000,max_issues=10000,quest_links=False):
                             if kind in REFS:
                                 if b"NAME" in fields:
                                     target=val32(fields[b"NAME"],off)
+                                    if target:item["base"]=target
                                     if target:item["links"].append((target,{"NPC_"} if kind=="ACHR" else {"CREA"} if kind=="ACRE" else None,"base-object"))
                                     else:issue("missing-base",name,off,"Null or invalid NAME")
                                 else:issue("missing-base",name,off,"No NAME subrecord")
+                                if b"XLKR" in fields:
+                                    link=val32(fields[b"XLKR"],off)
+                                    if link:item["links"].append((link,REFS,"linked-reference"))
+                                if kind=="REFR" and b"XTEL" in fields:
+                                    value=fields[b"XTEL"]
+                                    if len(value)!=32:issue("teleport-size",name,off,"Expected 32-byte XTEL")
+                                    else:
+                                        target=val32(value[:4],off);coords=struct.unpack_from("<6fI",value,4)
+                                        if not target or not all(math.isfinite(x) for x in coords[:6]) or coords[-1]&~1:issue("teleport-destination",name,off,"Invalid teleport destination")
+                                        else:
+                                            item["teleport"]=target;item["links"].append((target,{"REFR"},"teleport"))
                                 if kind=="REFR" and b"DATA" in fields and len(fields[b"DATA"])==24 and pt==9:
                                     x,y,*_=struct.unpack("<6f",fields[b"DATA"])
                                     if math.isfinite(x) and math.isfinite(y):item["position"]=(math.floor(x/4096),math.floor(y/4096))
@@ -192,6 +204,14 @@ def validate(paths,max_records=2000000,max_issues=10000,quest_links=False):
         for target,types,role in r["links"]:
             t=live(target)
             if t is None or types and t["kind"] not in types or role=="base-object" and t["kind"] in {"WRLD","CELL","LAND","NAVM","ROAD","LTEX","TXST","REFR","ACHR","ACRE"}:issue("unresolved-"+role,name,off,f"{identity} -> {target}")
+        if "teleport" in r:
+            target=r["teleport"];other=live(target);base=live(r.get("base"))
+            if not base or base["kind"]!="DOOR":issue("teleport-base",name,off,"Teleport source is not a door")
+            if other:
+                destination=live(other.get("base"))
+                if not destination or destination["kind"]!="DOOR":issue("teleport-target-base",name,off,"Teleport target is not a door")
+                if target==identity or other.get("teleport")!=identity:issue("teleport-reciprocity",name,off,"Nonreciprocal teleport link","warning")
+                if not r["flags"]&PERSISTENT or not other["flags"]&PERSISTENT:issue("teleport-persistence",name,off,"Teleport endpoint not persistent","warning")
         if quest_links and kind=="INFO":
             topic=live(r.get("topic"))
             if not topic or topic["kind"]!="DIAL":issue("orphan-topic",name,off,str(identity))
@@ -215,4 +235,4 @@ def validate(paths,max_records=2000000,max_issues=10000,quest_links=False):
         if kind=="LAND" and r["owner"] is not None:
             if r["owner"] in lands:issue("duplicate-land",name,off,f"{identity} and {lands[r['owner']]}")
             lands[r["owner"]]=identity
-    return {"game":"newvegas","valid":not counts["error"] and not incomplete,"complete":not incomplete,"errors":counts["error"],"warnings":counts["warning"],"issues":issues,"plugins":reports,"winning_records":len(winning),"exterior_cells":len(coords),"persistent_cells":len(persistent),"interior_cells":interiors,"persistent_references":persistent_refs,"land_records":len(lands),"quest_links_checked":quest_links,"scope":"FNV hierarchy and selected references; not a complete schema or engine validator; no modifications"}
+    return {"game":"newvegas","valid":not counts["error"] and not incomplete,"complete":not incomplete,"errors":counts["error"],"warnings":counts["warning"],"issues":issues,"plugins":reports,"winning_records":len(winning),"exterior_cells":len(coords),"persistent_cells":len(persistent),"interior_cells":interiors,"persistent_references":persistent_refs,"land_records":len(lands),"teleport_references":sum(1 for r in winning.values() if "teleport" in r and not r["flags"]&DELETED),"quest_links_checked":quest_links,"scope":"FNV hierarchy and selected references; not a complete schema or engine validator; no modifications"}
