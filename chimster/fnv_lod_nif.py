@@ -153,8 +153,8 @@ def check(raw,expected):
     return {"triangles":expected,"vertices":sum(len(g.vertices) for g in geom),"block_types":[t for t,_ in rows],"runtime_verified":False}
 
 
-def read_static(raw):
-    """Read simple unskinned stream-34 shapes with a single diffuse/normal pair.
+def read_static_groups(raw):
+    """Read unskinned stream-34 shapes grouped by texture pair.
 
     Refuses unsupported transforms, shader layouts and scene graphs; never silently
     substitutes a proxy or discards a material. Returns mesh in native game units.
@@ -162,34 +162,44 @@ def read_static(raw):
     rows=blocks(raw)
     allowed={"NiNode","BSFadeNode","BSMultiBoundNode","NiTriShape","BSSegmentedTriShape",
              "NiTriShapeData","BSShaderPPLightingProperty","BSShaderTextureSet","BSMultiBound","BSMultiBoundAABB"}
-    if any(t not in allowed for t,_ in rows):raise ValueError("Unsupported static NIF blocks")
+    # Only traverse render objects. Physics and inert metadata are not copied.
+    inert={"NiStringExtraData","NiIntegerExtraData","BSXFlags","BSBound","NiBinaryExtraData"}
+    if any(t not in allowed and t not in inert and not t.startswith("bhk") for t,_ in rows):raise ValueError("Unsupported static NIF blocks")
     def ref(index,kinds):
         if not 0<=index<len(rows) or rows[index][0] not in kinds:raise ValueError("Unexpected NIF reference")
         return rows[index]
     def node_header(data):
         r=Reader(data)
         name,n=r.get("iI")
-        if n:raise ValueError("Extra data unsupported")
+        if n>32:raise ValueError("Extra data limit")
+        for _ in range(n):ref(r.get("i")[0],inert)
         if r.get("i")[0]!=-1:raise ValueError("Controller unsupported")
         flags,*transform=r.get("I13f")
         if not all(isfinite(v) for v in transform):raise ValueError("Nonfinite transform")
-        if transform!=[0.,0.,0.,1.,0.,0.,0.,1.,0.,0.,0.,1.,1.]:raise ValueError("Nonidentity node transform")
+        if not 0<transform[12]<=1000:raise ValueError("Invalid node scale")
+        rot=transform[3:12]
+        if any(abs(sum(rot[i*3+k]*rot[j*3+k] for k in range(3))-(1 if i==j else 0))>1e-3 for i in range(3) for j in range(3)):raise ValueError("Invalid node rotation")
+        det=rot[0]*(rot[4]*rot[8]-rot[5]*rot[7])-rot[1]*(rot[3]*rot[8]-rot[5]*rot[6])+rot[2]*(rot[3]*rot[7]-rot[4]*rot[6])
+        if abs(det-1)>1e-3:raise ValueError("Mirrored node rotation unsupported")
         count,=r.get("I")
         if count>32:raise ValueError("Property limit")
         props=[r.get("i")[0] for _ in range(count)]
-        if r.get("i")[0]!=-1:raise ValueError("Collision unsupported")
-        return r,props
-    seen=set();mesh=Mesh();materials=set()
-    def visit(idx):
+        collision,=r.get("i")
+        if collision!=-1 and (not 0<=collision<len(rows) or not rows[collision][0].startswith("bhk")):raise ValueError("Unknown collision reference")
+        return r,props,transform
+    seen=set();groups={}
+    def visit(idx,chain=()):
+        if len(chain)>32:raise ValueError("Scene depth limit")
         if idx in seen:raise ValueError("Shared or cyclic geometry")
         seen.add(idx)
         kind,data=ref(idx,{"NiNode","BSFadeNode","BSMultiBoundNode","NiTriShape","BSSegmentedTriShape"})
-        r,props=node_header(data)
+        r,props,transform=node_header(data)
+        chain=(transform,)+chain
         if kind in ("NiNode","BSFadeNode","BSMultiBoundNode"):
             if props:raise ValueError("Node properties unsupported")
             count,=r.get("I")
             if count>1024:raise ValueError("Child limit")
-            for _ in range(count):visit(r.get("i")[0])
+            for _ in range(count):visit(r.get("i")[0],chain)
             if r.get("I")[0]!=0:raise ValueError("Effects unsupported")
             if kind=="BSMultiBoundNode":ref(r.get("i")[0],{"BSMultiBound"})
             if r.i!=len(data):raise ValueError("Unsupported node tail")
@@ -211,11 +221,22 @@ def read_static(raw):
         if n!=6:raise ValueError("Unsupported texture set")
         paths=[tr.string().decode("ascii").replace("\\","/") for _ in range(n)]
         if tr.i!=len(tr.raw) or not paths[0] or not paths[1] or any(paths[2:]):raise ValueError("Unsupported texture set")
-        materials.add(tuple(paths[:2]))
+        material=tuple(paths[:2]);mesh=groups.setdefault(material,Mesh())
         offset=len(mesh.vertices)
-        mesh.vertices.extend(g.vertices);mesh.uv.extend(g.uv)
+        if offset+len(g.vertices)>100000 or len(mesh.faces)+len(g.faces)>100000:raise ValueError("Static geometry budget")
+        for vertex in g.vertices:
+            for t in chain:
+                vertex=tuple(t[i]+t[12]*sum(t[3+i*3+j]*vertex[j] for j in range(3)) for i in range(3))
+            mesh.vertices.append(vertex)
+        mesh.uv.extend(g.uv)
         mesh.faces.extend((tuple(i+offset for i in f),"lod") for f,_ in g.faces)
     visit(0)
-    if len(materials)!=1:raise ValueError("Multiple materials require atlas authoring")
-    validate_mesh(mesh)
-    return mesh,next(iter(materials))
+    if not groups:raise ValueError("No supported static geometry")
+    for mesh in groups.values():validate_mesh(mesh)
+    return [(mesh,*paths) for paths,mesh in sorted(groups.items())]
+
+def read_static(raw):
+    groups=read_static_groups(raw)
+    if len(groups)!=1:raise ValueError("Multiple materials require grouped authoring")
+    mesh,diffuse,normal=groups[0]
+    return mesh,(diffuse,normal)
