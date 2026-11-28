@@ -85,12 +85,12 @@ def mount(parent):
         cls,fn=sources[source.get()]
         values={k:type(v)(fields[k].get()) for k,v in vars(cls()).items()}
         replace(fn(cls(**values)))
-    def import_obj():
-        path=filedialog.askopenfilename(filetypes=[("Triangulated OBJ","*.obj")])
+    def import_obj(dropped=None):
+        path=dropped if dropped is not None else filedialog.askopenfilename(filetypes=[("Triangulated OBJ","*.obj")])
         if path:replace(load_obj(path))
-    def import_nif():
+    def import_nif(dropped=None):
         if not messagebox.askyesno("Import NIF","Import static geometry only? Original shaders, collision, metadata and animation will not be preserved. A rebuilt trusted native helper is required."):return
-        path=filedialog.askopenfilename(filetypes=[("Native NIF","*.nif")])
+        path=dropped if dropped is not None else filedialog.askopenfilename(filetypes=[("Native NIF","*.nif")])
         if not path:return
         helper=filedialog.askopenfilename(title="Select trusted Chimster native helper")
         if helper:
@@ -266,8 +266,8 @@ def mount(parent):
         if p:
             from .asset_project import save
             save(s,p);status.set("Saved editable asset: "+p)
-    def open_project():
-        p=filedialog.askopenfilename(filetypes=[("Asset project","*.casset")])
+    def open_project(dropped=None):
+        p=dropped if dropped is not None else filedialog.askopenfilename(filetypes=[("Asset project","*.casset")])
         if p:
             from .asset_project import load
             replace(load(p))
@@ -321,3 +321,5 @@ def mount(parent):
                     (("Open asset",open_project),("Save new asset",save_project),("Simplify LOD",simplify),("Undo",undo),("Export OBJ",export_obj),("Export NIF",export_nif))):
         bar=ttk.Frame(parent);bar.pack(fill="x")
         for label,fn in actions:ttk.Button(bar,text=label,command=guard(fn)).pack(side="left")
+    from .drop_import import editor_drop
+    editor_drop(parent,[([".obj"],import_obj,False),([".nif"],import_nif,False),([".casset"],open_project,False)])
