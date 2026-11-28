@@ -87,6 +87,11 @@ Cross-section pass: native quest inspection now shares generated CTDA and dialog
 ### Follow-up: native interiors and persistent placements
 Section 5 now includes a bounded experimental New Vegas interior fixture writer, with explicit named cells, local/static master references, stable ledger keys and temporary/persistent reference buckets. Section 3 remaps the same generated interior schema and type-2/3/6/8/9 hierarchy, preserving origin-local IDs and interior block labels. Section 7 reports interior and persistent reference counts; Section 14 regression fixture binds a quest objective to a staged interior reference through its master-origin identity. CLI: fnv-interior PROJECT OUTPUT [--master PATH] [--ledger-in PATH --ledger-out PATH]. Tests added, not executed. Native lighting, doors, room/portal/trigger data, navmesh, additional base classes and retail engine validation remain open. The five estimates remain 65/60/60/60/60: the existing interior integration milestone advanced but is still partial.
 
+### Follow-up: door links and portal integration
+Generated FNV interior exports accept DOOR bases, reciprocal persistent XTEL door pairs with explicit destination transform, and local XLKR reference links. The native schema, remapper, inspector and merged validator share typed links and destination checks. Portable same-cell room portals can bind non-teleport door placements on their rectangle; the visibility preview consumes explicit open/closed states keyed by stable local ID, with missing state conservatively open. This is not native XPOD/XPTL/XRMR authoring or live engine state. Cross-master linked targets, native room/portal marker export, navmesh, engine testing and test execution remain pending. Five-section estimates unchanged (65/60/60/60/60).
+
+Format reference: https://tes5edit.github.io/fopdoc/FalloutNV/Records/REFR.html and https://tes5edit.github.io/fopdoc/FalloutNV/Records/DOOR.html .
+
 ## Critical path
 1. Stable project FormID allocation, typed native record schema and dependency-safe edits.
 2. Integrated native interior cells, architectural assets, room/portal/trigger volumes, placed references and collision.
