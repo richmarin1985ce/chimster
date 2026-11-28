@@ -70,7 +70,7 @@ def export(browser,world,output,assets,limit=512,previous=None,atlas=True):
         if r["signature"]!="REFR" or "position" not in r:continue
         cell=browser.active.get(r.get("cell"),{})
         base=browser.active.get(r.get("base"),{})
-        if cell.get("world")==world and base.get("signature")=="STAT" and base.get("model"):
+        if cell.get("world")==world and base.get("signature") in ("STAT","TREE") and base.get("model"):
             refs.append((r,base))
     if len(refs)>limit:raise ValueError("Object placement budget exceeded; select a smaller world or raise limit")
     prior={};old_root=None
@@ -92,11 +92,11 @@ def export(browser,world,output,assets,limit=512,previous=None,atlas=True):
                     try:raw=assets.get(path)
                     except FileNotFoundError:
                         raw=assets.get(model);generated=True
-                    groups=read_static_groups(raw)
+                    groups=read_static_groups(raw,include_cutout=True)
                     if generated:
-                        groups=[(reduced(mesh),d,n) for mesh,d,n in groups]
+                        groups=[(mesh if cut else reduced(mesh),d,n,cut) for mesh,d,n,cut in groups]
                         dest=output/path;dest.parent.mkdir(parents=True,exist_ok=True)
-                        total=sum(len(mesh.faces) for mesh,_,_ in groups)
+                        total=sum(len(mesh.faces) for mesh,*_ in groups)
                         raw=encode_groups(groups,"companion");check(raw,total)
                         with dest.open("xb") as f:f.write(raw)
                         report["companions"].append({"path":path,"triangles":total,"sha256":sha256(raw).hexdigest()})
@@ -115,8 +115,8 @@ def export(browser,world,output,assets,limit=512,previous=None,atlas=True):
                 report["skipped"].append({"reference":label(ref["key"]),"reason":"Invalid transform"});continue
             x,y=floor(px/16384)*4,floor(py/16384)*4
             groups=tiles[x,y]
-            for mesh,d,n in value:
-                combined=groups.setdefault((d,n),Mesh())
+            for mesh,d,n,cut in value:
+                combined=groups.setdefault((d,n,cut),Mesh())
                 if len(combined.vertices)+len(mesh.vertices)>65535 or len(combined.faces)+len(mesh.faces)>65535:
                     report["skipped"].append({"reference":label(ref["key"]),"reason":"16-bit group budget","material":d});continue
                 offset=len(combined.vertices);c,s=cos(yaw),sin(yaw)
@@ -140,10 +140,10 @@ def export(browser,world,output,assets,limit=512,previous=None,atlas=True):
                     return self.raw[p]
             source=CachedAssets()
             if atlas:
-                for p in sorted({p for _,d,n in active for p in (d,n)}):
+                for p in sorted({p for _,d,n,cut in active if not cut for p in (d,n)}):
                     try:source.get(p)
                     except (ValueError,OSError):source.hashes[p]="unavailable"
-            digest=sha256(json.dumps(["object-lod-v2",name,x,y,atlas,[(m.vertices,m.uv,m.faces,d,n) for m,d,n in active],sorted(source.hashes.items())],separators=(",",":"),allow_nan=False).encode()).hexdigest()
+            digest=sha256(json.dumps(["object-lod-v3",name,x,y,atlas,[(m.vertices,m.uv,m.faces,d,n,cut) for m,d,n,cut in active],sorted(source.hashes.items())],separators=(",",":"),allow_nan=False).encode()).hexdigest()
             cached=prior.get((x,y),{})
             files=cached.get("files",{})
             if (cached.get("input_sha256")==digest and set(files) in ({path},{path,*texpaths})
@@ -155,17 +155,19 @@ def export(browser,world,output,assets,limit=512,previous=None,atlas=True):
             if atlas:
                 from .world_lod_atlas import build
                 from .textures import mip_dds
-                result,remaining,issues=build(active,source)
+                opaque=[(m,d,n) for m,d,n,cut in active if not cut]
+                foliage=[g for g in active if g[3]]
+                result,remaining,issues=build(opaque,source) if opaque else (None,[],[])
                 report["atlas_issues"].extend({"grid":[x,y],**issue} for issue in issues)
                 if result:
-                    active=[(result["mesh"],*texpaths),*remaining]
+                    active=[(result["mesh"],*texpaths,False),*((m,d,n,False) for m,d,n in remaining),*foliage]
                     for p,normal,image in zip(texpaths,(False,True),(result["diffuse"],result["normal"])):
                         dest=output/p;dest.parent.mkdir(parents=True,exist_ok=True)
                         with dest.open("xb") as f:f.write(mip_dds(result["size"],result["size"],image,normal=normal))
                         written.append(p)
                     atlas_info={"size":result["size"],"groups":result["groups"],"source_hashes":result["source_hashes"]}
             raw=encode_groups(active,"object",16384)
-            info=check(raw,sum(len(m.faces) for m,_,_ in active))
+            info=check(raw,sum(len(m.faces) for m,*_ in active))
             dest=output/path;dest.parent.mkdir(parents=True,exist_ok=True)
             with dest.open("xb") as f:f.write(raw)
             written.append(path)
