@@ -60,6 +60,10 @@ def launch(parent):
         threading.Thread(target=run,daemon=True).start();win.after(100,poll)
     for name,op in (("Generate staged LIP","build"),("Verify receipt","verify"),("Inspect native LIP","inspect")):
         b=ttk.Button(bar,text=name,command=lambda op=op:start(op));b.pack(side="left");buttons.append(b)
+    def curve_editor():
+        from .lip_curve_ui import launch as launch_curves
+        launch_curves(win)
+    ttk.Button(bar,text="Native curve editor",command=curve_editor).pack(side="left")
     def close():
         if busy[0]:messagebox.showinfo("Native LIP","Local operation is running.",parent=win)
         else:win.destroy()
