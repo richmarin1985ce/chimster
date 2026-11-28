@@ -92,6 +92,64 @@ def mount(frame, game):
             report({"scope":"syntax highlighting only for this language; native compiler not integrated"})
             return
         report(check(source()))
+    # Explicit extender opt-in: API availability is not inferred from game files.
+    from .script_symbols import complete, lookup
+    from dataclasses import asdict
+    import re
+    extender = tk.StringVar(value="")
+    api_bar = ttk.Frame(frame); api_bar.pack(fill="x",before=pane)
+    ttk.Label(api_bar,text="API extension").pack(side="left")
+    ttk.Combobox(api_bar,textvariable=extender,values=["","skse","f4se","obse","fose","xnvse"],state="readonly",width=10).pack(side="left")
+    def symbol_prefix():
+        before=editor.get("insert linestart","insert")
+        match=re.search(r"([A-Za-z_][A-Za-z0-9_]*)$",before)
+        prefix=match.group(1) if match else ""
+        return prefix
+    def enabled():
+        return [extender.get()] if extender.get() else []
+    def suggest(_=None):
+        prefix=symbol_prefix()
+        try:items=complete(game.get(),language.get(),source(),prefix,enabled())
+        except ValueError as exc:status.set(str(exc));return "break"
+        if not items:status.set("No known symbols");return "break"
+        popup=tk.Toplevel(frame);popup.title("Script completions");popup.transient(frame.winfo_toplevel())
+        listing=tk.Listbox(popup,width=85,height=min(12,len(items)),exportselection=False)
+        listing.pack(fill="both",expand=True)
+        for s in items:listing.insert("end",f"{s.name}   {s.owner}   [{s.origin}]   {s.signature}")
+        listing.selection_set(0);listing.focus_set()
+        # Do not insert into a changed source or at a moved cursor.
+        initial=source();index=editor.index("insert")
+        def choose(_=None):
+            if listing.curselection():
+                s=items[listing.curselection()[0]]
+                if source()==initial and editor.index("insert")==index:
+                    editor.edit_separator()
+                    if prefix:editor.delete("insert-%dc"%len(prefix),"insert")
+                    editor.insert("insert",s.name);editor.edit_separator()
+                    report(asdict(s))
+            popup.destroy();editor.focus_set()
+        listing.bind("<Return>",choose);listing.bind("<Double-Button-1>",choose)
+        listing.bind("<Escape>",lambda _:popup.destroy())
+        ttk.Button(popup,text="Insert selected symbol",command=choose).pack(fill="x")
+        return "break"
+    def symbol_help(_=None):
+        before=editor.get("insert linestart","insert")
+        after=editor.get("insert","insert lineend")
+        a=re.search(r"[A-Za-z_][A-Za-z0-9_]*$",before)
+        b=re.match(r"[A-Za-z0-9_]+",after)
+        name=(a.group() if a else "")+(b.group() if b else "")
+        if not name:status.set("Place cursor on a symbol");return "break"
+        try:items=lookup(game.get(),language.get(),source(),name,enabled())
+        except ValueError as exc:status.set(str(exc));return "break"
+        report({"symbol":name,"matches":[asdict(s) for s in items],
+                "scope":"advisory seed catalog and current source; unknown is not an error"})
+        if len(items)==1 and items[0].origin=="local" and items[0].line:
+            editor.mark_set("insert",f"{items[0].line}.0");editor.see("insert")
+        return "break"
+    ttk.Button(api_bar,text="Complete (Ctrl+Space)",command=suggest).pack(side="left")
+    ttk.Button(api_bar,text="Symbol help / definition (F12)",command=symbol_help).pack(side="left")
+    editor.bind("<Control-space>",suggest)
+    editor.bind("<F12>",symbol_help)
     def export_syntax():
         p=filedialog.asksaveasfilename(defaultextension=".sublime-syntax")
         if p:
