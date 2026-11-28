@@ -15,11 +15,15 @@ def world_records(profile, data, slots=None):
                 label=node.header[8:12]
                 role,value=group_label(kind,label,slots)
                 yield from walk(node.children,ancestry+((kind,role,value),))
-            elif node.signature in (b"WRLD",b"CELL",b"LAND",b"REFR",b"ACHR",b"ACRE"):
+            elif node.signature in (b"WRLD",b"CELL",b"LAND",b"NAVM",b"REFR",b"ACHR",b"ACRE"):
                 row=inspect_node(profile,node,slots)
                 row["signature"]=node.signature.decode("ascii")
                 row["ancestry"]=ancestry
                 row["spatial"]=spatial(row["signature"],row["parts"])
+                if profile=="new-vegas" and node.signature==b"NAVM":
+                    from .fnv_navmesh import inspect as inspect_navmesh
+                    try:row["spatial"]["navmesh"]=inspect_navmesh(row["parts"])[0]
+                    except (ValueError,struct.error) as exc:row["spatial"]["navmesh_warning"]=str(exc)
                 row["world"]=next((owner for _,role,owner in reversed(ancestry) if role=="world"),None)
                 row["cell"]=next((owner for _,role,owner in reversed(ancestry) if role=="cell"),None)
                 row["bucket"]=next((kind for kind,_,_ in reversed(ancestry) if kind in (8,9,10)),None)
