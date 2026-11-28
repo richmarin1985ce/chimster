@@ -92,11 +92,25 @@ def export(browser,world,output,assets,limit=512,previous=None,atlas=True):
         if manifest.get("world")!=name:raise ValueError("Previous object package belongs to another world")
         prior={tuple(t["grid"]):t for t in manifest["tiles"]}
     output=Path(output);output.mkdir(exist_ok=False)
-    report={"world":name,"profile":browser.profile,"external_tools":False,"native_runtime_assets":False,"companions":[],"tiles":[],"skipped":[],"atlas_issues":[],"reused_tiles":0,"rebuilt_tiles":0}
+    report={"world":name,"profile":browser.profile,"external_tools":False,"native_runtime_assets":False,"companions":[],"tiles":[],"skipped":[],"atlas_issues":[],"speedtree":[],"reused_tiles":0,"rebuilt_tiles":0}
     cache={};tiles=defaultdict(dict)
     try:
         for ref,base in sorted(refs,key=lambda p:p[0]["key"]):
             model=base["model"];key=model.replace("\\","/").casefold()
+            if not modern and base["signature"]=="TREE" and key.endswith(".spt"):
+                key=("speedtree",label(base["key"]))
+                if key not in cache:
+                    try:
+                        from .speedtree_lod import prepare,write_textures
+                        dimensions=base.get("speedtree",{}).get("billboard_dimensions")
+                        if dimensions is None:raise ValueError("Missing TREE BNAM dimensions")
+                        group,files,info=prepare(assets,model,dimensions)
+                        info["base"]=label(base["key"])
+                        info["files"]=write_textures(output,files)
+                        report["speedtree"].append(info)
+                        cache[key]=[group]
+                    except (ValueError,OSError,TypeError,UnicodeError) as exc:
+                        cache[key]=str(exc)[:200]
             if key not in cache:
                 try:
                     path=sibling(model)
@@ -169,7 +183,7 @@ def export(browser,world,output,assets,limit=512,previous=None,atlas=True):
                 for p in sorted({p for _,d,n,cut in active if not cut for p in (d,n)}):
                     try:source.get(p)
                     except (ValueError,OSError):source.hashes[p]="unavailable"
-            digest=sha256(json.dumps(["object-lod-v7",browser.profile,name,x,y,atlas,[(m.vertices,m.uv,m.faces,m.colors,d,n,cut,getattr(m,"lod_shader",()),getattr(m,"lod_alpha_threshold",128)) for m,d,n,cut in active],sorted(source.hashes.items())],separators=(",",":"),allow_nan=False).encode()).hexdigest()
+            digest=sha256(json.dumps(["object-lod-v8",browser.profile,name,x,y,atlas,[(m.vertices,m.uv,m.faces,m.colors,d,n,cut,getattr(m,"lod_shader",()),getattr(m,"lod_alpha_threshold",128)) for m,d,n,cut in active],sorted(source.hashes.items())],separators=(",",":"),allow_nan=False).encode()).hexdigest()
             cached=prior.get((x,y),{})
             files=cached.get("files",{})
             if (cached.get("input_sha256")==digest and set(files) in ({path},{path,*texpaths})
