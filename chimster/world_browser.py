@@ -78,6 +78,9 @@ def read_plugin(path, profile="new-vegas"):
                     row["model"] = text_field(fields[b"MODL"])
                 if sig in KINDS and (profile in ("oblivion","fallout3","new-vegas") or not localized):
                     row["name"] = text_field(fields.get(b"FULL"))
+                if sig == "WRLD" and profile=="new-vegas":
+                    from .world_environment import decode
+                    row["environment"]=decode(parts,slots)
                 if sig == "CELL":
                     grid = fields.get(b"XCLC", b"")
                     row["persistent_cell"] = bool(flags & 0x400)
