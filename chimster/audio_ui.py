@@ -2,7 +2,7 @@
 import tkinter as tk
 from tkinter import ttk,filedialog,messagebox
 from pathlib import Path
-from .formats import pack_fuz,unpack_fuz
+from .audio import pack_fuz,unpack_fuz
 
 def mount(parent):
     ttk.Label(parent,text="Voice containers — existing encoded audio and lip-sync data").pack(anchor="w")
@@ -19,23 +19,23 @@ def mount(parent):
     def read():
         return unpack_fuz(Path(values["FUZ source"].get()).read_bytes())
     def inspect():
-        version,lip,audio=read();status.set(f"Version {version}; lip {len(lip)} bytes; audio {len(audio)} bytes")
+        lip,audio=read();status.set(f"Version 1; lip {len(lip)} bytes; audio {len(audio)} bytes")
     def pack():
         audio=Path(values["Audio source"].get()).read_bytes()
         lip=Path(values["Lip source"].get()).read_bytes() if values["Lip source"].get() else b""
-        blob=pack_fuz(lip,audio);unpack_fuz(blob)
+        blob=pack_fuz(audio,lip);unpack_fuz(blob)
         p=filedialog.asksaveasfilename(defaultextension=".fuz")
         if p:
             with Path(p).open("xb") as f:f.write(blob)
             status.set("Created "+p)
     def extract():
-        _,lip,audio=read()
+        lip,audio=read()
         folder=filedialog.askdirectory()
         if not folder:return
         target=Path(folder)/(Path(values["FUZ source"].get()).stem+"-extracted")
         target.mkdir()
-        (target/"voice.lip").write_bytes(lip)
-        (target/"audio.bin").write_bytes(audio)
+        if lip:(target/"voice.lip").write_bytes(lip)
+        (target/"voice.xwm").write_bytes(audio)
         status.set("Extracted to "+str(target))
     def guard(fn):
         def run():
@@ -47,6 +47,8 @@ def mount(parent):
 
     from .audio_edit_ui import launch as launch_editor
     ttk.Button(parent,text="Open waveform and lip-sync editor",command=lambda:launch_editor(parent)).pack(anchor="w")
+    from .voice_record_ui import launch as launch_recording
+    ttk.Button(parent,text="Record and manage takes",command=lambda:launch_recording(parent)).pack(anchor="w")
     ttk.Separator(parent).pack(fill="x", pady=8)
     mount_voice_manager(parent)
 
