@@ -41,9 +41,9 @@ def build_parser():
  b=l.add_parser('benchmark'); b.add_argument('--count',type=int,default=10); b.add_argument('--size',type=int,default=64)
  b=l.add_parser('compare-traces'); b.add_argument('baseline'); b.add_argument('changed')
  b=l.add_parser('workflow'); b.add_argument('game')
- b=l.add_parser('tool'); b.add_argument('profile'); b.add_argument('tool',choices=['xlodgen','texgen','dyndolod']); b.add_argument('executable'); b.add_argument('--execute',action='store_true')
+ b=l.add_parser('world-native'); b.add_argument('game'); b.add_argument('world'); b.add_argument('output'); b.add_argument('plugins',nargs='+'); b.add_argument('--size',type=int,choices=[64,128,256],default=128)
+ b=l.add_parser('world-objects'); b.add_argument('game'); b.add_argument('world'); b.add_argument('output'); b.add_argument('plugins',nargs='+'); b.add_argument('--data'); b.add_argument('--archive',action='append',default=[]); b.add_argument('--limit',type=int,default=512)
  b=l.add_parser('openmw-settings'); b.add_argument('--distance',type=float,default=32768); b.add_argument('--min-size',type=float,default=.023)
- b=l.add_parser('mge'); b.add_argument('game_copy')
  a=s.add_parser('localization-audit'); a.add_argument('source'); a.add_argument('target')
  a=s.add_parser('flagstaff'); f=a.add_subparsers(dest='fop',required=True)
  b=f.add_parser('fetch'); b.add_argument('recipe'); b.add_argument('dem')
@@ -703,7 +703,7 @@ def main(argv=None):
   elif n.cmd=='lod':
    from .lod import build_tree,terrain_grid,benchmark
    from .flora import Recipe,generate,write_obj
-   from .lod_tools import tool_plan,run_tool,workflow,openmw_settings,mge_plan
+   from .lod_tools import workflow,openmw_settings
    from pathlib import Path
    if n.lop=='tree':result=build_tree(Recipe(seed=n.seed),n.output,n.size,n.views)
    elif n.lop=='nif':
@@ -721,11 +721,17 @@ def main(argv=None):
     result=compare(n.baseline,n.changed)
    elif n.lop=='workflow':result=workflow(n.game)
    elif n.lop=='openmw-settings':result={'settings':openmw_settings(n.distance,n.min_size)}
-   elif n.lop=='mge':result=mge_plan(n.game_copy)
-   else:
-    from .xedit import Workspace
-    ws=Workspace.load(n.profile);result=tool_plan(ws,n.tool,n.executable)
-    if n.execute:result['pid']=run_tool(ws,n.tool,n.executable).pid
+   elif n.lop in ('world-native','world-objects'):
+    from .world_browser import Browser,label
+    browser=Browser.open(n.plugins,n.game)
+    matches=[k for k,row in browser.worlds.items() if row["editor_id"].casefold()==n.world.casefold() or label(k).casefold()==n.world.casefold()]
+    if len(matches)!=1:raise ValueError("Worldspace must match one editor ID or canonical FormID")
+    if n.lop=='world-native':
+     from .world_lod_builtin import export
+     result=export(browser,matches[0],n.output,size=n.size)
+    else:
+     from .world_lod_object_builtin import Assets,export
+     result=export(browser,matches[0],n.output,Assets(n.data,n.archive),limit=n.limit)
   elif n.cmd=='discover-tools':
    from .tooling import discover_tools
    result=discover_tools()
