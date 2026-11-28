@@ -15,3 +15,25 @@ class PostTests(unittest.TestCase):
         import simplepbr,gltf
         self.assertTrue(callable(simplepbr.Pipeline))
         self.assertTrue(callable(gltf.load_model))
+
+    def test_pbr_framebuffer(self):
+        import os
+        if not os.environ.get("CHIMSTER_TEST_PANDA_GL"):self.skipTest("Optional framebuffer test")
+        from panda3d.core import load_prc_file_data
+        load_prc_file_data("chimster-test","load-display p3headlessgl\naudio-library-name null")
+        from chimster.panda_viewport import Preview
+        from chimster.gpu_viewport import make_demo
+        from chimster.scene import Camera
+        from chimster.render_effects import Effects
+        scene,materials=make_demo()
+        preview=Preview("pbr")
+        try:
+            pixels=preview.render(scene,Camera(zoom=4),96,72,materials,effects=Effects())
+            self.assertIsNone(preview.post_error)
+            self.assertIsNotNone(preview.post)
+            self.assertEqual(len(pixels),96*72*4)
+            self.assertGreater(len(set(pixels[::4])),3)
+            resized=preview.render(scene,Camera(zoom=4),64,48,materials)
+            self.assertEqual(len(resized),64*48*4)
+            self.assertIsNone(preview.post_error)
+        finally:preview.close()
