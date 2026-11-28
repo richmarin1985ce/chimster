@@ -66,9 +66,9 @@ def mount(frame, game):
             status.set("Modified" if source()!=saved["text"] else "Saved copy")
     editor.bind("<<Modified>>",modified)
     selector.bind("<<ComboboxSelected>>",schedule)
-    def open_source():
+    def open_source(dropped=None):
         if source() and source()!=saved["text"] and not messagebox.askyesno("Discard unsaved edits?","Open another script and discard unsaved edits?"):return
-        p=filedialog.askopenfilename(filetypes=[("Script sources","*.psc *.lua *.txt *.gek *.geck *.obscript *.mwscript"),("All files","*")])
+        p=dropped if dropped is not None else filedialog.askopenfilename(filetypes=[("Script sources","*.psc *.lua *.txt *.gek *.geck *.obscript *.mwscript"),("All files","*")])
         if not p:return
         try:
             path=Path(p)
@@ -432,3 +432,5 @@ def mount(frame, game):
         return "break"
     editor.bind("<Control-z>",undo)
     refresh()
+    from .drop_import import editor_drop
+    editor_drop(frame,[([".psc",".lua",".txt",".gek",".geck",".obscript",".mwscript"],open_source,False)])
