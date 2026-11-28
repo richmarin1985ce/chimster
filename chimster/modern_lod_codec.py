@@ -129,3 +129,28 @@ def inspect(raw,profile):
             triangles+=t;vertices+=n
     if not triangles:raise ValueError("Missing geometry")
     return {"stream":stream,"triangles":triangles,"vertices":vertices,"block_types":[t for t,_ in blocks],"runtime_verified":False}
+
+
+def export_tile(profile,kind,world,level,x,y,mesh,diffuse,normal,output,cutout=False):
+    """Export a single author-supplied tile in the native candidate naming scheme."""
+    import re
+    from pathlib import Path
+    from hashlib import sha256
+    if kind not in ("terrain","object") or not re.fullmatch(r"[A-Za-z0-9_ -]{1,128}",world):
+        raise ValueError("Invalid world or tile kind")
+    if level not in (4,8,16,32) or any(type(v)!=int or not -32768<=v<=32767 for v in (x,y)):
+        raise ValueError("Invalid tile coordinates")
+    if kind=="terrain" and cutout:raise ValueError("Terrain does not support cutout")
+    raw=encode_groups([(mesh,diffuse,normal,cutout)],profile,kind)
+    report=inspect(raw,profile)
+    if report["triangles"]!=len(mesh.faces):raise ValueError("Geometry roundtrip mismatch")
+    root=Path(output).resolve()
+    root.mkdir(parents=True,exist_ok=True)
+    base=root/"meshes"/"terrain"/world
+    if kind=="object":base=base/"objects"
+    dest=base/(f"{world}.{level}.{x}.{y}."+("btr" if kind=="terrain" else "bto"))
+    if not dest.resolve().is_relative_to(root):raise ValueError("Output escapes root")
+    dest.parent.mkdir(parents=True,exist_ok=True)
+    with dest.open("xb") as f:f.write(raw)
+    return {**report,"path":str(dest),"sha256":sha256(raw).hexdigest(),"external_tools":False,
+            "scope":"Author-supplied tile mesh in local game units, material and runtime layout require validation"}
