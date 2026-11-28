@@ -1,9 +1,9 @@
 import unittest
 import tkinter as tk
 from tkinter import ttk
-from chimster.calipi import Calipi, clamp_position, tip_for
+from chimster.calipy import Calipy, clamp_position, tip_for
 
-class CalipiTests(unittest.TestCase):
+class CalipyTests(unittest.TestCase):
     def test_context_and_fallback(self):
         self.assertIn("script", tip_for("Script editor"))
         self.assertEqual(tip_for("unknown", 0), tip_for("unknown", 4))
@@ -24,7 +24,7 @@ class CalipiTests(unittest.TestCase):
         tabs.pack(fill="both", expand=True)
         tabs.add(ttk.Frame(tabs), text="Project")
         menu = tk.Menu(root, tearoff=False)
-        assistant = Calipi(root, tabs, menu)
+        assistant = Calipy(root, tabs, menu)
         root.update()
         self.assertFalse(assistant.enabled.get())
         menu.invoke(0)

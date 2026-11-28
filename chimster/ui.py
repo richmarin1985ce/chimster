@@ -23,8 +23,8 @@ def launch():
  for label,names in sections.items():
   submenu=tk.Menu(menu,tearoff=False);menu.add_cascade(label=label,menu=submenu)
   for name in names:menus[name]=submenu
- from .calipi import Calipi
- calipi=Calipi(root,tabs,menus['Local wiki'])
+ from .calipy import Calipy
+ calipy=Calipy(root,tabs,menus['Local wiki'])
  def tab(name):
   frame=ttk.Frame(tabs,padding=12); tabs.add(frame,text=name)
   if name in menus:menus[name].add_command(label=name,command=lambda f=frame:tabs.select(f))

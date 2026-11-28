@@ -1,4 +1,4 @@
-"""Calipi: a deliberately non-AI, local, optional office-assistant parody."""
+"""Calipy: a deliberately non-AI, local, optional office-assistant parody."""
 import math
 import tkinter as tk
 
@@ -14,7 +14,7 @@ TIPS = {
     "Local wiki": ("It looks like you're reading the manual. Excellent. My work here is done.", "I promise not to measure the length of every article."),
 }
 GENERAL = ("It looks like you're making a mod. Measure twice, save often.",
-           "I'm Calipi. I have absolutely no artificial intelligence.",
+           "I'm Calipy. I have absolutely no artificial intelligence.",
            "Need actual help? Try Help > Local wiki.",
            "I have two jaws and zero useful opinions.")
 
@@ -29,7 +29,7 @@ def clamp_position(x, y, width, height, overlay_width, overlay_height):
             max(0, min(y, max(0, height-overlay_height))))
 
 
-class Calipi:
+class Calipy:
     """A child overlay, never a global or always-on-top desktop window."""
     def __init__(self, root, tabs, menu):
         self.root, self.tabs = root, tabs
@@ -51,14 +51,14 @@ class Calipi:
         self.canvas.pack()
         self.popup = tk.Menu(self.canvas, tearoff=False)
         self.popup.add_command(label="Talk", command=self.next_tip)
-        self.popup.add_command(label="Hide Calipi", command=self.hide)
+        self.popup.add_command(label="Hide Calipy", command=self.hide)
         self.canvas.bind("<ButtonPress-1>", self.press)
         self.canvas.bind("<B1-Motion>", self.drag)
         self.canvas.bind("<ButtonRelease-1>", self.release)
         self.canvas.bind("<Button-3>", self.context_menu)
         self.canvas.bind("<Return>", lambda _: self.next_tip())
         self.canvas.bind("<space>", lambda _: self.next_tip())
-        menu.add_checkbutton(label="Activate Clippy (Calipi)", variable=self.enabled,
+        menu.add_checkbutton(label="Activate Clippy (Calipy)", variable=self.enabled,
                              command=self.toggle)
         root.bind("<Configure>", self.resized, add="+")
         tabs.bind("<<NotebookTabChanged>>", self.tab_changed, add="+")
@@ -96,7 +96,7 @@ class Calipi:
             self.x = self.root.winfo_width() - 250
             self.y = self.root.winfo_height() - 245
             self.positioned = True
-        self.say("Hi! I'm Calipi. It looks like you're making a mod.")
+        self.say("Hi! I'm Calipy. It looks like you're making a mod.")
         self.animate()
 
     def hide(self):
