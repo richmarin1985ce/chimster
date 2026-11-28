@@ -326,6 +326,39 @@ def mount(parent, game, open_preview=None, viewport_drop=None):
                 x,y,w,h=map(int,raw.split(","))
                 world=draft.create_world(name,title,(x,y),(w,h))
                 state["world"]=world;key=None
+            elif action=="climate":
+                name=simpledialog.askstring("New climate","Editor ID",parent=parent)
+                if not name:return
+                weather=[r for r in index.active.values() if r["signature"]=="WTHR"]
+                if not weather:raise ValueError("Load a plugin with weather records first")
+                win=tk.Toplevel(parent);win.title("New climate");win.transient(parent)
+                ttk.Label(win,text="Select weather records and assign chances totaling 100.").pack(anchor="w")
+                tablebox=ttk.Frame(win);tablebox.pack(fill="both",expand=True)
+                listing=tk.Listbox(tablebox,selectmode="extended",exportselection=False,height=12,width=55)
+                listing.pack(side="left",fill="both",expand=True)
+                scroll=ttk.Scrollbar(tablebox,command=listing.yview);scroll.pack(side="right",fill="y")
+                listing.configure(yscrollcommand=scroll.set)
+                weather.sort(key=lambda r:index.name(r).casefold())
+                for row in weather:listing.insert("end",index.name(row)+" ["+label(row["key"])+"]")
+                timing=tk.StringVar(value="36,48,108,120,0,0")
+                chances=tk.StringVar(value="100")
+                ttk.Label(win,text="Chances in selection order").pack(anchor="w")
+                ttk.Entry(win,textvariable=chances).pack(fill="x")
+                ttk.Label(win,text="Sunrise begin/end, sunset begin/end, volatility, moon byte").pack(anchor="w")
+                ttk.Entry(win,textvariable=timing).pack(fill="x")
+                def save_climate():
+                    try:
+                        chosen=[weather[i]["key"] for i in listing.curselection()]
+                        weights=[int(x.strip()) for x in chances.get().split(",")]
+                        if len(weights)!=len(chosen):raise ValueError("Provide one chance for each selected weather")
+                        if state["draft"] is not draft or state["index"] is not index:raise ValueError("Draft changed; reopen dialog")
+                        draft.create_climate(name,{"weather":[((k.origin,k.local),w,None) for k,w in zip(chosen,weights)],"timing":tuple(map(int,timing.get().split(",")))})
+                        state["index"]=draft.index();refresh_cells()
+                        status.set("Climate staged; assign it in World Environment.")
+                        win.destroy()
+                    except (ValueError,TypeError,KeyError) as exc:messagebox.showerror("Climate",str(exc),parent=win)
+                ttk.Button(win,text="Create climate",command=save_climate).pack(pady=6)
+                return
             elif action=="environment":
                 world=state["world"]
                 if world is None:return
@@ -468,7 +501,7 @@ def mount(parent, game, open_preview=None, viewport_drop=None):
             messagebox.showerror("World edit draft",str(exc),parent=parent)
     editbar=ttk.Frame(parent)
     editbar.pack(fill="x",before=pane)
-    for title,action in (("New world","new_world"),("World properties","world"),("Environment","environment"),("New cell","new"),("Rename","rename"),("Duplicate","duplicate"),("Place static","place"),("Transform","transform"),("Undo","undo"),("Redo","redo"),("Export draft","export"),("Export ESP","esp")):
+    for title,action in (("New world","new_world"),("World properties","world"),("Environment","environment"),("New climate","climate"),("New cell","new"),("Rename","rename"),("Duplicate","duplicate"),("Place static","place"),("Transform","transform"),("Undo","undo"),("Redo","redo"),("Export draft","export"),("Export ESP","esp")):
         ttk.Button(editbar,text=title,command=lambda a=action:edit_draft(a)).pack(side="left")
     def object_palette():
         if state["index"] is None:return
