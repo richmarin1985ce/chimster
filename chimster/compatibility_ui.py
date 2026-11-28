@@ -54,6 +54,7 @@ def mount(parent,game=None):
         from tkinter import simpledialog
         win=tk.Toplevel(parent);win.title("Asset layers — lowest priority first")
         sources=[]
+        cached={}
         listing=tk.Listbox(win,width=85,height=10);listing.pack(fill="both",expand=True)
         def refresh():
             listing.delete(0,"end")
@@ -72,9 +73,16 @@ def mount(parent,game=None):
             if sel:sources.pop(sel[0]);refresh()
         def lookup():
             query=simpledialog.askstring("Asset lookup","Relative asset path",parent=win)
-            if query:run(lambda:resolve(build(sources),query))
+            if query:
+                def search():
+                    key=tuple(sources)
+                    if cached.get("sources")!=key:
+                        catalog=build(sources)
+                        cached.update(sources=key,catalog=catalog)
+                    return resolve(cached["catalog"],query)
+                run(search)
         buttons=ttk.Frame(win);buttons.pack(fill="x")
-        for label,fn in [("Add archive",lambda:add(True)),("Add directory",lambda:add(False)),("Up",lambda:move(-1)),("Down",lambda:move(1)),("Remove",remove),("Find asset",lookup)]:
+        for label,fn in [("Add archive",lambda:add(True)),("Add directory",lambda:add(False)),("Up",lambda:move(-1)),("Down",lambda:move(1)),("Remove",remove),("Refresh index",lambda:cached.clear()),("Find asset",lookup)]:
             ttk.Button(buttons,text=label,command=fn).pack(side="left")
         ttk.Label(win,text="Last layer wins in this preview; actual game precedence may differ.").pack()
         return None
