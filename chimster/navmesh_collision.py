@@ -107,15 +107,21 @@ def generate_collision(spec,*,grid_origin=None,window=None):
     def corners(k,plane):
         x,y=k;px,py,pz=plane
         return tuple(px*(x+dx)*s+py*(y+dy)*s+pz for dx,dy in ((0,0),(1,0),(1,1),(0,1)))
+    supported={}
     for k,faces in sorted(columns.items()):
         groups=defaultdict(list)
         for plane,poly in faces:
             if plane is not None and area(poly)>EPS*s*s:
                 groups[tuple(round(v,8) for v in plane)].append(poly)
-        spans=[]
+        planes=[]
         for plane,polys in sorted(groups.items()):
             if union_area(polys)<s*s*(1-1e-7):
                 reject["partial_surface"]+=1;continue
+            planes.append(plane)
+        if planes:supported[k]=planes
+    for k,planes in sorted(supported.items()):
+        spans=[];faces=columns[k]
+        for plane in planes:
             z=corners(k,plane);low,high=min(z),max(z)
             # Other surfaces (including vertical walls) are conservative obstacles.
             blocked=False
@@ -127,8 +133,18 @@ def generate_collision(spec,*,grid_origin=None,window=None):
                     # A short riser strictly on the cell boundary is a possible
                     # step, not an interior obstacle. Tall walls still block.
                     x0=ox+k[0]*s;y0=oy+k[1]*s
-                    on_edge=any(all(abs(p[axis]-v)<=EPS for p in poly) for axis,v in ((0,x0),(0,x0+s),(1,y0),(1,y0+s)))
-                    if on_edge and max(delta)<=step+EPS:continue
+                    def elevation(pl,p):return pl[0]*(p[0]-ox)+pl[1]*(p[1]-oy)+pl[2]
+                    riser=False
+                    if max(delta)<=step+EPS:
+                        for axis,v,dx,dy in ((0,x0,-1,0),(0,x0+s,1,0),(1,y0,0,-1),(1,y0+s,0,1)):
+                            if not all(abs(p[axis]-v)<=EPS for p in poly):continue
+                            edge_points=[(v,y0,0),(v,y0+s,0)] if axis==0 else [(x0,v,0),(x0+s,v,0)]
+                            for upper in supported.get((k[0]+dx,k[1]+dy),[]):
+                                rise=[elevation(upper,p)-elevation(plane,p) for p in edge_points]
+                                if min(rise)<-EPS or max(rise)<=EPS or max(rise)>step+EPS:continue
+                                if all(p[2]<=elevation(upper,p)+EPS for p in poly):riser=True;break
+                            if riser:break
+                    if riser:continue
                     blocked=True;break
             if blocked:reject["headroom_or_collision"]+=1;continue
             spans.append(z)
