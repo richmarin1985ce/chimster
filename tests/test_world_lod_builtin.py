@@ -226,3 +226,18 @@ class BuiltinLODTests(unittest.TestCase):
         self.assertEqual(decode_index(encode_index([(-3,1),(2,-1)])),[(-3,1),(2,-1)])
         self.assertEqual(far_path("Architecture/Tower.NIF"),"meshes/Architecture/Tower_far.nif")
         with self.assertRaises(ValueError):far_path("../outside.nif")
+
+    def test_modern_half_precision_source_vertices(self):
+        from chimster.modern_lod_codec import read_packed_vertices
+        from chimster.fnv_lod_nif import Reader,pack
+        # FO4 half-position, half UV and packed normal: 16 bytes.
+        desc=4|(2<<8)|(3<<16)|(0xb<<44)
+        raw=pack("4e2e4B",1,2,3,0,.5,.25,128,128,255,128)
+        mesh=read_packed_vertices(Reader(raw),desc,1,130)
+        self.assertEqual(mesh.vertices,[(1.,2.,3.)])
+        self.assertEqual(mesh.uv,[(.5,.75)])
+        with self.assertRaises(ValueError):read_packed_vertices(Reader(raw),desc^1,1,130)
+        # A white vertex-color channel may be dropped; nonwhite must not be.
+        colored=5|(2<<8)|(3<<16)|(4<<24)|(0x2b<<44)
+        self.assertEqual(read_packed_vertices(Reader(raw+bytes([255])*4),colored,1,130).vertices,mesh.vertices)
+        with self.assertRaises(ValueError):read_packed_vertices(Reader(raw+bytes([128,255,255,255])),colored,1,130)
