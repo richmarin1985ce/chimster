@@ -303,6 +303,11 @@ def mount(parent, game, open_preview=None):
                 draft.place(key,found[0]["key"],tuple(float(v) for v in coords.split(",")))
             elif action=="undo":draft.undo()
             elif action=="redo":draft.redo()
+            elif action=="esp":
+                from .world_draft_native import export_esp
+                folder=filedialog.askdirectory(title="Choose staging directory (not live game Data)")
+                if folder:show(export_esp(draft,Path(folder)/draft.name))
+                return
             elif action=="export":
                 p=filedialog.asksaveasfilename(defaultextension=".json",filetypes=[("Draft operations","*.json")])
                 if p:draft.export(p)
@@ -315,7 +320,7 @@ def mount(parent, game, open_preview=None):
             messagebox.showerror("World edit draft",str(exc),parent=parent)
     editbar=ttk.Frame(parent)
     editbar.pack(fill="x",before=pane)
-    for title,action in (("New cell","new"),("Rename","rename"),("Place static","place"),("Undo","undo"),("Redo","redo"),("Export draft","export")):
+    for title,action in (("New cell","new"),("Rename","rename"),("Place static","place"),("Undo","undo"),("Redo","redo"),("Export draft","export"),("Export ESP","esp")):
         ttk.Button(editbar,text=title,command=lambda a=action:edit_draft(a)).pack(side="left")
     def profile_changed(*_):
         # Preserve staged work; changing the game selector must not discard it.
