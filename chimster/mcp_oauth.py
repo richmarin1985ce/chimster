@@ -3,6 +3,7 @@ import base64
 import hashlib
 import ipaddress
 import json
+import math
 import os
 import ssl
 import stat
@@ -14,7 +15,7 @@ from urllib.request import Request,build_opener,HTTPRedirectHandler,HTTPSHandler
 SCOPE="chimster:read"
 
 def https_url(value,resource=False):
-    if not isinstance(value,str):raise ValueError("URL required")
+    if not isinstance(value,str) or not value.isascii() or any(ord(c)<=32 or ord(c)==127 or c in '"\\' for c in value):raise ValueError("safe URL required")
     u=urlsplit(value)
     if u.scheme!="https" or not u.hostname or u.username or u.password or u.query or u.fragment:
         raise ValueError("explicit HTTPS URL required")
@@ -79,8 +80,10 @@ class OAuthConfig:
             aud=data.get("aud")
             valid_aud=aud==self.resource or isinstance(aud,list) and self.resource in aud
             exp=data.get("exp")
-            if data.get("active") is not True or data.get("iss")!=self.issuer or not valid_aud or type(exp) not in (int,float) or not time.time()<exp:
+            if data.get("active") is not True or data.get("iss")!=self.issuer or not valid_aud or type(exp) not in (int,float) or not math.isfinite(exp) or not time.time()<exp:
                 return None
+            nbf=data.get("nbf",0)
+            if type(nbf) not in (int,float) or not math.isfinite(nbf) or nbf>time.time():return None
             if not isinstance(data.get("scope"),str) or SCOPE not in data["scope"].split():return None
             if not isinstance(data.get("sub"),str) or not data["sub"]:return None
             # Bind HTTP session to the exact access token without retaining it.
