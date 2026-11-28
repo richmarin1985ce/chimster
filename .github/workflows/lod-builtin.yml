@@ -1,0 +1,33 @@
+name: Built-in LOD regression
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'chimster/*lod*.py'
+      - 'chimster/world_browser*.py'
+      - 'chimster/lod*.py'
+      - 'tests/test_world_lod*.py'
+      - '.github/workflows/lod-builtin.yml'
+  pull_request:
+    paths:
+      - 'chimster/*lod*.py'
+      - 'chimster/world_browser*.py'
+      - 'tests/test_world_lod*.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  builtin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile sources
+        run: python -m compileall -q chimster
+      - name: Independent LOD regressions
+        run: python -m unittest discover -s tests -p 'test_world_lod*.py' -v
+      - name: Synthetic macro geometry benchmark
+        run: python -c "import json; from chimster.world_lod_benchmark import run; print(json.dumps(run(8), indent=2))"
