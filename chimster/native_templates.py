@@ -41,7 +41,7 @@ def key(profile,data,revision,**properties):
     """KEYM DATA: signed value and float weight, per public fopdoc."""
     return misc(profile,data,revision,_signature=b"KEYM",**properties)
 
-def container(profile,data,revision,*,editor_id,bounds,model,name=None,weight=0,respawns=False):
+def container(profile,data,revision,*,editor_id,bounds,model,name=None,weight=0,respawns=False,entries=(),slots=None,records=None):
     """Empty CONT template; inventory references require separate validation."""
     if profile!="new-vegas":raise ValueError("Unverified template profile")
     if type(respawns)!=bool or type(weight) not in (int,float) or not math.isfinite(weight) or not 0<=weight<=1e6:raise ValueError("Invalid container properties")
@@ -51,5 +51,13 @@ def container(profile,data,revision,*,editor_id,bounds,model,name=None,weight=0,
     if ":" in path or path.startswith("\\") or ".." in path.split("\\") or not path.lower().endswith(".nif"):raise ValueError("Invalid model")
     parts=[(b"EDID",string(editor_id)),(b"OBND",struct.pack("<6h",*bounds))]
     if name is not None:parts.append((b"FULL",string(name)))
-    parts.extend([(b"MODL",string(path)),(b"DATA",struct.pack("<Bf",2 if respawns else 0,weight))])
+    parts.append((b"MODL",string(path)))
+    if entries:
+        from .native_inventory import encode
+        from .native_id_allocator import inspect
+        from .loadorder import plugin_name
+        info=inspect(profile,data)
+        if slots is None or records is None or tuple(slots.names[:-1])!=tuple(plugin_name(n) for n in info["masters"]):raise ValueError("Inventory master table mismatch")
+        parts.extend(encode(entries,slots,records))
+    parts.append((b"DATA",struct.pack("<Bf",2 if respawns else 0,weight)))
     return insert(profile,data,b"CONT",parts,revision)
