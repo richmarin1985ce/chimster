@@ -181,7 +181,12 @@ def build_parser():
  return p
 
 def main(argv=None):
- n=build_parser().parse_args(argv)
+ import sys
+ args=list(sys.argv[1:] if argv is None else argv)
+ if args and args[0]=='--mcp':
+  from .mcp_bridge import main as mcp_main
+  return mcp_main(args[1:])
+ n=build_parser().parse_args(args)
  try:
   if n.cmd=='ui':
    from .ui import launch
