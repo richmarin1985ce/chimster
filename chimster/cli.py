@@ -98,6 +98,7 @@ def build_parser():
  a=s.add_parser('chunk-load'); a.add_argument('folder'); a.add_argument('x',type=float); a.add_argument('y',type=float); a.add_argument('--radius',type=int,default=1)
  a=s.add_parser('quest-check'); a.add_argument('project')
  a=s.add_parser('script-check'); a.add_argument('path')
+ a=s.add_parser('script-syntax-export'); a.add_argument('language',choices=['papyrus','geck','oblivion','morrowind','lua']); a.add_argument('output')
  a=s.add_parser('papyrus-build'); a.add_argument('game'); a.add_argument('backend',choices=['ck','caprica']); a.add_argument('compiler'); a.add_argument('source'); a.add_argument('flags'); a.add_argument('output'); a.add_argument('--import',dest='imports',action='append',default=[]); a.add_argument('--execute',action='store_true'); a.add_argument('--timeout',type=int,default=120)
  a=s.add_parser('pex-inspect'); a.add_argument('game'); a.add_argument('path')
  a=s.add_parser('quest-states'); a.add_argument('project'); a.add_argument('--max-states',type=int,default=100000)
@@ -289,6 +290,9 @@ def main(argv=None):
   elif n.cmd=='pex-inspect':
    from .papyrus_build import inspect_pex
    result=inspect_pex(n.path,n.game)
+  elif n.cmd=='script-syntax-export':
+   from .script_syntax import export
+   result={'output':export(n.language,n.output)}
   elif n.cmd=='script-check':
    from .script_lint import check_file
    result=check_file(n.path)
