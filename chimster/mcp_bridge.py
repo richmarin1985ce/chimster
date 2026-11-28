@@ -53,7 +53,7 @@ class Bridge:
             self.register("editor_context","Read active dashboard instance and selection for this explicitly scoped project.",schema(),self.editor_context)
             if self.allow_ui:
                 self.register("editor_request","Queue refresh, select, viewport-state (requires GUI consent), viewport-show, viewport-fit, viewport-left/right/up/down or viewport-zoom-in/out; no scene or file changes.",
-                              schema({"instance":{"type":"string","maxLength":32},"action":{"type":"string","maxLength":16},
+                              schema({"instance":{"type":"string","maxLength":32},"action":{"type":"string","maxLength":32},
                                       "revision":{"type":"integer","minimum":0},"artifact":{"type":"string","maxLength":80}},
                                      ["instance","action","revision"]),self.editor_request,write=True)
                 self.register("editor_snapshot_result","Read a single GUI-approved viewport state response from this session.",schema({"request_id":{"type":"string","maxLength":32}},["request_id"]),self.editor_snapshot_result)
