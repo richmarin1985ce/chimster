@@ -58,20 +58,30 @@ def export_book(b,output,model=None,skill=-1,untakeable=False):
 
 
 def read_books(path):
-    """Read uncompressed FNV BOOK/NOTE text without modifying the plugin."""
+    """Read FNV BOOK/NOTE text without modifying the plugin."""
     result=[]
     with Path(path).open("rb") as f:
         for row in scan(path)["records"]:
-            if row["signature"] not in ("BOOK","NOTE"):continue
+            if row["signature"] not in ("BOOK","NOTE") or row["flags"] & 0x20:continue
             f.seek(row["offset"])
             header=f.read(24)
             _,size,flags,*_=HEADER.unpack(header)
-            if flags & 0x40000:continue
             if size>4*1024*1024:raise ValueError("Oversized book record")
-            fields=dict(subs(f.read(size)))
+            raw=f.read(size)
+            if len(raw)!=size:raise ValueError("Truncated book")
+            if flags & 0x40000:
+                import zlib
+                if len(raw)<4:raise ValueError("Truncated compressed book")
+                expected=struct.unpack_from("<I",raw)[0]
+                if expected>4*1024*1024:raise ValueError("Oversized expanded book")
+                d=zlib.decompressobj()
+                try:raw=d.decompress(raw[4:],expected+1)
+                except zlib.error as e:raise ValueError("Invalid compressed book") from e
+                if len(raw)!=expected or not d.eof or d.unused_data or d.unconsumed_tail:raise ValueError("Compressed book length mismatch")
+            fields=dict(subs(raw))
             key=b"DESC" if row["signature"]=="BOOK" else b"TNAM"
             if key not in fields:continue
             def decode(k):
                 return fields.get(k,b"").rstrip(b"\0").decode("cp1252",errors="strict")
-            result.append({"form_id":row["local_id"],"kind":row["signature"],"editor_id":decode(b"EDID"),"title":decode(b"FULL"),"body":decode(key),"model":decode(b"MODL")})
+            result.append({"origin":row["origin"],"form_id":row["local_id"],"kind":row["signature"],"editor_id":decode(b"EDID"),"title":decode(b"FULL"),"body":decode(key),"model":decode(b"MODL")})
     return result
