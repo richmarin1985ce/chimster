@@ -109,8 +109,8 @@ def textures(grids,x,y,level,size=128,baker=None,materials=None):
     return diffuse,normal
 
 def export(browser,world,output,levels=LEVELS,size=128,assets=None,previous=None,skirts=256,stitch=True):
-    if browser.profile not in ("new-vegas","fallout3","skyrim","skyrim-se"):raise ValueError("Native world LAND decoder not supported for this profile")
-    modern=browser.profile in ("skyrim","skyrim-se")
+    if browser.profile not in ("new-vegas","fallout3","skyrim","skyrim-se","fallout4"):raise ValueError("Native world LAND decoder not supported for this profile")
+    modern=browser.profile in ("skyrim","skyrim-se","fallout4")
     if not levels or len(set(levels))!=len(levels) or any(n not in LEVELS for n in levels):raise ValueError("Unsupported LOD tier")
     if size not in (64,128,256):raise ValueError("Unsupported texture size")
     name=world_name(browser,world);grids=collect(browser,world)
@@ -163,7 +163,7 @@ def export(browser,world,output,levels=LEVELS,size=128,assets=None,previous=None
                     normal=f"textures/terrain/{name}/{stem}_n.dds"
                 # Include neighbor cells for edge normal/transition changes; input hashes are canonical.
                 area=[((cx,cy),cell_hashes[cx,cy]) for cx in range(x-1,x+level+1) for cy in range(y-1,y+level+1) if (cx,cy) in cell_hashes]
-                digest=sha256(json.dumps(["lod-v6",browser.profile,name,level,x,y,size,skirts,stitch,area,texture_dependencies],sort_keys=True,separators=(",",":"),allow_nan=False).encode()).hexdigest()
+                digest=sha256(json.dumps(["lod-v7",browser.profile,name,level,x,y,size,skirts,stitch,area,texture_dependencies],sort_keys=True,separators=(",",":"),allow_nan=False).encode()).hexdigest()
                 cached=old.get((level,x,y),{})
                 paths=(mesh_path,diffuse,normal)
                 if cached.get("input_sha256")==digest and set(cached.get("files",{}))==set(paths):
