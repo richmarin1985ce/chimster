@@ -71,7 +71,7 @@ for profile in ("fallout3","new-vegas"):
 TES3_NAMED = frozenset(("NPC_", "CREA", "WEAP", "ARMO", "CLOT", "BOOK",
                        "ALCH", "INGR", "MISC", "CONT", "ACTI", "STAT",
                        "DOOR", "SPEL", "RACE", "CLAS", "FACT", "REGN",
-                       "SOUN", "SCPT")) - {"SCPT"}
+                       "SOUN", "GMST", "GLOB"))
 
 def named_key(signature, parts, encoding="cp1252"):
     if signature not in TES3_NAMED:
