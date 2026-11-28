@@ -86,6 +86,26 @@ def mount(parent,game=None):
             ttk.Button(buttons,text=label,command=fn).pack(side="left")
         ttk.Label(win,text="Last layer wins in this preview; actual game precedence may differ.").pack()
         return None
+    def precedence():
+        from .archive_overlay import build_profile,conflicts
+        from tkinter import simpledialog
+        paths=filedialog.askopenfilenames(title="Select available archives",filetypes=[("Archives","*.bsa *.ba2")])
+        if not paths:return
+        order=simpledialog.askstring("Plugin order","Plugin filenames in low-to-high order, separated by commas")
+        if order is None:return
+        config=filedialog.askopenfilename(title="Select game INI (cancel to omit)",filetypes=[("INI","*.ini")])
+        loose=filedialog.askdirectory(title="Select loose asset directory (cancel to omit)")
+        policy="exclude"
+        if loose:
+            choice=messagebox.askyesnocancel("Loose assets","Place loose assets above archives? No places them below.")
+            if choice is None:return
+            policy="last" if choice else "first"
+        overlay=build_profile(profile.get(),[p.strip() for p in order.split(",") if p.strip()],paths,
+                              config=config or None,loose=[loose] if loose else [],loose_policy=policy)
+        query=simpledialog.askstring("Conflict filter","Filter conflicting asset paths (blank for all)")
+        if query is None:return
+        result=conflicts(overlay,query)
+        return {**{k:v for k,v in overlay.items() if k!="catalog"},"conflicts":result}
     def packed_assets():
         from .archive_reader import directory,read
         from tkinter import simpledialog
@@ -149,7 +169,7 @@ def mount(parent,game=None):
         if source:return audit(source)
     actions=ttk.Frame(parent);actions.pack(fill="x")
     for label,fn in [
-        ("Package archive",package_archive),("Validate archive",validate_archive),("Export member",export_member),("Packed assets",packed_assets),("Asset lookup",assets),("Installation",root),("Capabilities",lambda:capabilities(profile.get())),
+        ("Package archive",package_archive),("Validate archive",validate_archive),("Export member",export_member),("Packed assets",packed_assets),("Asset lookup",assets),("Archive conflicts",precedence),("Installation",root),("Capabilities",lambda:capabilities(profile.get())),
         ("Plugin",lambda:choose(lambda p,d:audit(profile.get(),d))),
         ("Dependencies",dependencies),("Archive header",lambda:choose(lambda p,d:archive(d),36)),
         ("NIF header",lambda:choose(lambda p,d:nif(d),256)),
