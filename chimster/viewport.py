@@ -191,6 +191,24 @@ def mount(parent):
             finally:renderer=None
         draw()
     choice.bind("<<ComboboxSelected>>",switch_backend)
+    def preview_glb():
+        nonlocal panda,camera
+        path=filedialog.askopenfilename(filetypes=[("Embedded glTF binary","*.glb")])
+        if not path:return
+        try:
+            backend.set("Panda3D PBR");switch_backend()
+            if panda is None:raise RuntimeError("Panda PBR unavailable")
+            bounds=panda.set_glb_preview(path)
+            if bounds:
+                lo,hi=bounds;size=max(1,max(hi[k]-lo[k] for k in range(3)))
+                camera=replace(camera,center=tuple((lo[k]+hi[k])/2 for k in range(3)),zoom=max(.05,min(2000,min(canvas.winfo_width(),canvas.winfo_height())*.65/size)))
+            draw()
+            status.set(status.get()+" | GLB preview only; not saved to scene")
+        except Exception as e:messagebox.showerror("GLB preview",str(e))
+    def clear_glb():
+        if panda is not None:panda.set_glb_preview();draw()
+    ttk.Button(side,text="Preview embedded GLB",command=preview_glb).pack(fill="x")
+    ttk.Button(side,text="Clear GLB preview",command=clear_glb).pack(fill="x")
     def toggle_setting(name,value):
         nonlocal settings
         settings=replace(settings,**{name:value}).validate();draw()

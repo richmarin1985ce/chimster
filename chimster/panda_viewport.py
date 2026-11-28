@@ -113,7 +113,7 @@ class Preview:
         self.pipe=GraphicsPipeSelection.get_global_ptr().make_default_pipe()
         if self.pipe is None: raise RuntimeError("No Panda3D graphics pipe")
         self.root=NodePath("preview")
-        self.model=None; self.key=None; self.output=None
+        self.model=None; self.key=None; self.output=None; self.glb_model=None
         self.visibility=None;self.visibility_spec=None;self.visibility_report=None
         from panda3d.core import Camera, PerspectiveLens, AmbientLight, DirectionalLight
         self.lens=PerspectiveLens()
@@ -124,6 +124,20 @@ class Preview:
         a=self.root.attach_new_node(ambient);s=self.root.attach_new_node(sun)
         s.set_hpr(-35,-50,0);self.root.set_light(a);self.root.set_light(s)
         self.ambient=a;self.sun=s;self.effect_nodes=[];self.effects_key=None;self.water=None;self.water_targets=None;self.water_error=None
+    def set_glb_preview(self,path=None):
+        candidate=None
+        if path is not None:
+            from .panda_gltf import load_preview
+            candidate=load_preview(path)
+        if self.glb_model is not None:self.glb_model.remove_node()
+        self.glb_model=candidate
+        if candidate is not None:
+            candidate.reparent_to(self.root)
+            # Embedded punctual lights are not silently activated.
+            candidate.clear_light()
+            return candidate.get_tight_bounds()
+        return None
+
     def configure_effects(self,effects,settings,center,eye):
         from panda3d.core import Fog,PointLight,Spotlight,PerspectiveLens,Vec3,Point3
         from .panda_water import create_water

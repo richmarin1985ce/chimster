@@ -37,3 +37,17 @@ class PostTests(unittest.TestCase):
             self.assertEqual(len(resized),64*48*4)
             self.assertIsNone(preview.post_error)
         finally:preview.close()
+
+    def test_embedded_glb_validation(self):
+        import json,struct,tempfile
+        from pathlib import Path
+        from chimster.panda_gltf import validate_glb
+        with tempfile.TemporaryDirectory() as directory:
+            p=Path(directory)/"sample.glb"
+            def write(data):
+                raw=json.dumps(data).encode();raw+=b" "*(-len(raw)%4)
+                p.write_bytes(struct.pack("<4sIIII",b"glTF",2,20+len(raw),len(raw),0x4e4f534a)+raw)
+            write({"asset":{"version":"2.0"}})
+            self.assertEqual(validate_glb(p),p.resolve())
+            write({"asset":{"version":"2.0"},"images":[{"uri":"outside.png"}]})
+            with self.assertRaises(ValueError):validate_glb(p)
