@@ -103,7 +103,7 @@ def read_plugin(path, profile="new-vegas"):
                         row["grid"] = struct.unpack_from("<2i", grid)
                     data = fields.get(b"DATA", b"")
                     row["interior"] = bool(data and data[0] & 1)
-                if profile in ("new-vegas","fallout3"):
+                if profile in ("new-vegas","fallout3","skyrim","skyrim-se","fallout4"):
                     if sig=="LTEX" and len(fields.get(b"TNAM",b""))==4:
                         tx=slots.decode(struct.unpack("<I",fields[b"TNAM"])[0])
                         if tx:row["texture_set"]=(tx.origin,tx.local)
@@ -113,8 +113,9 @@ def read_plugin(path, profile="new-vegas"):
                         from .world_lod_materials import landscape
                         try:row["land_materials"]=landscape(parts,slots)
                         except ValueError as exc:row["land_material_error"]=str(exc)
-                if sig == "LAND" and b"VHGT" in fields and profile in ("oblivion","fallout3","new-vegas","skyrim","skyrim-se"):
-                    row["height_raw"] = fields[b"VHGT"]
+                if sig == "LAND" and b"VHGT" in fields and profile in ("oblivion","fallout3","new-vegas","skyrim","skyrim-se","fallout4"):
+                    if len(fields[b"VHGT"])==1096:row["height_raw"] = fields[b"VHGT"]
+                    else:row["land_height_error"]="Unsupported VHGT length"
                 if sig in PLACED:
                     row["enable_parent"]=b"XESP" in fields
                     row["transform_only_layout"] = [tag for tag,_ in parts] in ([b"NAME",b"DATA"],[b"NAME",b"XSCL",b"DATA"])
