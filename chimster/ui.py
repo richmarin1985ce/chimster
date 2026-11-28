@@ -88,8 +88,11 @@ def launch():
  ttk.Button(actions,text='Inspect record',command=read_record).pack(side='left')
  ttk.Button(actions,text='Save staged typed edit',command=edit_record).pack(side='left')
  f=tab('Native records')
- from .native_ui import mount as mount_native
- mount_native(f)
+ try:
+  from .native_ui import mount as mount_native
+  mount_native(f,game)
+ except Exception as exc:
+  ttk.Label(f,text='Native records unavailable: '+str(exc)).pack(anchor='w')
  f=tab('Record projects')
  from .record_project_ui import mount as record_project_mount
  record_project_mount(f)
@@ -213,8 +216,11 @@ def launch():
  from .audio_ui import mount as mount_audio
  mount_audio(f)
  f=tab('All development tools')
- from .workbench_tools import mount as mount_tools
- mount_tools(f)
+ try:
+  from .workbench_tools import mount as mount_tools
+  mount_tools(f)
+ except Exception as exc:
+  ttk.Label(f,text='Development tools unavailable: '+str(exc)).pack(anchor='w')
  f=tab('Local wiki')
  ttk.Label(f,text='Bundled documentation — no hosting or internet required.').pack(anchor='w')
  from .wiki import Wiki
