@@ -150,6 +150,9 @@ class Draft:
         settings=normalize({"heights":(14000,10500),"lod_height":(10500,),
                             "flags":(0x10,),"map_offset":(1,0,0),**(environment or {})},index)
         if any(settings.get(k) is None for k in settings):settings={k:v for k,v in settings.items() if v is not None}
+        from .fnv_world import encode_height
+        steps=round(settings["heights"][0]/8)
+        height_raw=encode_height([[steps]*33 for _ in range(33)])
         self.checkpoint()
         world=self.allocate();persistent=self.allocate()
         common={"plugin":self.name,"cell":None,"bucket":None,"name":""}
@@ -163,8 +166,10 @@ class Draft:
                 key=self.allocate()
                 self.rows[key]={**common,"key":key,"signature":"CELL","flags":0,"world":world,
                                 "editor_id":"","interior":False,"grid":(x,y)}
+                land=self.allocate()
+                self.rows[land]={**common,"key":land,"signature":"LAND","flags":0,"world":world,"cell":key,"bucket":9,"editor_id":"","height_raw":height_raw}
         self.operations.append({"action":"create_world","key":key_json(world),"editor_id":name,
-                                "title":title,"origin":origin,"size":size,"environment":settings})
+                                "title":title,"origin":origin,"size":size,"environment":settings,"starter_land":True})
         return world
 
     def set_environment(self,key,values):
