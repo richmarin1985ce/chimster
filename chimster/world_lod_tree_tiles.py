@@ -69,18 +69,20 @@ def export(browser,world,output,spec,assets):
     sources=getattr(browser,"source_paths",None)
     if not sources or len(sources)>254:raise ValueError("Explicit full-plugin load order required")
     order={p.name.casefold():i for i,p in enumerate(sources)}
-    catalog=spec["billboards"]
-    if not isinstance(catalog,dict) or not 1<=len(catalog)<=256:raise ValueError("Provide 1–256 billboards")
+    catalog=spec.get("billboards",{});automatic=spec.get("auto_bake",False)
+    if type(automatic)!=bool or not isinstance(catalog,dict) or len(catalog)>256 or (not catalog and not automatic):raise ValueError("Provide billboards or enable auto_bake")
     size=spec.get("size",64)
     if size not in (64,128):raise ValueError("Unsupported billboard size")
-    selected=[];skipped=[];used=set();local_ids=set()
+    selected=[];skipped=[];used=set();local_ids=set();models={}
     for r in sorted(browser.active.values(),key=lambda r:r["key"]):
         if r["signature"]!="REFR" or "position" not in r:continue
         cell=browser.active.get(r.get("cell"),{})
         base=browser.active.get(r.get("base"),{})
         if cell.get("world")!=world or base.get("signature") not in ("TREE","STAT"):continue
         key=label(base["key"])
-        if key not in catalog:continue
+        if key not in catalog:
+            if not automatic or base.get("signature")!="TREE" or not base.get("model"):continue
+            models[key]=base["model"]
         rx,ry,rz=r.get("rotation",(0,0,0));scale=r.get("scale",1)
         if r["flags"]&0x800 or r.get("enable_parent") or abs(rx)>1e-6 or abs(ry)>1e-6 or not 0<scale<=100:
             skipped.append({"reference":label(r["key"]),"reason":"Disabled, conditional or tilted reference"});continue
@@ -94,8 +96,30 @@ def export(browser,world,output,spec,assets):
         tile=(origin[0]+(cx-origin[0])//4*4,origin[1]+(cy-origin[1])//4*4)
         selected.append((tile,key,(x,y,z,rz%(2*pi),scale,fid,0,0)));used.add(key)
     if not selected or len(selected)>250000:raise ValueError("Tree placement budget or no matching trees")
-    types=[];tiles=[];hashes={}
-    for i,key in enumerate(sorted(used)):
+    types=[];tiles=[];hashes={};bake_issues=[];baked_hashes={};bake_failed=set()
+    if len(used)>256:raise ValueError("Tree type budget exceeded")
+    for key in sorted(used):
+        i=len(types)
+        if key not in catalog:
+            try:
+                from .lod_foliage_bake import source_groups,bake
+                source=assets.get(models[key])
+                groups=source_groups(source,browser.profile)
+                rgba,_,info=bake(groups,assets,size)
+                # Traditional trees use centered, ground-origin billboard dimensions.
+                # An offset source requires a bespoke author billboard rather than a shifted tree.
+                if abs(info["bottom"])>max(1,info["span"]*.02):raise ValueError("Tree origin is not near ground")
+                # The raster is centered vertically with padding. Traditional tree tiles have
+                # no vertical offset; crop to the occupied image before stretching to bounds.
+                ys=[p//size for p,a in enumerate(rgba[3::4]) if a]
+                top,bottom=min(ys),max(ys)+1
+                cropped=rgba[top*size*4:bottom*size*4]
+                tiles.append(Tile(str(i),size,size,resize((size,bottom-top,cropped),size)))
+                types.append((key,info["span"],info["span"]*(bottom-top)/size))
+                hashes[key]=sha256(source).hexdigest();baked_hashes[key]=info["source_hashes"]
+            except (ValueError,OSError,TypeError,UnicodeError) as exc:
+                bake_failed.add(key);bake_issues.append({"base":key,"reason":str(exc)[:250]})
+            continue
         entry=catalog[key];path=entry["texture"]
         if not path.replace("\\","/").lower().startswith("textures/"):raise ValueError("Expected relative texture path")
         raw=assets.get(path);image=decode(raw)
@@ -103,6 +127,8 @@ def export(browser,world,output,spec,assets):
         tiles.append(Tile(str(i),size,size,resize(image,size)))
         types.append((key,float(entry["width"]),float(entry["height"])))
         hashes[key]=sha256(raw).hexdigest()
+    selected=[r for r in selected if r[1] not in bake_failed]
+    if not selected or not types:raise ValueError("No usable tree billboards: "+str(bake_issues[:3]))
     side=128
     while (side//(size+8))**2<len(tiles):side*=2
     if side>4096:raise ValueError("Tree atlas size limit")
@@ -124,7 +150,7 @@ def export(browser,world,output,spec,assets):
         for (x,y),entries in sorted(groups.items()):
             raw=encode_tile(entries);decode_tile(raw);save(f"{base}/{name}.4.{x}.{y}.btt",raw)
         save(f"textures/terrain/{name}/trees/{name}TreeLOD.dds",dds(side,side,pixels,kind="BC3",alpha_coverage=True))
-        report={"world":name,"southwest":origin,"load_order":list(order),"references":len(selected),"types":len(types),"tiles":len(groups),"skipped":skipped,"source_hashes":hashes,"files":files,"external_tools":False,"runtime_verified":False}
+        report={"world":name,"southwest":origin,"load_order":list(order),"references":len(selected),"types":len(types),"tiles":len(groups),"skipped":skipped,"source_hashes":hashes,"baked_texture_hashes":baked_hashes,"bake_issues":bake_issues,"automatic_billboards":len(baked_hashes),"files":files,"external_tools":False,"runtime_verified":False}
         (out/"manifest.json").write_text(json.dumps(report,indent=2),encoding="utf-8")
     except Exception:shutil.rmtree(out);raise
     return report
