@@ -320,3 +320,47 @@ class BuiltinLODTests(unittest.TestCase):
         result,remaining,issues=build([(a,"textures/a.dds","textures/a_n.dds"),(b,"textures/b.dds","textures/b_n.dds")],Assets(),size=32,maximum=256)
         self.assertEqual(result["mesh"].colors,[(1.,)*4]*len(a.vertices)+b.colors)
         self.assertFalse(remaining)
+
+    def test_source_foliage_alpha_depth_and_tint(self):
+        from chimster.flora import Mesh
+        from chimster.lod_foliage_bake import bake,atlas_billboard
+        from chimster.lod_assets import dds_rgba
+        def quad(y):
+            m=Mesh()
+            m.add([(-1,y,0),(1,y,0),(1,y,2),(-1,y,2)],[(0,0),(1,0),(1,1),(0,1)],[(0,1,2),(0,2,3)],"leaf")
+            return m
+        rear=quad(0);front=quad(1)
+        front.colors=[(.5,1.,1.,1.)]*4
+        front.lod_alpha_threshold=128
+        class Assets:
+            def get(self,path):
+                if path=="textures/bark.dds":rgba=bytes((20,40,80,255))*4
+                else:rgba=bytes((200,100,50,255,200,100,50,0))*2
+                return dds_rgba(2,2,rgba)
+        groups=[(rear,"textures/bark.dds","textures/bark_n.dds",False),(front,"textures/leaf.dds","textures/leaf_n.dds",True)]
+        image,normals,info=bake(groups,Assets(),32)
+        colors=set(zip(image[::4],image[1::4],image[2::4],image[3::4]))
+        self.assertIn((20,40,80,255),colors)
+        self.assertIn((100,100,50,255),colors)
+        self.assertIn((0,0,0,0),colors)
+        self.assertEqual(len(normals),32*32*4)
+        proxy,rgba,normal,side,layout,hashes=atlas_billboard(groups,Assets(),1,32)
+        self.assertEqual(len(proxy.faces),4)
+        self.assertEqual(len(rgba),side*side*4)
+        self.assertEqual(len(normal),len(rgba))
+        self.assertEqual(len(hashes),2)
+
+    def test_native_shader_constants_and_threshold(self):
+        from chimster.modern_lod_codec import encode_groups,read_static_groups,default_tail
+        from chimster.fnv_lod_nif import pack,encode_groups as classic_encode,read_static_groups as classic_read
+        mesh=terrain_grid([[0.,1.],[2.,3.]])
+        mesh.lod_alpha_threshold=80
+        for profile,stream in (("skyrim",83),("skyrim-se",100),("fallout4",130)):
+            tail=pack("4f",.25,.5,.75,1)+default_tail(stream)[16:]
+            mesh.lod_shader=(stream,0x00400001,16,tail.hex(),80)
+            raw=encode_groups([(mesh,"textures/a.dds","textures/a_n.dds",True)],profile,"companion")
+            decoded=read_static_groups(raw,profile)[0][0]
+            self.assertEqual(decoded.lod_alpha_threshold,80)
+            self.assertEqual(decoded.lod_shader[3],tail.hex())
+        raw=classic_encode([(mesh,"textures/a.dds","textures/a_n.dds",True)],"companion")
+        self.assertEqual(classic_read(raw,include_cutout=True)[0][0].lod_alpha_threshold,80)
