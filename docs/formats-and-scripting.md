@@ -2,6 +2,17 @@
 ## Papyrus and legacy scripts
 The fragment inventory tracks script bindings but does not yet generate engine-specific wrappers or edit VMAD. Keep PSC source alongside compiled PEX and preserve generated fragment names/properties. Caprica and Champollion adapters construct external compilation and decompilation commands; they require separately installed versions and appropriate game script libraries. Native compilation has not been tested in actual games. TES3 and GECK script languages are distinct from Papyrus and OpenMW Lua.
 
+### Staged Papyrus builds (Section 15)
+Use an independently installed trusted Creation Kit compiler or Caprica, plus the appropriate local game script libraries and flags. No compiler binaries or proprietary scripts are bundled. Preview is the default:
+    
+    python -m chimster papyrus-build skyrimse ck /path/to/PapyrusCompiler.exe source/Example.psc source/TESV_Papyrus_Flags.flg build --import /path/to/game/Source
+    python -m chimster papyrus-build skyrimse ck /path/to/PapyrusCompiler.exe source/Example.psc source/TESV_Papyrus_Flags.flg build --import /path/to/game/Source --execute
+    python -m chimster pex-inspect skyrimse build/Example.pex
+
+The output must be a new directory outside the source/import/flags directories. The build uses a private staging directory, captures compiler messages with file/line/column where recognized, checks PEX magic, game-family ID, major version and bounded header strings, then publishes the artifact plus compile.json. The source, flags and executable hashes are recorded; imported libraries are not yet fingerprinted. A successful header check is not full PEX validation or runtime certification. Only unnamespaced single-file scripts are supported; Skyrim/SE/AE/VR and Fallout 4/VR use family checks, not version-specific certification. The existing GECK donor attachment remains separate for legacy games. Compiler execution is explicit and unsandboxed. Synthetic regression fixtures are committed; execution remains deferred under the current testing policy. Real compiler/engine verification, namespaces, batch/dependency builds, script editor, VMAD, decompile verification, legacy compiler and runtime debugging remain open.
+
+References: https://open-papyrus.github.io/docs/Creation_Kit/Skyrim/Compiler_Reference.html and https://github.com/Orvid/Caprica/blob/master/Caprica/main_options.cpp .
+
 ## Voice
 The formats module packs and unpacks supported FUZ containers. A FUZ is not a speech synthesizer: it contains separate lip-sync and audio payloads. XWM encoding, actual lip-sync generation and Wwise conversion remain unimplemented. Do not republish extracted game voice assets.
 
