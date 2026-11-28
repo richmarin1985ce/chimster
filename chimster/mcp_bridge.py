@@ -27,6 +27,7 @@ class Bridge:
         self.jobs = Jobs(project) if project is not None else None
         self.initialized = False
         self.ready = False
+        self.transport="stdio"
         self.registry = {}
         self.subscriptions=Subscriptions(self.read_resource)
         self.register("chimster_capabilities", "Discover available Chimster commands and their scope.", schema(), self.capabilities)
@@ -117,9 +118,9 @@ class Bridge:
         self.registry[name] = ({"name": name, "description": description, "inputSchema": input_schema,
                                "annotations": {"readOnlyHint": not write, "destructiveHint": destructive, "idempotentHint": not write, "openWorldHint": False}}, handler)
     def capabilities(self):
-        return {"application": "Chimster", "api_version": 1, "transport": "stdio",
+        return {"application": "Chimster", "api_version": 1, "transport": self.transport,
                 "access": ("create-and-edit" if self.creation.enabled else "edit-only") if self.creation and self.creation.allow_edit else "create-only" if self.creation and self.creation.enabled else "read-only", "project_selected": self.project is not None,
-                "tools": sorted(self.registry), "native_write_granted": bool(self.native and self.native.enabled), "live_ui": False}
+                "tools": sorted(self.registry), "native_write_granted": bool(self.native and self.native.enabled), "live_ui": False, "dashboard_context": self.project is not None}
     def editor_context(self):
         from .editor_presence import discover
         rows=[{"id":row["id"],"revision":row["revision"],"selected":row["selected"]}
