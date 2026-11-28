@@ -118,7 +118,14 @@ class Draft:
             dx,dy=(0,0) if world is None else tuple((grid[i]-row["grid"][i])*4096 for i in range(2))
             for ref in refs:
                 x,y,z=ref["position"]
-                self.place(key,ref["base"],(x+dx,y+dy,z),ref["rotation"][2],ref.get("scale",1))
+                pos=(x+dx,y+dy,z);yaw=ref["rotation"][2];scale=ref.get("scale",1)
+                if not all(isfinite(v) and abs(v)<=1e7 for v in (*pos,yaw,scale)) or not .01<=scale<=10:
+                    raise ValueError("Invalid copied placement")
+                if grid is not None and tuple(floor(v/4096) for v in pos[:2])!=grid:
+                    raise ValueError("Copied placement falls outside destination")
+                refkey=self.allocate()
+                self.rows[refkey]={"key":refkey,"signature":"REFR","plugin":self.name,"flags":0,"world":world,"cell":key,"bucket":9,"editor_id":"","name":"","base":ref["base"],"position":pos,"rotation":(0,0,yaw),"scale":scale,"persistent":False}
+                self.operations.append({"action":"place_static","key":key_json(refkey),"cell":key_json(key),"base":key_json(ref["base"]),"position":pos,"yaw_radians":yaw,"scale":scale})
             self.operations.append({"action":"duplicate_static_cell","source":key_json(source),
                                     "key":key_json(key),"copied":len(refs),"omitted":omitted})
         except Exception:
@@ -128,6 +135,16 @@ class Draft:
         self.undo_stack=undo+[snapshot]
         self.redo_stack=[]
         return key,{"copied":len(refs),"omitted":omitted,"scope":"cell shell and static references only"}
+
+    def world_properties(self,key,name,title):
+        row=self.index().worlds.get(key)
+        if row is None:raise ValueError("Select a live worldspace")
+        name=self.unique_name(name,key)
+        if not isinstance(title,str) or "\0" in title or len(title.encode("cp1252"))>255:
+            raise ValueError("Invalid worldspace display name")
+        self.checkpoint()
+        self.rows[key]={**row,"editor_id":name,"name":title,"plugin":self.name}
+        self.operations.append({"action":"world_properties","key":key_json(key),"editor_id":name,"title":title})
 
     def rename(self,key,name):
         row=self.index().active.get(key)
