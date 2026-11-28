@@ -68,3 +68,18 @@ class SchemaReferenceTests(unittest.TestCase):
         edges, opaque = inspect("ALCH", parts, slots)
         self.assertEqual(opaque, ())
         self.assertEqual([e.expected_types for e in edges], [("SPEL",), ("SOUN",), ("MGEF",)])
+
+    def test_generated_quest_and_world_edges(self):
+        from chimster.native_catalog import references
+        slots=Slots("Example.esp")
+        topic=[(b"EDID",b"Topic\0"),(b"QSTI",struct.pack("<I",2)),
+               (b"FULL",b"Talk\0"),(b"PNAM",bytes(4)),(b"DATA",bytes(2))]
+        edges,opaque=references("new-vegas","DIAL",topic,slots)
+        self.assertEqual(opaque,[])
+        self.assertEqual(edges,[(1,0,Identity("Example.esp",2),("QUST",))])
+        ref=[(b"NAME",struct.pack("<I",3)),(b"XSCL",struct.pack("<f",1.)),(b"DATA",bytes(24))]
+        edges,opaque=references("new-vegas","REFR",ref,slots)
+        self.assertEqual(opaque,[])
+        self.assertEqual(edges,[(0,0,Identity("Example.esp",3),("STAT","BOOK","NOTE"))])
+        _,opaque=references("new-vegas","REFR",ref+[(b"ZZZZ",b"x")],slots)
+        self.assertIn(3,opaque)
