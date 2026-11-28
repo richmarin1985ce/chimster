@@ -90,6 +90,7 @@ def build_parser():
  a=s.add_parser('navmesh-simplify'); a.add_argument('project'); a.add_argument('output')
  a=s.add_parser('navmesh-route'); a.add_argument('project'); a.add_argument('start',type=int); a.add_argument('end',type=int); a.add_argument('--closed',action='append',default=[]); a.add_argument('--avoid-area',action='append',default=[])
  a=s.add_parser('navmesh-native-review'); a.add_argument('project')
+ a=s.add_parser('navmesh-verify-stage'); a.add_argument('stage'); a.add_argument('finalized'); a.add_argument('--master',action='append',default=[])
  a=s.add_parser('navmesh-registration'); a.add_argument('project')
  a=s.add_parser('navmesh-finalize'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--cell',type=lambda x:int(x,0),required=True); a.add_argument('--version',type=int,required=True); a.add_argument('--divisor',type=int,required=True); a.add_argument('--count-width',type=int,choices=(2,4),required=True); a.add_argument('--bindings')
  a=s.add_parser('navmesh-grid-compare'); a.add_argument('fields'); a.add_argument('--count-width',type=int,choices=(2,4),required=True)
@@ -506,6 +507,9 @@ def main(argv=None):
    from .navmesh_tiles import load
    from .fnv_navmesh_review import review
    source=load(n.project);result=review(source["meshes"],source["navi"],source.get("door_backlinks",[]))
+  elif n.cmd=='navmesh-verify-stage':
+   from .fnv_navmesh_stage import review
+   result=review(n.stage,n.finalized,n.master)
   elif n.cmd=='navmesh-registration':
    from .navmesh_tiles import load
    from .fnv_navmesh_review import registration_manifest
