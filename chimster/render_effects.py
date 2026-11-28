@@ -30,10 +30,14 @@ class Effects:
     fog_color:tuple=(.38,.48,.58)
     ao_strength:float=0.
     ao_radius:float=1.5
+    scatter_strength:float=0.
+    scatter_anisotropy:float=.55
     water_level:float=None
     water_extent:float=32.
     water_color:tuple=(.05,.25,.31)
     def validate(self):
+        if not isfinite(self.scatter_strength) or not 0<=self.scatter_strength<=2 or not isfinite(self.scatter_anisotropy) or not -.9<=self.scatter_anisotropy<=.9:
+            raise ValueError("Invalid scattering parameters")
         if self.shadow_size not in (0,512,1024,2048):
             raise ValueError("Invalid shadow resolution")
         for value,lo,hi in ((self.shadow_extent,1,10000),(self.ambient,0,1),(self.sun_intensity,0,4),(self.fog_density,0,1),(self.ao_strength,0,1),(self.ao_radius,.05,20),(self.water_extent,1,10000)):
@@ -49,6 +53,6 @@ class Effects:
 def preset(name):
     if name=="Off":return Effects()
     if name=="Low":return Effects(fog_density=.012,ao_strength=.3)
-    if name=="Medium":return Effects(shadow_size=512,fog_density=.018,ao_strength=.45)
-    if name=="High":return Effects(shadow_size=1024,fog_density=.022,ao_strength=.65)
+    if name=="Medium":return Effects(shadow_size=512,fog_density=.018,ao_strength=.45,scatter_strength=.35)
+    if name=="High":return Effects(shadow_size=1024,fog_density=.022,ao_strength=.65,scatter_strength=.65)
     raise ValueError("Unknown effects preset")

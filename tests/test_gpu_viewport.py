@@ -72,3 +72,19 @@ class ViewportTests(unittest.TestCase):
             self.assertEqual(changed["visible"],1)
             self.assertIsNone(r.pick(96,64))
         finally:r.close()
+
+    @unittest.skipUnless(os.environ.get("CHIMSTER_TEST_GL"),"optional GL context")
+    def test_effects_preserve_picking(self):
+        from chimster.render_effects import Effects
+        s,m=make_demo();r=Renderer(backend="egl")
+        try:
+            cam=Camera(zoom=4)
+            a,_=r.render(s,cam,128,96,m)
+            pick=r.pick(64,48)
+            b,_=r.render(s,cam,128,96,m,effects=Effects(ao_strength=.7,fog_density=.04,scatter_strength=.4))
+            self.assertEqual(len(b),128*96*4)
+            self.assertNotEqual(a,b)
+            self.assertEqual(r.pick(64,48),pick)
+            c,_=r.render(s,cam,64,48,m,effects=Effects(ao_strength=.4))
+            self.assertEqual(len(c),64*48*4)
+        finally:r.close()
