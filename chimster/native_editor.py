@@ -1,5 +1,7 @@
 """Editor-facing native session. No disk writes or implicit master changes."""
 from hashlib import sha256
+import struct
+from .native_identity import token, parse_token
 from .native_parser import parse
 from .native_catalog import inspect_node
 from .native_serialization import serialize, replace_payload
@@ -32,7 +34,9 @@ class NativeSession:
                     key=row["key"]
                     if key is not None:
                         self.paths.setdefault(key,[]).append(path)
-                        self.types[key]=node.signature.decode("ascii")
+                        if self.profile!="morrowind" and struct.unpack_from("<I",node.header,8)[0]&0x20:
+                            self.types.pop(key,None)
+                        else:self.types[key]=node.signature.decode("ascii")
         walk(self.nodes)
         edges=[]
         opaque=set()
@@ -49,6 +53,16 @@ class NativeSession:
             if row["opaque"]:opaque.add(key)
         self.dependencies=Dependencies(edges,set(self.paths)|set(external),opaque)
         self.revision=sha256(self.data).hexdigest()
+
+    def identity_token(self,path):
+        return token(self.profile,self.rows[tuple(path)]["key"])
+
+    def resolve_identity(self,value):
+        _,key=parse_token(value,self.profile)
+        matches=self.paths.get(key,())
+        if len(matches)!=1 or key not in self.types:
+            raise ValueError("missing, deleted or ambiguous persistent identity")
+        return matches[0]
 
     def node(self,path):
         nodes=self.nodes
@@ -94,10 +108,13 @@ class NativeSession:
             elif len(edit)==5:
                 path,index,expected,target,offset=edit
             else:raise ValueError("invalid edit tuple")
-            path=tuple(path)
+            path=candidate.resolve_identity(path) if isinstance(path,str) else tuple(path)
             node=candidate.node(path)
             if path not in candidate.rows:
                 raise ValueError("not an editable record")
+            key=candidate.rows[path]["key"]
+            if key is None or len(candidate.paths.get(key,()))!=1 or key not in candidate.types:
+                raise ValueError("missing, deleted or ambiguous record identity")
             updated=edit_reference(self.profile,node,self.slots,index,expected,target,candidate.types,offset=offset)
             data=replace_payload(self.profile,candidate.data,path,node.payload,updated.payload)
             candidate=NativeSession(self.profile,data,self.slots,self.external_types,self.external_records)
