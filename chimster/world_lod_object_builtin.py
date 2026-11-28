@@ -28,12 +28,21 @@ class Assets:
         if self.root is None and not self.layers:raise ValueError("Select source game assets")
     def get(self,model):
         name=model.replace("\\","/")
-        if not name.lower().startswith("meshes/"):name="meshes/"+name
+        if not name.lower().startswith(("meshes/","textures/")):name="meshes/"+name
+        pieces=name.split("/")
+        if any(not p or p in (".","..") or ":" in p or "\0" in p for p in pieces) or not name.lower().endswith((".nif",".dds")):raise ValueError("Unsafe asset path")
         key=normalize(name)
         if self.root is not None:
-            try:path=resolve_model(self.root,name)
-            except (ValueError,OSError):pass
-            else:return path.read_bytes()
+            path=self.root
+            for part in pieces:
+                matches=[p for p in path.iterdir() if p.name.casefold()==part.casefold()] if path.is_dir() else []
+                if not matches:break
+                if len(matches)!=1:raise ValueError("Ambiguous loose asset")
+                path=matches[0].resolve(strict=True)
+                if not path.is_relative_to(self.root):raise ValueError("Asset escapes Data directory")
+            else:
+                if not path.is_file() or path.stat().st_size>64*1024*1024:raise ValueError("Asset size limit")
+                return path.read_bytes()
         for path,entries,stamp in reversed(self.layers):
             if key not in entries:continue
             if archive_stamp(path)!=stamp:raise ValueError("Archive changed")
