@@ -43,19 +43,18 @@ static int extractCollision(const char* filename,const char* scaleArg){
     // Havok rigid-body transforms are applied in Havok units, before
     // converting to game coordinates. Preserve the documented XYZW order.
     using Transform=std::function<Vector3(Vector3)>;
-    Transform bodyTransform=[](Vector3 p){return p;};
-    if(dynamic_cast<bhkRigidBodyT*>(body)){
-        auto q=body->rotation;
+    auto rigid=[](QuaternionXYZW q,Vector3 tr)->Transform {
         float length=std::sqrt(q.x*q.x+q.y*q.y+q.z*q.z+q.w*q.w);
         require(std::isfinite(length)&&std::abs(length-1.f)<1e-3f,"invalid rigid body quaternion");
         Vector3 u(q.x/length,q.y/length,q.z/length);
         float w=q.w/length;
-        Vector3 tr(body->translation.x,body->translation.y,body->translation.z);
-        bodyTransform=[u,w,tr](Vector3 p){
+        return [u,w,tr](Vector3 p){
             Vector3 v=u.cross(p)*2.f;
             return p+v*w+u.cross(v)+tr;
         };
-    }
+    };
+    Transform bodyTransform=[](Vector3 p){return p;};
+    if(dynamic_cast<bhkRigidBodyT*>(body))bodyTransform=rigid(body->rotation,Vector3(body->translation.x,body->translation.y,body->translation.z));
     std::vector<Vector3> verts;std::vector<std::array<unsigned,3>> tris;
     std::vector<std::vector<Vector3>> hulls;size_t hullPoints=0;
     auto scaled=[&](Vector3 p){
@@ -116,17 +115,20 @@ static int extractCollision(const char* filename,const char* scaleArg){
             for(const auto& p:data->bigVerts)push(apply(Vector3(p.x,p.y,p.z)));
             for(const auto& t:data->bigTris)append(base,data->bigVerts.size(),t.triangle1,t.triangle2,t.triangle3);
             for(const auto& chunk:data->chunks){
-                require(chunk.reference==65535&&chunk.transformIndex<data->transforms.size(),"referenced or missing chunk transform unsupported");
-                const auto& tf=data->transforms[chunk.transformIndex];
-                auto q=tf.rotation;
-                require(std::abs(q.x)+std::abs(q.y)+std::abs(q.z)<1e-5f&&std::abs(std::abs(q.w)-1)<1e-5f,"rotated compressed chunk needs independent verification");
+                require(chunk.reference==65535,"referenced compressed chunk semantics unverified");
+                Transform chunkTransform=[](Vector3 p){return p;};
+                if(chunk.transformIndex!=65535){
+                    require(chunk.transformIndex<data->transforms.size(),"invalid compressed chunk transform index");
+                    const auto& tf=data->transforms[chunk.transformIndex];
+                    chunkTransform=rigid(tf.rotation,Vector3(tf.translation.x,tf.translation.y,tf.translation.z));
+                }
                 require(chunk.verts.size()%3==0&&chunk.verts.size()/3<=500000-verts.size(),"invalid compressed vertex array");
                 unsigned count=chunk.verts.size()/3;base=verts.size();
                 // Skyrim compressed vertices are quantized at 1/1000 Havok unit.
                 for(unsigned j=0;j<chunk.verts.size();j+=3){
-                    push(apply(Vector3(chunk.translation.x+tf.translation.x+chunk.verts[j]*.001f,
-                                       chunk.translation.y+tf.translation.y+chunk.verts[j+1]*.001f,
-                                       chunk.translation.z+tf.translation.z+chunk.verts[j+2]*.001f)));
+                    push(apply(chunkTransform(Vector3(chunk.translation.x+chunk.verts[j]*.001f,
+                                       chunk.translation.y+chunk.verts[j+1]*.001f,
+                                       chunk.translation.z+chunk.verts[j+2]*.001f))));
                 }
                 size_t pos=0;
                 for(auto length:chunk.strips){
