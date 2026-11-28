@@ -22,7 +22,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m pip install ".[viewport]" "pyinstaller>=6.12,<7"
+      - run: python -m pip install ".[viewport,advanced-viewport]" "pyinstaller>=6.12,<7"
       - run: python -m scripts.build_app_release
       - uses: actions/upload-artifact@v4
         with:
