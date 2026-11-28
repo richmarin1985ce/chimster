@@ -128,6 +128,15 @@ def validate(paths,max_records=2000000,max_issues=10000,quest_links=False):
                                 elif pt==3 and identity:
                                     local=identity[1]
                                     if key!=(local//10)%10 or (2,local%10) not in parents:issue("interior-grid",name,off,"Interior cell in wrong FormID block/sub-block")
+                            if kind=="REFR" and any(tag in fields for tag in (b"XPOD",b"XPTL",b"XRMR",b"XLRM",b"XNDP")):
+                                from .fnv_portal_fields import inspect as marker_fields
+                                try:marker,edges=marker_fields(parts)
+                                except (ValueError,struct.error) as exc:issue("native-marker-layout",name,off,str(exc),"warning")
+                                else:
+                                    item["marker"]=marker
+                                    for i,offset,kinds in edges:
+                                        tag,value=parts[i];target=val32(value[offset:offset+4],off)
+                                        if target:item["links"].append((target,set(kinds),"marker-"+tag.decode("ascii").lower()))
                             if kind in REFS:
                                 if b"NAME" in fields:
                                     target=val32(fields[b"NAME"],off)
@@ -204,6 +213,15 @@ def validate(paths,max_records=2000000,max_issues=10000,quest_links=False):
         for target,types,role in r["links"]:
             t=live(target)
             if t is None or types and t["kind"] not in types or role=="base-object" and t["kind"] in {"WRLD","CELL","LAND","NAVM","ROAD","LTEX","TXST","REFR","ACHR","ACRE"}:issue("unresolved-"+role,name,off,f"{identity} -> {target}")
+        if "marker" in r:
+            for target,types,role in r["links"]:
+                if role in ("marker-xpod","marker-xlrm"):
+                    other=live(target)
+                    if other and (target==identity or other["owner"]!=r["owner"] or "room_header" not in other.get("marker",{})):
+                        issue("room-marker-target",name,off,"Room marker target must be a distinct room in the same cell","warning")
+                if role=="marker-xndp":
+                    other=live(target)
+                    if other and other["owner"]!=r["owner"]:issue("nav-door-owner",name,off,"Navigation mesh is in another cell","warning")
         if "teleport" in r:
             target=r["teleport"];other=live(target);base=live(r.get("base"))
             if not base or base["kind"]!="DOOR":issue("teleport-base",name,off,"Teleport source is not a door")
@@ -235,4 +253,4 @@ def validate(paths,max_records=2000000,max_issues=10000,quest_links=False):
         if kind=="LAND" and r["owner"] is not None:
             if r["owner"] in lands:issue("duplicate-land",name,off,f"{identity} and {lands[r['owner']]}")
             lands[r["owner"]]=identity
-    return {"game":"newvegas","valid":not counts["error"] and not incomplete,"complete":not incomplete,"errors":counts["error"],"warnings":counts["warning"],"issues":issues,"plugins":reports,"winning_records":len(winning),"exterior_cells":len(coords),"persistent_cells":len(persistent),"interior_cells":interiors,"persistent_references":persistent_refs,"land_records":len(lands),"teleport_references":sum(1 for r in winning.values() if "teleport" in r and not r["flags"]&DELETED),"quest_links_checked":quest_links,"scope":"FNV hierarchy and selected references; not a complete schema or engine validator; no modifications"}
+    return {"game":"newvegas","valid":not counts["error"] and not incomplete,"complete":not incomplete,"errors":counts["error"],"warnings":counts["warning"],"issues":issues,"plugins":reports,"winning_records":len(winning),"exterior_cells":len(coords),"persistent_cells":len(persistent),"interior_cells":interiors,"persistent_references":persistent_refs,"land_records":len(lands),"room_markers":sum(1 for r in winning.values() if "room_header" in r.get("marker",{}) and not r["flags"]&DELETED),"portal_markers":sum(1 for r in winning.values() if "portal_rooms" in r.get("marker",{}) and not r["flags"]&DELETED),"teleport_references":sum(1 for r in winning.values() if "teleport" in r and not r["flags"]&DELETED),"quest_links_checked":quest_links,"scope":"FNV hierarchy and selected references; not a complete schema or engine validator; no modifications"}
