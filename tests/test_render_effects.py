@@ -66,7 +66,8 @@ class EffectsTests(unittest.TestCase):
 
     def test_volume_segment_overlap(self):
         from chimster.gpu_volume import sphere_segment
-        self.assertEqual(sphere_segment((0,0,0),(1,0,0),(5,0,0),.1,0,10),(4.9,5.1))
+        a,b=sphere_segment((0,0,0),(1,0,0),(5,0,0),.1,0,10)
+        self.assertAlmostEqual(a,4.9);self.assertAlmostEqual(b,5.1)
         self.assertEqual(sphere_segment((0,0,0),(1,0,0),(0,0,0),2,0,5),(0,2))
         self.assertIsNone(sphere_segment((0,0,0),(1,0,0),(5,3,0),1,0,10))
         self.assertIsNone(sphere_segment((0,0,0),(1,0,0),(5,0,0),1,0,3))

@@ -12,7 +12,7 @@ uniform sampler2D color_tex,depth_tex;
 uniform vec2 pixel,proj;
 uniform float nearp,farp,ao_strength,ao_radius,fog_density,scatter_strength,anisotropy;
 uniform vec3 fog_color;
-uniform int use_volume;
+uniform int use_volume,hdr_pass;
 out vec4 frag;
 """+panda_volume.GLSL+"""
 float depth(float d){return nearp*farp/(farp-d*(farp-nearp));}
@@ -47,25 +47,37 @@ void main(){
  }
  vec3 rgb=src.rgb*(1.0-ao_strength*occ/max(1.0,weight));
  if(use_volume!=0)rgb=integrate_fog(rgb,p);
- frag=vec4(clamp(rgb,0.0,1.0),src.a);
+ frag=vec4(hdr_pass!=0?max(rgb,vec3(0.0)):clamp(rgb,0.0,1.0),src.a);
 }"""
 
 class GLSLFilters:
-    def __init__(self,preview,effects):
+    def __init__(self,preview,effects,pipeline=None):
         from direct.filter.FilterManager import FilterManager
-        from panda3d.core import Texture,Shader
+        from panda3d.core import Texture,Shader,FrameBufferProperties,GraphicsOutput
         self.preview=preview;self.effects=effects
-        self.manager=FilterManager(preview.output,preview.camera)
+        self.owns_manager=pipeline is None
+        self.manager=FilterManager(preview.output,preview.camera) if self.owns_manager else pipeline._filtermgr
         self.quad=None;self.sun_depth=None;self.state=preview.root.get_state()
         self.volume=panda_volume.needs_volume(effects);self.shadow_error=None
         try:
             if self.volume:preview.root.clear_fog()
-            color=Texture("chimster-post-color");depth=Texture("chimster-post-depth")
+            color=Texture("chimster-post-color") if self.owns_manager else self.manager.buffers[0].get_texture()
+            depth=Texture("chimster-post-depth")
             depth.set_format(Texture.F_depth_component)
             for tex in (color,depth):
                 tex.set_wrap_u(Texture.WM_clamp);tex.set_wrap_v(Texture.WM_clamp)
                 tex.set_minfilter(Texture.FT_nearest);tex.set_magfilter(Texture.FT_nearest)
-            quad=self.manager.render_scene_into(colortex=color,depthtex=depth)
+            if self.owns_manager:
+                quad=self.manager.render_scene_into(colortex=color,depthtex=depth)
+            else:
+                # Insert before SimplePBR tone mapping, inside its existing filter
+                # graph, retaining the HDR scene and its original camera.
+                self.manager.buffers[0].add_render_texture(depth,GraphicsOutput.RTM_bind_or_copy,GraphicsOutput.RTP_depth)
+                hdr=Texture("chimster-volume-hdr")
+                hdr.set_format(Texture.F_rgba16);hdr.set_component_type(Texture.T_float)
+                props=FrameBufferProperties();props.set_float_color(True);props.set_rgba_bits(16,16,16,16)
+                quad=self.manager.render_quad_into("chimster-volume-hdr",colortex=hdr,fbprops=props)
+                if quad is not None:pipeline._post_process_quad.set_shader_input("tex",hdr)
             if quad is None:raise RuntimeError("GLSL filter buffer unavailable")
             self.quad=quad
             shader=Shader.make(Shader.SL_GLSL,VERTEX,FRAGMENT)
@@ -78,7 +90,7 @@ class GLSLFilters:
             for key in ("ao_strength","ao_radius","fog_density","scatter_strength","fog_color"):
                 quad.set_shader_input(key,getattr(effects,key))
             quad.set_shader_input("anisotropy",effects.scatter_anisotropy)
-            quad.set_shader_input("use_volume",int(self.volume))
+            quad.set_shader_input("use_volume",int(self.volume));quad.set_shader_input("hdr_pass",int(not self.owns_manager))
             # Valid sampler and uniforms even when the shadow pass is disabled.
             quad.set_shader_input("volume_shadow",depth)
             quad.set_shader_input("volume_shadow_enabled",0)
@@ -100,5 +112,6 @@ class GLSLFilters:
         if self.sun_depth is not None:self.sun_depth.bind(self.quad)
     def close(self):
         if self.sun_depth is not None:self.sun_depth.close();self.sun_depth=None
-        self.manager.cleanup();self.manager.ignore_all();self.quad=None
+        if self.owns_manager:self.manager.cleanup();self.manager.ignore_all()
+        self.quad=None
         self.preview.root.set_state(self.state)

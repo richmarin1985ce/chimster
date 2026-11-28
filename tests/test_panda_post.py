@@ -181,3 +181,28 @@ class PostTests(unittest.TestCase):
             restored=preview.render(scene,cam,96,72,materials)
             self.assertEqual(restored,baseline)
         finally:preview.close()
+
+    def test_pbr_volume_graph(self):
+        import os
+        if not os.environ.get("CHIMSTER_TEST_PANDA_GL"):self.skipTest("Optional framebuffer test")
+        from panda3d.core import load_prc_file_data
+        load_prc_file_data("chimster-test","load-display p3headlessgl\naudio-library-name null")
+        from chimster.panda_viewport import Preview
+        from chimster.gpu_viewport import make_demo
+        from chimster.scene import Camera
+        from chimster.render_effects import Effects,FogVolume
+        scene,materials=make_demo();preview=Preview("pbr")
+        try:
+            cam=Camera(zoom=4);fx=Effects(fog_density=.03,scatter_strength=.7,ao_strength=.3,environment_strength=.2,fog_volumes=(FogVolume(radius=15),),shadow_size=512)
+            a=preview.render(scene,cam,96,72,materials)
+            b=preview.render(scene,cam,96,72,materials,effects=fx)
+            self.assertIsNone(preview.post_error)
+            self.assertIsNotNone(preview.post.volume_post)
+            self.assertEqual(len(preview.post.pipeline._filtermgr.buffers),2)
+            self.assertNotEqual(a,b)
+            c=preview.render(scene,cam,64,48,materials,effects=fx)
+            self.assertEqual(len(c),64*48*4)
+            self.assertIsNone(preview.post_error)
+            d=preview.render(scene,cam,96,72,materials)
+            self.assertEqual(a,d)
+        finally:preview.close()
