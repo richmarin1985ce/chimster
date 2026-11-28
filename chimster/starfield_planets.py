@@ -26,6 +26,8 @@ def decode_planet(fields,slots):
             if all(isfinite(v) for v in vals[:4]):
                 out.update(mass_kg=vals[1],radius_km=vals[2],gravity=vals[3])
         if tag==b"ENAM" and body and len(raw)==72:
+            axis,minor,aphelion,eccentricity,incline,mean=struct.unpack_from("<6d",raw)
+            if all(isfinite(x) for x in (axis,minor,eccentricity,incline,mean)) and axis>0 and 0<=eccentricity<1:out["orbit_raw"]=(axis,minor,eccentricity,incline,mean)
             tilt,velocity=struct.unpack_from("<2f",raw,48)
             if isfinite(tilt) and isfinite(velocity):out.update(axial_tilt_raw=tilt,rotation_velocity_raw=velocity)
         if tag==b"GNAM" and body and len(raw)==12:out["system_ids"]=struct.unpack("<3I",raw)
@@ -303,3 +305,56 @@ def solar_preview(latitude,hour,declination=0.,atmosphere=None):
     color=(1.,.55+.45*twilight,.3+.7*twilight) if density else (1.,1.,1.)
     fog=tuple(a+(b-a)*twilight for a,b in zip((.025,.035,.06),(.38,.48,.58)))
     return (east,north,up),dict(sun_intensity=1.2*daylight,ambient=.025+.24*twilight if density else .015+.05*daylight,sun_color=color,fog_color=fog,fog_density=min(.12,density*.012),scatter_strength=scatter*twilight)
+
+def system_bodies(catalog,k):
+    """Group bodies by native star ID. Do not infer missing IDs."""
+    ids=catalog.planets[k].get("system_ids")
+    if ids is None:return [(k,catalog.planets[k])]
+    return sorted(((key,p) for key,p in catalog.planets.items() if p.get("system_ids") and p["system_ids"][0]==ids[0]),key=lambda row:(row[1]["system_ids"][1],row[1]["system_ids"][2],label(row[0])))
+
+def system_preview(catalog,k):
+    """Schematic orbital rings in compressed display units, not ephemerides."""
+    from math import log1p
+    bodies=system_bodies(catalog,k)[:64]
+    axes=[p["orbit_raw"][0] for _,p in bodies if p.get("orbit_raw")]
+    amin=min(axes) if axes else 1.
+    assets={};instances=[];materials={}
+    def sphere(name,rad,color):
+        mesh=Mesh()
+        for j in range(9):
+            lat=-pi/2+j*pi/8
+            for i in range(17):
+                a=2*pi*i/16;mesh.vertices.append((rad*cos(lat)*cos(a),rad*cos(lat)*sin(a),rad*sin(lat)));mesh.uv.append((i/16,j/8))
+        for j in range(8):
+            for i in range(16):
+                a=j*17+i;b=a+1;c=a+17;d=c+1
+                if j!=0:mesh.faces.append(((a,b,c),name))
+                if j!=7:mesh.faces.append(((b,d,c),name))
+        assets[name]=mesh;materials[name]=Material(tint=color)
+    sphere("system-star",3.,(1.,.75,.35));instances.append(Instance("system-star","system-star"))
+    for i,(key,p) in enumerate(bodies):
+        name="orbit-"+str(i);o=p.get("orbit_raw")
+        radius=10+8*log1p(o[0]/amin) if o else 10+3*i
+        radius=min(90.,radius)
+        # Schematic spacing, with each body at a distinct illustrative angle.
+        angle=i*2.399963;col=next(iter(palette(catalog,key).values()))[1]
+        sphere(name,1.15 if p.get("kind")==3 else 2.,col)
+        instances.append(Instance(label(key),name,radius*cos(angle),radius*sin(angle),0))
+        ring=Mesh();mat=name+"-ring"
+        for j in range(65):
+            a=2*pi*j/64
+            for r in (radius-.10,radius+.10):ring.vertices.append((r*cos(a),r*sin(a),-.1));ring.uv.append((j/64,0))
+        for j in range(64):
+            a=j*2;ring.faces.extend([((a,a+1,a+3),mat),((a,a+3,a+2),mat)])
+        assets[mat]=ring;materials[mat]=Material(tint=(.32,.38,.45));instances.append(Instance(mat,mat))
+    info=report(k,materials,{"ambient":.75,"sun_intensity":.35},0,"system")
+    info["issues"]=["Schematic orbits; compressed distances, illustrative positions and no native orbital simulation"]
+    return Scene(assets,instances),info
+
+def export_heightfield(path,field):
+    """Portable little-endian raw float32 height samples; rows south to north."""
+    from pathlib import Path
+    p=Path(path)
+    if p.suffix.casefold()!=".r32":raise ValueError("Expected .r32 output")
+    with p.open("xb") as f:
+        for row in field.rows:f.write(struct.pack("<"+"f"*len(row),*row))

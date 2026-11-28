@@ -491,7 +491,7 @@ def mount(parent):
         except Exception as exc:messagebox.showerror("Starfield preview",str(exc),parent=parent)
     ttk.Button(toolbar,text="Starfield cell preview",command=open_starfield).pack(side="left")
     def open_planets():
-        from .starfield_planets import Planets,globe,terrain,Heightfield,LandingStream,surface_summary
+        from .starfield_planets import Planets,globe,terrain,Heightfield,LandingStream,surface_summary,system_preview,export_heightfield
         from .starfield_preview import label
         paths=filedialog.askopenfilenames(parent=parent,title="Select Starfield full masters in load order",filetypes=[("Starfield plugins","*.esm *.esp")])
         if not paths:return
@@ -524,7 +524,7 @@ def mount(parent):
                         if lon is None:return
                         span=simpledialog.askfloat("Landing width","Area width in kilometers",initialvalue=8,minvalue=.1,maxvalue=100,parent=win)
                         if span is None:return
-                        heights=None
+                        heights=None;native_btd=False
                         if messagebox.askyesno("Landing heightfield","Use a user-supplied square JSON heightfield in meters instead of illustrative terrain?",parent=win):
                             heightpath=filedialog.askopenfilename(parent=win,filetypes=[("Heightfield JSON","*.json")])
                             if heightpath:heights=Heightfield.load(heightpath)
@@ -539,11 +539,13 @@ def mount(parent):
                                 if y is None:return
                                 scale=simpledialog.askfloat("BTD height units","Meters per stored height unit (verify against game data)",initialvalue=1,minvalue=.0001,maxvalue=1000,parent=win)
                                 if scale is None:return
-                                heights=btd.heightfield(x,y,meters_per_height_unit=scale)
+                                heights=btd.heightfield(x,y,meters_per_height_unit=scale);native_btd=True
                         if heights is None:
                             stream=LandingStream(catalog,k,lat,lon,span)
                             candidate,report=stream.update()
-                        else:candidate,report=terrain(catalog,k,lat,lon,span,heightfield=heights)
+                        else:
+                            candidate,report=terrain(catalog,k,lat,lon,span,heightfield=heights)
+                            if native_btd:report["height_source"]="native BTD samples (user scale)"
                     else:candidate,report=globe(catalog,k)
                     if load_cell_preview(candidate,report,on_stream=stream.update if stream else None):source.set("Starfield "+p["name"]+" | "+report.get("height_source","illustrative")+" "+report["planet_mode"]+" preview")
                 except (ValueError,OSError,KeyError) as exc:messagebox.showerror("Planet preview",str(exc),parent=win)
@@ -553,6 +555,21 @@ def mount(parent):
                 lines=[f"{name or label(world)}: {lat:.5f}, {lon:.5f}" for world,lat,lon,name in catalog.sites(k) if world is not None]
                 messagebox.showinfo("Worldspace landing sites (xEdit coordinate order; unverified)", "\\n".join(lines[:100]) or "No decoded sites",parent=win)
             ttk.Button(win,text="Globe preview",command=lambda:preview(False)).pack(fill="x")
+            def orbit_view():
+                k,p=chosen()
+                if k is None:return
+                candidate,report=system_preview(catalog,k)
+                if load_cell_preview(candidate,report):source.set("Starfield | schematic system orbits")
+            ttk.Button(win,text="System orbit preview",command=orbit_view).pack(fill="x")
+            def export_raw():
+                try:
+                    src=filedialog.askopenfilename(parent=win,filetypes=[("Heightfield JSON","*.json")])
+                    if not src:return
+                    field=Heightfield.load(src)
+                    dst=filedialog.asksaveasfilename(parent=win,defaultextension=".r32",filetypes=[("Raw float32 elevations","*.r32")])
+                    if dst:export_heightfield(dst,field);messagebox.showinfo("Portable terrain export",f"{field.n} x {field.n} float32 samples; meters, south-to-north rows. Verify import orientation and scaling.",parent=win)
+                except (OSError,ValueError) as exc:messagebox.showerror("Terrain export",str(exc),parent=win)
+            ttk.Button(win,text="Export heightfield R32",command=export_raw).pack(fill="x")
             ttk.Button(win,text="Landing terrain preview",command=lambda:preview(True)).pack(fill="x")
             ttk.Button(win,text="Inspect native landing sites",command=inspect).pack(fill="x")
             def inspect_surface():

@@ -257,3 +257,18 @@ class StarfieldPreviewTests(unittest.TestCase):
         self.assertAlmostEqual(hf.rows[0][0],2*(-100+200*32768/65535))
         with self.assertRaises(ValueError):BTD(data[:50])
         with self.assertRaises(ValueError):BTD(data[:-2]).sample(0,0)
+
+    def test_system_preview_and_raw_height_export(self):
+        from chimster.starfield_planets import system_preview,system_bodies,Heightfield,export_heightfield
+        from types import SimpleNamespace
+        k=Identity("test.esm",0x800);m=Identity("test.esm",0x801)
+        catalog=SimpleNamespace(planets={k:{"biomes":[],"system_ids":(1,2,3),"orbit_raw":(1.,1.,0.,0.,0.)},m:{"biomes":[],"system_ids":(1,2,4),"kind":3,"orbit_raw":(2.,2.,0.,0.,0.)}},biomes={})
+        self.assertEqual(len(system_bodies(catalog,k)),2)
+        scene,info=system_preview(catalog,k)
+        self.assertEqual(len(scene.instances),5)
+        self.assertEqual(info["planet_mode"],"system")
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/"test.r32"
+            export_heightfield(path,Heightfield([[1.,2.],[3.,4.]]))
+            self.assertEqual(struct.unpack("<4f",path.read_bytes()),(1.,2.,3.,4.))
+            with self.assertRaises(FileExistsError):export_heightfield(path,Heightfield([[1.,2.],[3.,4.]]))

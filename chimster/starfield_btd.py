@@ -15,7 +15,7 @@ class BTD:
         magic,ver,low,high,rx,ry,x0,y0,x1,y1,nt=struct.unpack_from("<4sI2f2I4iI",data)
         if magic!=b"BTDB" or ver not in (5,6) or any((x0,y0,x1,y1)) or rx%128 or ry%128 or not 128<=rx<=131072 or not 128<=ry<=131072 or not isfinite(low) or not isfinite(high) or low>high or nt>65536:raise ValueError("Unsupported Starfield BTD header")
         self.nx=rx//128;self.ny=ry//128;self.low=low;self.high=high
-        self.min_cell=(-rx//256,-ry//256)
+        self.min_cell=(-(rx//256),-(ry//256))
         n=self.nx*self.ny
         self.height4=44+4*nt+40*n
         pos=self.height4+256*n;self.tables={}
