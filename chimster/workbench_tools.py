@@ -8,7 +8,7 @@ GROUPS={
 "Compatibility":("compatibility","tes3-inventory"),
 "Records":("fnv-index","record-compare","record-build","master-reorder"),
 "Mod management":("loadorder","install-zip","fomod","stage-overlay","autopatch"),
-"World":("fnv-world","fnv-interior","building","chunk-build","chunk-load"),
+"World":("fnv-world","fnv-interior","navmesh-auto","navmesh-route","navmesh-draft","building","chunk-build","chunk-load"),
 "Landscape":("landscape-budget","terrain-tile"),
 "Validation":("world-check","audit-assets","interior-check"),
 "Rendering":("render-preview","render-benchmark"),
