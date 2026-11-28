@@ -16,7 +16,7 @@ def clip(poly,axis,value,sign):
         da=(a[axis]-value)*sign;db=(b[axis]-value)*sign
         if da>=-EPS:out.append(a)
         if (da>=-EPS)!=(db>=-EPS):
-            t=da/(da-db)
+            t=max(0.,min(1.,da/(da-db)))
             out.append(tuple(a[i]+t*(b[i]-a[i]) for i in range(3)))
     return out
 
@@ -63,7 +63,7 @@ def union_area(polys):
     xs=sorted(xs)
     return sum((b-a)*length((a+b)*.5) for a,b in zip(xs,xs[1:]) if b-a>EPS)
 
-def generate_collision(spec):
+def generate_collision(spec,*,grid_origin=None,window=None):
     if spec.get("schema")!=1 or set(spec)-{"schema","vertices","triangles","spacing","agent","min_region_cells"}:
         raise ValueError("invalid collision navigation source")
     vs=[point(v) for v in spec["vertices"]];ts=spec["triangles"]
@@ -75,6 +75,11 @@ def generate_collision(spec):
     slope=num(agent.get("max_slope",45),0,89.9);step=num(agent.get("max_step",.4),0,1e5)
     limit=math.tan(math.radians(slope))
     ox=math.floor(min(v[0] for v in vs)/s)*s;oy=math.floor(min(v[1] for v in vs)/s)*s
+    if grid_origin is not None:
+        ox,oy=grid_origin
+        ox=num(ox,-1e7,1e7);oy=num(oy,-1e7,1e7)
+    if window is not None:
+        if len(window)!=4 or any(type(v) is not int for v in window) or window[0]>=window[2] or window[1]>=window[3]:raise ValueError('invalid raster window')
     columns=defaultdict(list);work=0
     for t in ts:
         if len(t)!=3 or any(type(i) is not int or not 0<=i<len(vs) for i in t) or len(set(t))!=3:raise ValueError("invalid collision indices")
@@ -88,6 +93,9 @@ def generate_collision(spec):
             plane=(px,py,pz)
         x0=math.floor((min(p[0] for p in tri)-ox-EPS)/s);x1=math.floor((max(p[0] for p in tri)-ox+EPS)/s)
         y0=math.floor((min(p[1] for p in tri)-oy-EPS)/s);y1=math.floor((max(p[1] for p in tri)-oy+EPS)/s)
+        if window is not None:
+            x0=max(x0,window[0]);y0=max(y0,window[1]);x1=min(x1,window[2]-1);y1=min(y1,window[3]-1)
+        if x0>x1 or y0>y1:continue
         work+=(x1-x0+1)*(y1-y0+1)
         if work>2000000:raise ValueError("raster work limit; use coarser spacing or tiles")
         for y in range(y0,y1+1):
