@@ -139,3 +139,57 @@ def apply_layer_preview(scene,report,btd,cell_x,cell_y,cells=1,colors=None):
     report["texture_source"]="native BTD blend weights, diagnostic LTEX colors"
     report["issues"]=["Native height samples and texture weights; vertical scale and geographic alignment supplied by user; diagnostic colors, not native material textures"]
     return scene,report
+
+class BTDStream:
+    """Bounded moving 3x3 native cell window with shared edge samples."""
+    def __init__(self,btd,catalog,k,cell_x,cell_y,lat,lon,cell_km,scale=1.,resolution=32):
+        if not all(isfinite(n) for n in (cell_km,scale,lat,lon)) or not .001<=cell_km<=100 or not 0<scale<=1000 or resolution not in (16,32,64):raise ValueError("Invalid BTD streaming parameters")
+        if not btd.min_cell[0]<=cell_x<btd.min_cell[0]+btd.nx or not btd.min_cell[1]<=cell_y<btd.min_cell[1]+btd.ny:raise ValueError("Initial BTD cell outside extent")
+        self.btd=btd;self.catalog=catalog;self.k=k;self.start=(cell_x,cell_y);self.lat=lat;self.lon=lon
+        self.cell_km=cell_km;self.scale=scale;self.res=resolution;self.center=None;self.cache=OrderedDict()
+    def tile(self,x,y):
+        from .starfield_planets import grid,skirt
+        from .gpu_viewport import Material
+        key=(x,y)
+        if key in self.cache:
+            self.cache.move_to_end(key);return self.cache[key]
+        b=self.btd;factor=self.scale/(self.cell_km*1000/32)
+        sx=(x-b.min_cell[0])*128;sy=(y-b.min_cell[1])*128
+        name=f"btd-{x}-{y}"
+        def point(u,v):
+            a=min(b.nx*128-1,sx+round(u*128));c=min(b.ny*128-1,sy+round(v*128))
+            height=b.low+(b.high-b.low)*b.sample(a,c)/65535
+            return ((u-.5)*32,(v-.5)*32,height*factor)
+        meshes=[skirt(grid(r,point,lambda u,v:name),r,max(1.,abs(b.high-b.low)*factor*.25)) for r in (self.res,self.res//2,self.res//4)]
+        material=Material(diffuse=layer_image(b,x,y,0,0,1,1,size=32))
+        self.cache[key]=(name,meshes,material)
+        while len(self.cache)>18:self.cache.popitem(last=False)
+        return self.cache[key]
+    def update(self,x=0.,y=0.):
+        from math import floor,asin,atan2,degrees
+        from .scene import Scene,Instance
+        from .starfield_planets import report,direction_at
+        if not all(isfinite(v) for v in (x,y)):raise ValueError("Invalid BTD view coordinates")
+        center=(self.start[0]+floor(x/32+.5),self.start[1]+floor(y/32+.5))
+        if center==self.center:return None
+        b=self.btd
+        if not b.min_cell[0]<=center[0]<b.min_cell[0]+b.nx or not b.min_cell[1]<=center[1]<b.min_cell[1]+b.ny:raise ValueError("End of native BTD coverage")
+        assets={};materials={};instances=[]
+        for cy in range(max(b.min_cell[1],center[1]-1),min(b.min_cell[1]+b.ny,center[1]+2)):
+            for cx in range(max(b.min_cell[0],center[0]-1),min(b.min_cell[0]+b.nx,center[0]+2)):
+                name,meshes,mat=self.tile(cx,cy)
+                for i,m in enumerate(meshes):assets[name+("@lod"+str(i) if i else "")]=m
+                materials[name]=mat;instances.append(Instance(name,name,(cx-center[0])*32,(cy-center[1])*32))
+        p=self.catalog.planets[self.k]
+        radius=p.get("radius_km",0)
+        dx=center[0]-self.start[0];dy=center[1]-self.start[1]
+        lat,lon=self.lat,self.lon
+        if radius>0:
+            q=direction_at(lat,lon,dx*self.cell_km,dy*self.cell_km,radius)
+            lat=degrees(asin(max(-1.,min(1.,q[2]))));lon=degrees(atan2(q[1],q[0]))
+        info=report(self.k,materials,{},len(instances),"native BTD landing")
+        info.update(planet_stream=True,latitude=lat,longitude=lon,origin_game_units=(dx*32,dy*32,0),height_source="native BTD samples (user scale)",texture_source="native BTD weights, diagnostic colors")
+        info["render_preview"]["planet_solar"]={"latitude":lat,"atmosphere":p.get("atmosphere")}
+        info["issues"]=["Native BTD coverage only; geographic alignment, cell width and vertical conversion are user supplied; diagnostic LTEX colors"]
+        self.center=center
+        return Scene(assets,instances),info

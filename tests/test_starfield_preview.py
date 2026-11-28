@@ -311,3 +311,23 @@ class StarfieldPreviewTests(unittest.TestCase):
         apply_layer_preview(scene,report,b,0,0,colors=colors)
         self.assertEqual(len(report["preview_materials"]),9)
         self.assertEqual(scene.assets["planet-tile-0-0@lod2"].faces[0][1],"btd-layer-planet-tile-0-0")
+
+    def test_native_btd_streaming_edges(self):
+        from chimster.starfield_btd import BTD,BTDStream
+        from types import SimpleNamespace
+        import zlib
+        packed=zlib.compress(bytes(65536))
+        n=4
+        header=struct.pack("<4sI2f2I4iI",b"BTDB",6,0.,100.,256,256,0,0,0,0,0)
+        data=header+bytes(40*n+256*n)+struct.pack("<II",0,len(packed))*7+packed
+        b=BTD(data);key=Identity("test.esm",0x800)
+        catalog=SimpleNamespace(planets={key:{"radius_km":6000.}})
+        stream=BTDStream(b,catalog,key,-1,-1,0,0,2.,resolution=16)
+        a,r=stream.update();self.assertEqual(len(a.instances),4)
+        self.assertIsNone(stream.update(5,0))
+        c,s=stream.update(32,0)
+        self.assertEqual(s["origin_game_units"],(32,0,0))
+        self.assertIs(a.assets["btd-0-0"],c.assets["btd-0-0"])
+        self.assertEqual(a.assets["btd--1--1"].vertices[16][2],a.assets["btd-0--1"].vertices[0][2])
+        self.assertLessEqual(len(stream.cache),18)
+        with self.assertRaises(ValueError):stream.update(128,0)

@@ -236,7 +236,7 @@ def mount(parent):
         camera=replace(camera,center=tuple((absolute[i]-preview_origin[i])/scale for i in range(3)))
         apply_world_environment(report)
         if not any(i.id==selected for i in scene.instances):selected=None
-        if planet_stream:source.set(f"Starfield landing | {report['latitude']:.5f}, {report['longitude']:.5f} | {report['land_tiles']} tiles (illustrative)")
+        if planet_stream:source.set(f"Starfield landing | {report['latitude']:.5f}, {report['longitude']:.5f} | {report['land_tiles']} tiles | {report.get('height_source','illustrative')}")
         else:source.set(f"Read-only cell {report['cell']} | {report['cells']} cells | {report['land_tiles']} LAND tiles | {report.get('model_references',0)} models")
         sync()
     def zoom(delta):
@@ -548,7 +548,12 @@ def mount(parent):
                                 scale=simpledialog.askfloat("BTD height units","Meters per stored height unit (verify against game data)",initialvalue=1,minvalue=.0001,maxvalue=1000,parent=win)
                                 if scale is None:return
                                 heights=btd.heightfield(x,y,meters_per_height_unit=scale);native_btd=True
-                        if heights is None:
+                                if messagebox.askyesno("Native terrain streaming","Stream adjacent BTD cells? The selected landing width will be used as the width of ONE native cell.",parent=win):
+                                    from .starfield_btd import BTDStream
+                                    stream=BTDStream(btd,catalog,k,x,y,lat,lon,span,scale)
+                        if stream is not None:
+                            candidate,report=stream.update()
+                        elif heights is None:
                             stream=LandingStream(catalog,k,lat,lon,span)
                             candidate,report=stream.update()
                         else:
