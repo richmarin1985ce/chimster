@@ -8,11 +8,12 @@ from .native_dependencies import Dependencies
 from .native_remap_plan import plan
 
 class NativeSession:
-    def __init__(self, profile, data, slots, external_types=None):
+    def __init__(self, profile, data, slots, external_types=None, external_records=None):
         self.profile=profile
         self.data=bytes(data)
         self.slots=slots
         self.external_types=dict(external_types or {})
+        self.external_records=dict(external_records or {})
         self.refresh()
 
     def refresh(self):
@@ -42,7 +43,11 @@ class NativeSession:
             edges.extend((key,e[2]) for e in row["edges"])
             if row["opaque"]:
                 opaque.add(key)
-        self.dependencies=Dependencies(edges,self.paths,opaque)
+        external={k:v for k,v in self.external_records.items() if k not in self.paths}
+        for key,row in external.items():
+            edges.extend((key,e[2]) for e in row["edges"])
+            if row["opaque"]:opaque.add(key)
+        self.dependencies=Dependencies(edges,set(self.paths)|set(external),opaque)
         self.revision=sha256(self.data).hexdigest()
 
     def node(self,path):
@@ -81,7 +86,7 @@ class NativeSession:
         """All edits succeed or original session remains unchanged."""
         if revision!=self.revision:
             raise ValueError("stale session")
-        candidate=NativeSession(self.profile,self.data,self.slots,self.external_types)
+        candidate=NativeSession(self.profile,self.data,self.slots,self.external_types,self.external_records)
         for path,index,expected,target in edits:
             path=tuple(path)
             node=candidate.node(path)
@@ -89,6 +94,6 @@ class NativeSession:
                 raise ValueError("not an editable record")
             updated=edit_reference(self.profile,node,self.slots,index,expected,target,candidate.types)
             data=replace_payload(self.profile,candidate.data,path,node.payload,updated.payload)
-            candidate=NativeSession(self.profile,data,self.slots,self.external_types)
+            candidate=NativeSession(self.profile,data,self.slots,self.external_types,self.external_records)
         self.__dict__.update(candidate.__dict__)
         return self.revision
