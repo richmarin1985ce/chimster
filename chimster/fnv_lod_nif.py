@@ -78,7 +78,7 @@ def encode_groups(groups,kind="terrain",tile_extent=None):
                 center=tuple(sum(mesh.vertices[v][a] for v in f)/3 for a in range(2))
                 x,y=(min(3,max(0,int(v/tile_extent*4))) for v in center)
                 buckets[y*4+x].append((f,m))
-            copied=Mesh();copied.vertices=list(mesh.vertices);copied.uv=list(mesh.uv);copied.colors=list(mesh.colors)
+            copied=Mesh();copied.vertices=list(mesh.vertices);copied.uv=list(mesh.uv);copied.colors=list(mesh.colors);copied.lod_alpha_threshold=getattr(mesh,"lod_alpha_threshold",128)
             copied.faces=[face for bucket in buckets for face in bucket];mesh=copied
             segments=[];offset=0
             for bucket in buckets:
@@ -97,7 +97,9 @@ def encode_groups(groups,kind="terrain",tile_extent=None):
         blocks.extend([(shape_type,shape),("NiTriShapeData",data),("BSShaderPPLightingProperty",shader),("BSShaderTextureSet",textures)])
         if cutout:
             # NiAlphaProperty: alpha test enabled, GREATER, threshold 128; no blending.
-            blocks.append(("NiAlphaProperty",net()+pack("HB",0x1200,128)))
+            threshold=getattr(mesh,"lod_alpha_threshold",128)
+            if type(threshold)!=int or not 0<=threshold<=255:raise ValueError("Invalid alpha threshold")
+            blocks.append(("NiAlphaProperty",net()+pack("HB",0x1200,threshold)))
     lo=tuple(min(p[i] for p in bounds) for i in range(3));hi=tuple(max(p[i] for p in bounds) for i in range(3))
     center=tuple((a+b)/2 for a,b in zip(lo,hi));extent=tuple((b-a)/2 for a,b in zip(lo,hi))
     i=len(blocks)
@@ -230,11 +232,11 @@ def read_static_groups(raw,include_cutout=False):
         shader_ids=[p for p in props if 0<=p<len(rows) and rows[p][0]=="BSShaderPPLightingProperty"]
         alpha_ids=[p for p in props if 0<=p<len(rows) and rows[p][0]=="NiAlphaProperty"]
         if len(shader_ids)!=1 or len(shader_ids)+len(alpha_ids)!=len(props):raise ValueError("Unsupported shape property")
-        cutout=bool(alpha_ids)
+        cutout=bool(alpha_ids);threshold=128
         if cutout:
             if not include_cutout:raise ValueError("Alpha-tested material needs grouped cutout reader")
             a=Reader(ref(alpha_ids[0],{"NiAlphaProperty"})[1]);_,count,controller=a.get("iIi");flags,threshold=a.get("HB")
-            if count or controller!=-1 or flags!=0x1200 or threshold!=128 or a.i!=len(a.raw):raise ValueError("Unsupported alpha test layout")
+            if count or controller!=-1 or flags&1 or flags&0x1e00!=0x1200 or a.i!=len(a.raw):raise ValueError("Unsupported alpha test layout")
         if kind=="BSSegmentedTriShape":
             count,=r.get("I")
             if count>256:raise ValueError("Segment limit")
@@ -250,7 +252,7 @@ def read_static_groups(raw,include_cutout=False):
         if n!=6:raise ValueError("Unsupported texture set")
         paths=[tr.string().decode("ascii").replace("\\","/") for _ in range(n)]
         if tr.i!=len(tr.raw) or not paths[0] or not paths[1] or any(paths[2:]):raise ValueError("Unsupported texture set")
-        material=(*paths[:2],cutout);mesh=groups.setdefault(material,Mesh())
+        material=(*paths[:2],cutout,threshold);mesh=groups.setdefault(material,Mesh());mesh.lod_alpha_threshold=threshold
         offset=len(mesh.vertices)
         if offset+len(g.vertices)>100000 or len(mesh.faces)+len(g.faces)>100000:raise ValueError("Static geometry budget")
         for vertex in g.vertices:
@@ -265,7 +267,7 @@ def read_static_groups(raw,include_cutout=False):
     visit(0)
     if not groups:raise ValueError("No supported static geometry")
     for mesh in groups.values():validate_mesh(mesh)
-    return [(mesh,*paths) if include_cutout else (mesh,*paths[:2]) for paths,mesh in sorted(groups.items())]
+    return [(mesh,*paths[:3]) if include_cutout else (mesh,*paths[:2]) for paths,mesh in sorted(groups.items())]
 
 def read_static(raw):
     groups=read_static_groups(raw)
