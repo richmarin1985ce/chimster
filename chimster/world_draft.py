@@ -83,6 +83,52 @@ class Draft:
         self.operations.append({"action":"create_cell","key":key_json(key),"editor_id":name,"world":key_json(world),"grid":grid})
         return key
 
+    def duplicate(self,source,name,grid=None,static_only=False):
+        """Copy a cell shell and eligible temporary static references atomically.
+
+        Full fidelity duplication is not implied: LAND, NAVM, persistent objects,
+        links, cell metadata and other native payloads are not cloned.
+        """
+        index=self.index()
+        row=index.active.get(source)
+        if not row or row["signature"]!="CELL" or row.get("persistent_cell"):
+            raise ValueError("Select a normal cell to duplicate")
+        world=row["world"]
+        if world is not None and ("grid" not in row or grid is None):
+            raise ValueError("Choose a different exterior grid")
+        refs=[]
+        omitted=[]
+        for child in index.children.get(source,()):
+            base=index.active.get(child.get("base"))
+            if (child["signature"]=="REFR" and child.get("bucket")==9
+                and not child.get("persistent") and not child["flags"]
+                and base and base["signature"]=="STAT"
+                and "position" in child and "rotation" in child
+                and all(abs(v)<=1e-6 for v in child["rotation"][:2])
+                and (child["key"].origin==self.name or child.get("transform_only_layout"))):
+                refs.append(child)
+            else:omitted.append(label(child["key"]))
+        if omitted and not static_only:
+            raise ValueError("Unsupported children; explicitly choose static-only duplication")
+        if len(refs)>5000:raise ValueError("Duplicate placement limit")
+        snapshot=(deepcopy(self.rows),deepcopy(self.operations),self.cursor)
+        undo=list(self.undo_stack);redo=list(self.redo_stack)
+        try:
+            key=self.create(name,world,grid)
+            dx,dy=(0,0) if world is None else tuple((grid[i]-row["grid"][i])*4096 for i in range(2))
+            for ref in refs:
+                x,y,z=ref["position"]
+                self.place(key,ref["base"],(x+dx,y+dy,z),ref["rotation"][2],ref.get("scale",1))
+            self.operations.append({"action":"duplicate_static_cell","source":key_json(source),
+                                    "key":key_json(key),"copied":len(refs),"omitted":omitted})
+        except Exception:
+            self.rows,self.operations,self.cursor=snapshot
+            self.undo_stack=undo;self.redo_stack=redo
+            raise
+        self.undo_stack=undo+[snapshot]
+        self.redo_stack=[]
+        return key,{"copied":len(refs),"omitted":omitted,"scope":"cell shell and static references only"}
+
     def rename(self,key,name):
         row=self.index().active.get(key)
         if row is None or row["signature"]!="CELL":raise ValueError("Select a live cell")
