@@ -2,7 +2,7 @@
 from .native_parser import parse, subrecords
 from .native_payload_edit import replace
 from .native_profiles import PROFILES
-from . import native_items, tes3_items
+from . import native_items, tes3_items, tes3_actor_data
 
 def edit(profile,data,path,tag,occurrence,changes,revision):
     if not path or any(type(i)!=int or i<0 for i in path):raise ValueError("Invalid path")
@@ -24,7 +24,9 @@ def edit(profile,data,path,tag,occurrence,changes,revision):
         elif sig in (b"SPEL",b"ENCH",b"ALCH") and tag==b"ENAM":
             updated=tes3_items.edit_magic_effect(raw,**changes)
         elif sig in (b"NPC_",b"CREA") and tag==b"AIDT":
-            updated=tes3_items.edit_services(raw,**changes)
+            behavior={k:v for k,v in changes.items() if k in ("hello","fight","flee","alarm")}
+            services={k:v for k,v in changes.items() if k not in behavior}
+            updated=tes3_items.edit_services(tes3_actor_data.ai_edit(raw,**behavior),**services)
         elif sig==b"CONT" and tag==b"FLAG":
             updated=tes3_items.edit_container_flags(raw,**changes)
         elif (sig.decode("ascii"),tag.decode("ascii")) in tes3_items.SCHEMAS:
@@ -37,8 +39,10 @@ def edit(profile,data,path,tag,occurrence,changes,revision):
             updated=tes3_items.edit_leveled_level(raw,**changes)
         elif sig in (b"LEVI",b"LEVC") and tag==b"NNAM":
             updated=tes3_items.edit_chance_none(raw,**changes)
-        elif (sig,tag)==(b"NPC_",b"NPDT"):
-            updated=tes3_items.edit_npc_gold(raw,**changes)
+        elif sig in (b"NPC_",b"CREA") and tag==b"NPDT":
+            updated=tes3_actor_data.edit(sig,raw,**changes)
+        elif sig in (b"NPC_",b"CREA") and tag==b"FLAG":
+            updated=tes3_actor_data.flags_edit(sig,raw,**changes)
         else:raise ValueError("No registered typed editor for field")
     elif profile=="oblivion" and (sig,tag) in native_items.OBLIVION_FIELDS:
         updated=native_items.edit_oblivion_properties(sig,tag,raw,**changes)
