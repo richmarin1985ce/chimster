@@ -92,6 +92,7 @@ def build_parser():
  a=s.add_parser('navmesh-native-review'); a.add_argument('project'); a.add_argument('--grid-order',choices=('xy','yx'),default='xy'); a.add_argument('--require-connections',action='store_true')
  a=s.add_parser('navmesh-verify-stage'); a.add_argument('stage'); a.add_argument('finalized'); a.add_argument('--master',action='append',default=[])
  a=s.add_parser('navmesh-navi-candidate'); a.add_argument('project'); a.add_argument('output')
+ a=s.add_parser('navmesh-navi-reference'); a.add_argument('master'); a.add_argument('output'); a.add_argument('--mesh',type=lambda x:int(x,0),action='append',required=True)
  a=s.add_parser('navmesh-navi-inspect'); a.add_argument('fields'); a.add_argument('--grid-order',choices=('xy','yx'),required=True)
  a=s.add_parser('navmesh-navi-stage'); a.add_argument('stage'); a.add_argument('master'); a.add_argument('output')
  a=s.add_parser('navmesh-registration'); a.add_argument('project')
@@ -525,6 +526,12 @@ def main(argv=None):
    payload=candidate(load(n.project))
    with Path(n.output).open("x",encoding="utf-8") as stream:json.dump(payload,stream)
    result={k:v for k,v in payload.items() if k!="fields"};result["output"]=n.output
+  elif n.cmd=='navmesh-navi-reference':
+   from .fnv_navi_reference import extract
+   from pathlib import Path
+   data=extract(n.master,n.mesh)
+   with Path(n.output).open("x",encoding="utf-8") as stream:json.dump(data,stream)
+   result={"output":n.output,"grid_order":data["grid_order"],"grid_order_warning":data["grid_order_warning"],"meshes":data["meshes"]}
   elif n.cmd=='navmesh-navi-inspect':
    from .navmesh_tiles import load
    from .fnv_navi_variants import decode
