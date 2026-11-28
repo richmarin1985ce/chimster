@@ -205,7 +205,7 @@ def launch():
   if not load_cell_preview(scene,report,focus,on_select,on_stream):return False
   tabs.select(viewport_tab)
   return True
- mount_world_browser(f,game,open_cell_preview)
+ mount_world_browser(f,game,open_cell_preview,load_cell_preview.drop_position)
  f=tab('Worldspace validator')
  ttk.Label(f,text='Add copied plugins in active load order, masters first. Read-only.').pack(anchor='w')
  pathlist=tk.Listbox(f,height=6);pathlist.pack(fill='x')
