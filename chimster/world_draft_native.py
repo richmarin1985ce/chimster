@@ -86,7 +86,11 @@ def export_esp(draft, output):
         placed=[]
         for ref in sorted(refs,key=lambda r:r["key"]):
             if ref["cell"]!=key:continue
-            if ref["key"].origin!=draft.name:raise ValueError("Existing reference override not supported")
+            if ref["key"].origin!=draft.name:
+                node,local=source[ref["key"]]
+                tags=[tag for tag,_ in subrecords("new-vegas",node)]
+                if struct.unpack_from("<I",node.header,8)[0] or tags not in ([b"NAME",b"DATA"],[b"NAME",b"XSCL",b"DATA"]):
+                    raise ValueError("Unsupported source reference layout")
             pos=ref["position"]
             packed=struct.unpack("<3f",struct.pack("<3f",*pos))
             if "grid" in row and tuple(floor(v/4096) for v in packed[:2])!=row["grid"]:
