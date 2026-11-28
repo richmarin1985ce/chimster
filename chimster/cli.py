@@ -88,6 +88,8 @@ def build_parser():
  a=s.add_parser('navmesh-nif'); a.add_argument('nif'); a.add_argument('output'); a.add_argument('helper'); a.add_argument('--unit-scale',type=float,required=True); a.add_argument('--spacing',type=float,required=True); a.add_argument('--radius',type=float,default=0.3); a.add_argument('--height',type=float,default=1.8); a.add_argument('--max-step',type=float,default=0.4); a.add_argument('--max-slope',type=float,default=45)
  a=s.add_parser('navmesh-simplify'); a.add_argument('project'); a.add_argument('output')
  a=s.add_parser('navmesh-route'); a.add_argument('project'); a.add_argument('start',type=int); a.add_argument('end',type=int); a.add_argument('--closed',action='append',default=[]); a.add_argument('--avoid-area',action='append',default=[])
+ a=s.add_parser('navmesh-finalize'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--cell',type=lambda x:int(x,0),required=True); a.add_argument('--version',type=int,required=True); a.add_argument('--divisor',type=int,required=True); a.add_argument('--count-width',type=int,choices=(2,4),required=True); a.add_argument('--bindings')
+ a=s.add_parser('navmesh-grid-compare'); a.add_argument('fields'); a.add_argument('--count-width',type=int,choices=(2,4),required=True)
  a=s.add_parser('navmesh-draft'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--cell',type=lambda x:int(x,0),required=True); a.add_argument('--version',type=int,required=True)
  a=s.add_parser('fnv-interior'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--master',action='append',default=[]); a.add_argument('--ledger-in'); a.add_argument('--ledger-out')
  a=s.add_parser('world-check'); a.add_argument('plugins',nargs='+'); a.add_argument('--strict',action='store_true'); a.add_argument('--quest-links',action='store_true'); a.add_argument('--navmesh',action='store_true')
@@ -423,6 +425,18 @@ def main(argv=None):
    from .navmesh_tiles import load
    from .navmesh import route
    mesh=load(n.project);mesh=mesh.get("mesh",mesh);result=route(mesh,n.start,n.end,mesh.get("links",[]),n.closed,avoid=n.avoid_area)
+  elif n.cmd=='navmesh-finalize':
+   from .navmesh_tiles import load
+   from .fnv_navmesh_finalize import finalize
+   from pathlib import Path
+   source=load(n.project);bindings=load(n.bindings) if n.bindings else {}
+   candidate=finalize(source.get("mesh",source),n.cell,n.version,divisor=n.divisor,count_width=n.count_width,**bindings)
+   with Path(n.output).open("x",encoding="utf-8") as stream:json.dump(candidate,stream)
+   result={"output":n.output,"status":candidate["status"],"payload_sha256":candidate["payload_sha256"],"review_required":candidate["review_required"]}
+  elif n.cmd=='navmesh-grid-compare':
+   from .navmesh_tiles import load
+   from .fnv_navmesh_finalize import compare_grid
+   source=load(n.fields);result=compare_grid([(k.encode("ascii"),bytes.fromhex(v)) for k,v in source["fields"]],n.count_width)
   elif n.cmd=='navmesh-draft':
    from .quest_editor import load
    from .fnv_navmesh import draft
