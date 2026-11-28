@@ -10,6 +10,7 @@ import re
 import struct
 import subprocess
 import tempfile
+import os
 from .integrations import executable, file, directory, fresh
 from .script_lint import check_file
 
@@ -67,12 +68,37 @@ from .compiler_diagnostics import parse as diagnostics, summarize, remap
 def compiler_options(game,backend,*,optimize=False,release=False,final=False,warnings_as_errors=False):
     target,_,_=family(game)
     if backend not in {"ck","caprica"}:raise ValueError("unsupported compiler backend")
+    if any(type(v) is not bool for v in (optimize,release,final,warnings_as_errors)):
+        raise ValueError("compiler switches must be boolean")
     if backend=="ck" and target=="skyrim" and (release or final):
         raise ValueError("release/final switches not enabled for Skyrim CK")
     if warnings_as_errors and backend!="caprica":
         raise ValueError("warnings-as-errors requires Caprica")
     prefix="-" if backend=="ck" else "--"
     return [prefix+key for key,value in (("optimize",optimize),("release",release),("final",final),("all-warnings-as-errors",warnings_as_errors)) if value]
+
+
+def import_fingerprints(roots):
+    """Fingerprint actual source trees, including nested library scripts.
+    Reject symlink entries rather than promising reproducibility across them.
+    """
+    inventory={};total=0;count=0
+    for root in roots:
+        root=Path(root)
+        for folder,dirs,files in os.walk(root,followlinks=False):
+            dirs.sort()
+            if any((Path(folder)/d).is_symlink() for d in dirs):
+                raise ValueError("symlink directory in compiler imports")
+            for name in sorted(files):
+                p=Path(folder)/name
+                if p.suffix.casefold() not in {".psc",".flg"}:continue
+                if p.is_symlink() or not p.is_file():raise ValueError("unsafe compiler import")
+                key=str(p.resolve())
+                if key in inventory:continue
+                count+=1;total+=p.stat().st_size
+                if count>10000 or total>128*1024*1024:raise ValueError("compiler import inventory limit")
+                inventory[key]=digest(p)
+    return inventory
 
 def plan(game, backend, exe, source, flags, imports, output, *, options=None):
     target, _, _ = family(game)
@@ -116,6 +142,8 @@ def build(game, backend, exe, source, flags, imports, output, *, execute=False, 
     if not execute:
         return preview
     out = Path(preview["output"])
+    imports_before=import_fingerprints(preview["imports"])
+    preview["import_sha256"]=imports_before
     # Use a private sibling staging area. Only publish checked artifacts into
     # an exclusively created fresh destination; failures leave no build there.
     with tempfile.TemporaryDirectory(prefix=".chimster-script-", dir=out.parent) as temp:
@@ -138,7 +166,7 @@ def build(game, backend, exe, source, flags, imports, output, *, execute=False, 
         items=remap(items,{preview["source"]:{"path":preview["source"],"sha256":preview["source_sha256"]}})
         result = {**preview, "returncode": cp.returncode,
                   "diagnostics": items, "summary":summarize(items), "compiler_log": log}
-        if cp.returncode:
+        if cp.returncode or any(i["severity"]=="error" for i in items):
             return {**result, "status": "compiler-failed"}
         candidates = list(stage.iterdir())
         pex = [p for p in candidates if p.suffix.casefold() == ".pex"]
@@ -150,21 +178,25 @@ def build(game, backend, exe, source, flags, imports, output, *, execute=False, 
             return {**result, "status": "invalid-pex", "reason": str(exc)}
         if (digest(preview["source"]) != preview["source_sha256"] or
                 digest(preview["flags"]) != preview["flags_sha256"] or
-                digest(preview["args"][0]) != preview["compiler_sha256"]):
+                digest(preview["args"][0]) != preview["compiler_sha256"] or
+                import_fingerprints(preview["imports"]) != imports_before):
             return {**result, "status": "inputs-changed"}
         report = {**result, "status": "header-checked", "artifact": header,
                   "scope": "external compilation and PEX header check; no engine validation"}
         out.mkdir()
+        created=[]
         try:
             artifact = out / pex[0].name
             with artifact.open("xb") as dst:
+                created.append(artifact)
                 dst.write(pex[0].read_bytes())
+            if digest(artifact)!=header["sha256"]:raise ValueError("published PEX changed")
             manifest = out / "compile.json"
             with manifest.open("x", encoding="utf-8") as dst:
+                created.append(manifest)
                 json.dump(report, dst, indent=2)
         except Exception:
-            for name in (pex[0].name, "compile.json"):
-                (out / name).unlink(missing_ok=True)
+            for path in reversed(created):path.unlink(missing_ok=True)
             out.rmdir()
             raise
         return report
