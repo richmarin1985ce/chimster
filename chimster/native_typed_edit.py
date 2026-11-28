@@ -13,7 +13,7 @@ _DISPLAY_RECORDS = frozenset((b"MISC",b"BOOK",b"WEAP",b"ARMO",b"NPC_",b"CONT",b"
 _TES3_DISPLAY = frozenset((b"MISC",b"BOOK",b"WEAP",b"ARMO",b"NPC_",b"CREA",b"CONT",b"ACTI",b"DOOR",b"CLOT",b"ALCH",b"INGR",b"RACE",b"CLAS",b"FACT",b"SPEL"))
 
 def _cstring(raw):
-    if not raw or raw[-1:]!=b"\\0" or b"\\0" in raw[:-1]:
+    if not raw or raw[-1:]!=b"\0" or b"\0" in raw[:-1]:
         raise ValueError("Expected inline NUL-terminated text")
     return raw[:-1].decode("cp1252")
 
@@ -24,8 +24,8 @@ def _one(parts,tag):
 
 def _inline_text(raw,value):
     _cstring(raw)
-    if not isinstance(value,str) or "\\0" in value:raise ValueError("Invalid text")
-    encoded=value.encode("cp1252")+b"\\0"
+    if not isinstance(value,str) or "\0" in value:raise ValueError("Invalid text")
+    encoded=value.encode("cp1252")+b"\0"
     if len(encoded)>65535:raise ValueError("Text field too long")
     return encoded
 
