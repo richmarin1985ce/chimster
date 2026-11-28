@@ -75,3 +75,66 @@ class ProjectTests(unittest.TestCase):
             self.assertEqual(scan(out)["masters"],[])
             self.assertEqual([(r["origin"],r["local_id"]) for r in scan(source)["records"]],
                              [(r["origin"],r["local_id"]) for r in scan(out)["records"]])
+
+    def test_generated_world_master_insertion(self):
+        from chimster.fnv_world import build
+        from chimster.worldspace import Terrain
+        from chimster.native_parser import parse,subrecords
+        from chimster.record_graph import Slots
+        with TemporaryDirectory() as d:
+            root=Path(d);a=root/"A.esp";source=root/"World.esp"
+            export({"schema":1,"records":[{"id":"Global","type":"GLOB",
+                   "fields":{"kind":"f","value":1.}}]},a)
+            terrain=Terrain(tuple(tuple(0. for _ in range(33)) for _ in range(33)),4,0)
+            content={"statics":[{"id":"Rock","bounds":[-1,-1,0,1,1,2],"model":"meshes/rock.nif"}],
+                     "placements":[{"base":"Rock","x_m":5,"y_m":5,"z_m":0}]}
+            build(terrain,source,origin=(0,0),content=content)
+            folder=root/"stage";folder.mkdir();dest=folder/source.name
+            result=reorder(source,dest,[a],allow_set_change=True)
+            self.assertGreater(result["changed_group_owners"],0)
+            self.assertEqual(result["changed_embedded_references"],1)
+            def inspect_world(path):
+                report=scan(path);slots=Slots(path.name,report["masters"])
+                owners=[(g["type"],g.get("owner")) for g in report["groups"]]
+                def walk(nodes):
+                    for node in nodes:
+                        if node.signature==b"REFR":
+                            ref=dict(subrecords("new-vegas",node))[b"NAME"]
+                            yield slots.decode(struct.unpack("<I",ref)[0])
+                        yield from walk(node.children)
+                return owners,list(walk(parse("new-vegas",path.read_bytes())))
+            self.assertEqual(inspect_world(source),inspect_world(dest))
+
+    def test_compressed_master_remap(self):
+        import zlib
+        from dataclasses import replace
+        from chimster.native_parser import parse,subrecords
+        from chimster.native_serialization import serialize
+        with TemporaryDirectory() as d:
+            root=Path(d);a=root/"A.esp";source=root/"Compressed.esp"
+            spec={"schema":1,"records":[{"id":"Global","type":"GLOB",
+                   "fields":{"kind":"f","value":1.}},
+                   {"id":"List","type":"FLST","fields":{"entries":["Global"]}}]}
+            export(spec,source);export({"schema":1,"records":spec["records"][:1]},a)
+            def compress(nodes):
+                result=[]
+                for node in nodes:
+                    if node.signature==b"FLST":
+                        header=bytearray(node.header)
+                        struct.pack_into("<I",header,8,0x40000)
+                        node=replace(node,header=bytes(header),payload=struct.pack("<I",len(node.payload))+zlib.compress(node.payload))
+                    elif node.children:node=replace(node,children=compress(node.children))
+                    result.append(node)
+                return tuple(result)
+            source.write_bytes(serialize("new-vegas",compress(parse("new-vegas",source.read_bytes()))))
+            folder=root/"stage";folder.mkdir();dest=folder/source.name
+            result=reorder(source,dest,[a],allow_set_change=True)
+            self.assertEqual(result["compressed_records"],1)
+            records=scan(dest)["records"];row=next(r for r in records if r["signature"]=="FLST")
+            self.assertTrue(row["flags"]&0x40000)
+            def visit(nodes):
+                for node in nodes:
+                    if node.signature==b"FLST":yield dict(subrecords("new-vegas",node))[b"LNAM"]
+                    yield from visit(node.children)
+            global_id=next(r["local_id"] for r in records if r["signature"]=="GLOB")
+            self.assertEqual(list(visit(parse("new-vegas",dest.read_bytes()))),[struct.pack("<I",0x01000000|global_id)])
