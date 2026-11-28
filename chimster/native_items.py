@@ -59,6 +59,11 @@ def edit_fallout_book_data(profile,raw,**changes):
 
 # Classic Oblivion only; no inheritance into the Remastered profile.
 OBLIVION_FIELDS={
+ (b"WEAP",b"DATA"):("<IffIIIfH",("type","speed","reach","flags","value","health","weight","damage")),
+ (b"AMMO",b"DATA"):("<fB3sIfH",("speed","flags","reserved","value","weight","damage")),
+ (b"CLOT",b"DATA"):("<If",("value","weight")),
+ (b"INGR",b"DATA"):("<f",("weight",)),
+ (b"MISC",b"DATA"):("<If",("value","weight")),
  (b"BOOK",b"DATA"):("<BbIf",("flags","skill","value","weight")),
  (b"ARMO",b"DATA"):("<HIIf",("armor_rating_hundredths","value","health","weight")),
 }
@@ -66,15 +71,16 @@ def oblivion_properties(signature,tag,raw):
     fmt,keys=OBLIVION_FIELDS[signature,tag]
     if len(raw)!=struct.calcsize(fmt):raise ValueError("Unexpected Oblivion field size")
     d=dict(zip(keys,struct.unpack(fmt,raw)))
-    if not isfinite(d["weight"]):raise ValueError("Nonfinite weight")
+    if any(isinstance(v,float) and not isfinite(v) for v in d.values()):raise ValueError("Nonfinite weight")
     return d
 
 def edit_oblivion_properties(signature,tag,raw,**changes):
     d=oblivion_properties(signature,tag,raw)
-    if set(changes)-set(d):raise ValueError("Unknown property")
+    if set(changes)-set(d) or "reserved" in changes:raise ValueError("Unknown or reserved property")
     d.update(changes)
     for k,v in d.items():
-        if k=="weight":
+        if k=="reserved":continue
+        if k in ("weight","speed","reach"):
             if not isfinite(v) or not 0<=v<=1e6:raise ValueError("Invalid weight")
         elif type(v)!=int or (k=="skill" and not -1<=v<=20) or (k!="skill" and v<0):raise ValueError("Invalid "+k)
     fmt,keys=OBLIVION_FIELDS[signature,tag]
