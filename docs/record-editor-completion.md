@@ -10,3 +10,8 @@ Commands:
     python -m chimster fnv-world heights.json World.esp --spacing-m 4 --content content.json --ledger-out world-ids.json
     python -m chimster quest-native native.json Quest.esp --ledger-out quest-ids.json
 Mutagen remains a separate .NET integration milestone: use published per-game packages and confirm supported record definitions, not assume Fallout 3 coverage applies to New Vegas. https://github.com/Mutagen-Modding/Mutagen . xEdit remains independent validation. Retail engine compatibility outstanding.
+
+## Bounded master set changes
+The same-name staged New Vegas writer now accepts explicit master additions and removal of unused masters for the existing exact generated top-level schemas. The default remains permutation-only. Example:
+    python -m chimster master-reorder Source.esp stage/Source.esp A.esm B.esm --allow-master-set-change
+To remove every unused master, omit the master paths and retain the opt-in flag. The operation checks dependency order, source record identity uniqueness, surviving override origins, known target types, and reference resolution; unknown schemas, nested groups, compressed/flagged records and referenced removed masters are refused. Output is independently reopened using Chimster's scanner, not an external engine. Changing the master set or order may change winning overrides or runtime behavior even if origin/local identities are preserved; review with an independent editor before deployment. New synthetic fixtures await execution.
