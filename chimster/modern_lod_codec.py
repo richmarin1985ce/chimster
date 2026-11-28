@@ -28,10 +28,10 @@ def header(blocks,names,stream):
     raw+=pack("II",len(names),max(map(len,names)))+b"".join(string(s) for s in names)+pack("I",0)
     return raw+b"".join(b for t,b in blocks)+pack("Ii",1,0)
 
-def shader(tex,stream,kind,cutout):
+def shader(tex,stream,kind,cutout,colored=False):
     typ=9 if kind=="terrain" else 13 if kind=="object" else 0
     f1=0x80000100|(0x4000 if kind=="terrain" else 0)
-    f2=1|({"terrain":2,"object":4,"companion":0}[kind])|(16 if cutout else 0)
+    f2=1|({"terrain":2,"object":4,"companion":0}[kind])|(16 if cutout else 0)|(32 if colored else 0)
     raw=pack("I",typ)+net()+pack("II4fi4f",f1,f2,0,0,1,1,tex,0,0,0,1)
     if stream==130:raw+=pack("i",-1)
     raw+=pack("I3f4f",3,1,0,1 if stream==130 else 16,1,1,1,0)
@@ -52,15 +52,15 @@ def packed_geometry(mesh,raw,center,stream,shader_id,alpha_id,name):
     ts=[r.get("3f") for _ in range(n)]
     bs=[r.get("3f") for _ in range(n)]
     sphere=r.get("4f")
-    if r.get("B")[0]:raise ValueError("Unexpected vertex colors")
+    colors=[r.get("4f") for _ in range(n)] if r.get("B")[0] else []
     uv=[r.get("2f") for _ in range(n)]
     _,_,t,points,has=r.get("HiHIB")
     if not has or points!=t*3:raise ValueError("Invalid triangles")
     triangles=r.take(t*6)
     def byte(v):return max(0,min(255,round((v+1)*127.5)))
     # 28-byte vertex: full XYZ + bitangent X, half UV, two packed vectors.
-    desc=7|(4<<8)|(5<<16)|(6<<20)|((0x41b if stream==130 else 0x1b)<<44)
-    data=b"".join(pack("4f2e8B",*v,b[0],*u,*map(byte,nn),byte(b[1]),*map(byte,tt),byte(b[2])) for v,b,u,nn,tt in zip(vs,bs,uv,ns,ts))
+    desc=(8 if colors else 7)|(4<<8)|(5<<16)|(6<<20)|((7<<24) if colors else 0)|(((0x41b if stream==130 else 0x1b)|(32 if colors else 0))<<44)
+    data=b"".join(pack("4f2e8B",*v,b[0],*u,*map(byte,nn),byte(b[1]),*map(byte,tt),byte(b[2]))+(bytes(round(x*255) for x in colors[i]) if colors else b"") for i,(v,b,u,nn,tt) in enumerate(zip(vs,bs,uv,ns,ts)))
     return av(name)+pack("4fiiiQ",*sphere,-1,shader_id,alpha_id,desc)+pack("IH" if stream==130 else "HH",t,n)+pack("I",len(data)+len(triangles))+data+triangles+(pack("I",0) if stream==100 else b"")
 
 def encode_groups(groups,profile,kind="terrain"):
@@ -83,7 +83,7 @@ def encode_groups(groups,profile,kind="terrain"):
         else:
             shape=packed_geometry(mesh,data,center,stream,sid,aid,len(names)-1)
             blocks.append(("BSTriShape",shape))
-        blocks.extend([("BSLightingShaderProperty",shader(tid,stream,kind,cutout)),
+        blocks.extend([("BSLightingShaderProperty",shader(tid,stream,kind,cutout,bool(mesh.colors))),
                        ("BSShaderTextureSet",pack("I",9)+b"".join(string(p) for p in (d,n,"","","","","","","")))])
         if cutout:blocks.append(("NiAlphaProperty",net()+pack("HB",0x1200,128)))
     lo=tuple(min(p[i] for p in bounds) for i in range(3));hi=tuple(max(p[i] for p in bounds) for i in range(3))
@@ -124,8 +124,9 @@ def inspect(raw,profile):
         elif typ=="BSTriShape":
             q=Reader(data);q.take(72);q.take(16+12)
             desc,=q.get("Q");t,n=q.get("IH" if stream==130 else "HH");size,=q.get("I")
-            if (desc&15)!=7 or size!=n*28+t*6 or not n or not t:raise ValueError("Invalid packed geometry")
-            q.take(n*28)
+            stride=(desc&15)*4
+            if size!=n*stride+t*6 or not n or not t:raise ValueError("Invalid packed geometry")
+            read_packed_vertices(q,desc,n,stream,preserve_colors=True)
             for _ in range(t):
                 if any(i>=n for i in q.get("3H")):raise ValueError("Invalid packed triangle")
             if stream==100 and q.get("I")[0]!=0:raise ValueError("Unexpected particle data")
@@ -160,7 +161,7 @@ def export_tile(profile,kind,world,level,x,y,mesh,diffuse,normal,output,cutout=F
             "scope":"Author-supplied tile mesh in local game units, material and runtime layout require validation"}
 
 
-def read_packed_vertices(r,desc,count,stream):
+def read_packed_vertices(r,desc,count,stream,preserve_colors=False):
     """Read documented unskinned static vertex variants, rejecting lossy attributes."""
     flags=desc>>44
     if flags&~0x43b or flags&3!=3 or flags&16 and not flags&8:
@@ -181,7 +182,10 @@ def read_packed_vertices(r,desc,count,stream):
         u,v=r.get("2e")
         if normal:r.take(4)
         if tangent:r.take(4)
-        if color and r.take(4)!=bytes([255])*4:raise ValueError("Nonwhite source vertex colors require color-preserving conversion")
+        if color:
+            rgba=r.take(4)
+            if preserve_colors:mesh.colors.append(tuple(v/255 for v in rgba))
+            elif rgba!=bytes([255])*4:raise ValueError("Nonwhite source vertex colors require color-preserving conversion")
         if not all(isfinite(a) for a in (x,y,z,u,v)):raise ValueError("Nonfinite packed vertex")
         mesh.vertices.append((x,y,z));mesh.uv.append((u,1-v))
     return mesh
@@ -246,7 +250,7 @@ def read_static_groups(raw,profile):
             t,n=r.get("IH" if stream==130 else "HH");size,=r.get("I")
             stride=(desc&15)*4
             if size!=n*stride+t*6 or not n or not t or t>65535:raise ValueError("Unsupported packed source geometry")
-            mesh=read_packed_vertices(r,desc,n,stream)
+            mesh=read_packed_vertices(r,desc,n,stream,preserve_colors=True)
             mesh.faces=[(r.get("3H"),"lod") for _ in range(t)]
             if stream==100 and r.get("I")[0]!=0:raise ValueError("Particle data unsupported")
         else:raise ValueError("Unsupported source shape "+kind)
@@ -257,6 +261,9 @@ def read_static_groups(raw,profile):
         for p in mesh.vertices:
             for t in chain:p=tuple(t[i]+t[12]*sum(t[3+3*i+j]*p[j] for j in range(3)) for i in range(3))
             target.vertices.append(p)
+        if mesh.colors or target.colors:
+            if not target.colors:target.colors=[(1.,)*4]*offset
+            target.colors.extend(mesh.colors or [(1.,)*4]*len(mesh.vertices))
         target.uv.extend(mesh.uv);target.faces.extend((tuple(v+offset for v in f),"lod") for f,_ in mesh.faces)
     visit(0)
     if not groups:raise ValueError("No supported source geometry")
