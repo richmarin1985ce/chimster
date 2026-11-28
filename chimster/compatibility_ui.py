@@ -111,7 +111,7 @@ def mount(parent,game=None):
     def package_archive():
         from .archive_packaging import package_directory
         from tkinter import messagebox
-        formats={"morrowind":("tes3",".bsa"),"fallout4":("ba2",".ba2"),"fallout4-vr":("ba2",".ba2")}
+        formats={"oblivion":("103",".bsa"),"fallout3":("104",".bsa"),"new-vegas":("104",".bsa"),"skyrim":("104",".bsa"),"skyrim-se":("105",".bsa"),"skyrim-vr":("105",".bsa"),"morrowind":("tes3",".bsa"),"fallout4":("ba2",".ba2"),"fallout4-vr":("ba2",".ba2")}
         if profile.get() not in formats:raise ValueError("Archive writing is not available for this game profile")
         fmt,suffix=formats[profile.get()]
         source=filedialog.askdirectory(title="Select original mod asset directory")
@@ -119,7 +119,8 @@ def mount(parent,game=None):
         target=filedialog.asksaveasfilename(defaultextension=suffix,filetypes=[("Game archive","*"+suffix)])
         if not target:return
         if not messagebox.askyesno("Experimental archive packaging","Package all files in the selected directory? Use only assets you are authorized to distribute. Retail compatibility is unverified."):return
-        return package_directory(source,target,format=fmt)
+        compress=fmt!="tes3" and messagebox.askyesno("Compression","Compress assets when beneficial? BSA 105 compression requires LZ4.")
+        return package_directory(source,target,format=fmt,compress=compress)
     def validate_archive():
         from .archive_validation import audit
         source=filedialog.askopenfilename(filetypes=[("Archives","*.bsa *.ba2")])
