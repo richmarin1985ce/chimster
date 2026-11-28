@@ -330,6 +330,10 @@ def launch():
   ttk.Button(bar,text='All pages',command=lambda:(query.set(''),refresh_wiki())).pack(side='left')
   search_entry.bind('<Return>',lambda e:refresh_wiki())
   pages.bind('<<ListboxSelect>>',display_page);refresh_wiki()
+  wiki_frame=f
+  def calipy_open_page(key):
+   tabs.select(wiki_frame);open_page(key)
+  calipy.attach_wiki(wiki,calipy_open_page)
   def close_app():
    wiki.close();root.destroy()
   root.protocol('WM_DELETE_WINDOW',close_app)
