@@ -1,7 +1,4 @@
-"""Experimental legacy Streamable HTTP JSON transport; loopback read-only.
-
-No browser origins, public bind, TLS termination, OAuth, SSE or write grants.
-"""
+"""Read-only MCP HTTP with optional operator-configured TLS/OAuth; no SSE."""
 import json
 import os
 import secrets
@@ -130,6 +127,26 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(msg,dict):raise ValueError()
         except (ValueError,UnicodeError,RecursionError,OSError):
             self.reply(400);return
+        from .mcp_modern import VERSION,modern_request,dispatch,error
+        if self.headers.get("MCP-Protocol-Version")==VERSION or modern_request(msg):
+            params=msg.get("params",{})
+            params=params if isinstance(params,dict) else {}
+            method=msg.get("method")
+            expected=params.get("name") if method in ("tools/call","prompts/get") else params.get("uri") if method=="resources/read" else None
+            if (self.headers.get_all("MCP-Protocol-Version",[])!=[VERSION] or
+                self.headers.get_all("Mcp-Method",[])!=[method] or
+                (expected is not None and self.headers.get_all("Mcp-Name",[])!=[expected]) or
+                self.headers.get("Mcp-Session-Id") is not None):
+                self.reply(400,error(msg,-32020,"Header mismatch"));return
+            bridge=self.server.bridge_factory()
+            bridge.transport="oauth-https" if self.server.oauth else "loopback-http"
+            try:
+                result=dispatch(bridge,msg)
+                code=result.get("error",{}).get("code")
+                self.reply(404 if code==-32601 else 400 if code else 200,result)
+            finally:
+                if bridge.jobs:bridge.jobs.close()
+            return
         key=self.headers.get("Mcp-Session-Id")
         if msg.get("method")=="initialize" and key is None:
             if len(self.server.sessions)>=MAX_SESSIONS:
