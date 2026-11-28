@@ -4,7 +4,8 @@ from tkinter import ttk, filedialog, messagebox
 from .core import PROFILES, catalog, inspect_plugin, plan
 
 def launch():
- root=tk.Tk(); root.title('CHIMSTER | Bethesda Modding Workshop'); root.geometry('1000x650')
+ from .drop_import import root as desktop_root
+ root=desktop_root(); root.title('CHIMSTER | Bethesda Modding Workshop'); root.geometry('1000x650')
  root.configure(bg='#20252c'); style=ttk.Style(root); style.theme_use('clam')
  top=ttk.Frame(root,padding=12); top.pack(fill='x'); ttk.Label(top,text='CHIMSTER',font=('TkDefaultFont',20,'bold')).pack(side='left')
  game=tk.StringVar(value='newvegas'); ttk.Combobox(top,textvariable=game,values=list(PROFILES),state='readonly').pack(side='right')
