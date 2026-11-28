@@ -150,5 +150,31 @@ class WorldBrowserTests(unittest.TestCase):
 
 
 
+    def test_native_draft_export_and_source_change(self):
+        from chimster.world_draft import Draft
+        from chimster.world_draft_native import export_esp
+        # Canonical source: top-level STAT group; no malformed legacy fixture hierarchy.
+        header=record(b"TES4",0,sub(b"HEDR",struct.pack("<fII",1.34,2,0x804)),flags=1)
+        self.base.write_bytes(header+group(0,int.from_bytes(b"STAT","little"),
+            record(b"STAT",0x803,edid("RoadSign"))))
+        browser=Browser.open([self.base])
+        draft=Draft(browser)
+        key=draft.create("NewRoom")
+        ref=draft.place(key,self.static,(100,200,300),scale=1.5)
+        out=Path(self.tmp.name)/draft.name
+        source=self.base.read_bytes()
+        export_esp(draft,out)
+        merged=Browser.open([self.base,out])
+        self.assertEqual(merged.active[key]["editor_id"],"NewRoom")
+        self.assertEqual(merged.active[ref]["base"],self.static)
+        self.assertEqual(merged.active[ref]["scale"],1.5)
+        self.assertEqual(self.base.read_bytes(),source)
+        out.unlink()
+        self.base.write_bytes(source+b"changed")
+        with self.assertRaises(ValueError):export_esp(draft,out)
+        self.assertFalse(out.exists())
+
+
+
 if __name__ == "__main__":
     unittest.main()
