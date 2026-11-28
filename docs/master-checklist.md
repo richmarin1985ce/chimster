@@ -66,6 +66,24 @@ The New Vegas master-set writer now covers the exact generated WRLD/CELL/LAND/RE
 ### Follow-up: native dialogue and quest remapping
 Exact generated FNV QUST/DIAL/INFO layouts, topic-owned INFO groups and supported CTDA conditions (stage, actor, faction, reputation) are now supported by the staged master-table writer. Typed objective, quest, topic, previous-response, audio, animation and speaker references are remapped. Nonempty script source or bytecode, unrecognized condition functions and layouts remain blocked. Shared exact generated world and quest reference offsets are now also used in graph/catalog inspection. Synthetic tests cover semantic identity preservation, script rejection, unknown conditions and graph coverage; execution remains deferred. General nested interiors, native script remapping, wider cross-game schemas and independent verification remain open; same milestone estimates 65% / 60%.
 
+## Connected core systems — active-scope tracking
+The five connected sections are now tracked together using the existing ten equal-weight milestones per section (implemented = 1, partial = 0.5, pending = 0). Estimates are engineering source-review estimates, not tested retail readiness.
+
+| Section | Implemented | Partial | Pending | Estimate |
+|---|---:|---:|---:|---:|
+| 2 Game compatibility | 5 | 3 | 2 | 65% |
+| 3 Native records | 3 | 6 | 1 | 60% |
+| 5 World editor | 4 | 4 | 2 | 60% |
+| 7 Validation | 4 | 4 | 2 | 60% |
+| 14 Quests/dialogue | 4 | 4 | 2 | 60% |
+| Combined, equal section weights | 20 | 21 | 9 | 61% |
+
+5 implemented: terrain import, portable sculpt/paint, snapped placement, portable chunk storage. Partial: native exterior authoring, persistent identity/world inspection, interior layout/native integration, roads/settlement tools. Pending: continuous native streaming/3D editing; native navigation/weather/water integration.
+7 implemented: structural bounds checks, group/owner checks, dependency/load-order checks, read-only issue reporting/export gate. Partial: typed reference checks, merged-world/override preservation, landscape/LOD coverage, game-specific schema coverage. Pending: complete navmesh validation and independent retail validation/repair workflow.
+14 implemented: portable quest graph/editor, bounded state analysis, generated FNV stage/objective/dialogue authoring, GECK source draft planning. Partial: native typed quest references/conditions, actor/reputation integration, compilation attachment tooling, scenes/aliases/cross-game adapters. Pending: verified runtime progression and independent retail/GECK validation.
+
+Cross-section pass: native quest inspection now shares generated CTDA and dialogue reference offsets, validates duplicate IDs and topic/previous-response ownership. Native world inspection exposes LAND, owning world/cell, persistent flag and reference bucket. Opt-in world-check --quest-links audits generated quest links against merged winners; unknown layouts remain opaque warnings. Integration fixtures added, execution remains deferred. No change to prior Section 2/3 milestone scores.
+
 ## Critical path
 1. Stable project FormID allocation, typed native record schema and dependency-safe edits.
 2. Integrated native interior cells, architectural assets, room/portal/trigger volumes, placed references and collision.
