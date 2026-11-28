@@ -737,7 +737,10 @@ def main(argv=None):
     matches=[k for k,row in browser.worlds.items() if row["editor_id"].casefold()==n.world.casefold() or label(k).casefold()==n.world.casefold()]
     if len(matches)!=1:raise ValueError("Worldspace must match one editor ID or canonical FormID")
     if n.lop=='world-native':
-     from .world_lod_builtin import export
+     if browser.profile=="oblivion":
+      from .world_lod_oblivion import export
+     else:
+      from .world_lod_builtin import export
      result=export(browser,matches[0],n.output,size=n.size)
     elif n.lop=='world-trees':
      from .world_lod_tree_tiles import export
@@ -746,7 +749,10 @@ def main(argv=None):
      result=export(browser,matches[0],n.output,spec,Assets(n.data,n.archive))
     else:
      from .world_lod_object_builtin import Assets,export
-     result=export(browser,matches[0],n.output,Assets(n.data,n.archive),limit=n.limit,previous=n.previous,atlas=not n.no_atlas)
+     if browser.profile=="oblivion":
+      from .world_lod_oblivion_objects import export as export_oblivion_objects
+      result=export_oblivion_objects(browser,matches[0],n.output,Assets(n.data,n.archive))
+     else:result=export(browser,matches[0],n.output,Assets(n.data,n.archive),limit=n.limit,previous=n.previous,atlas=not n.no_atlas)
   elif n.cmd=='discover-tools':
    from .tooling import discover_tools
    result=discover_tools()
