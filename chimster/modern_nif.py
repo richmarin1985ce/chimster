@@ -69,3 +69,18 @@ def export(mesh,game,output,helper,materials=None,scale=1,box_collision=False,co
             with dest.open("rb") as src:shutil.copyfileobj(src,f)
     if compound_collision is not None and len(set([root_material,*materials_expected]))>1:report["warning"]="Mixed material IDs preserved; list shape impact sound/FX may use parent material in game."
     return {**report,"output":str(p),"status":"native Nifly roundtrip; game runtime not verified"}
+
+def extract_collision(path,helper,unit_scale):
+    """Return actual supported native collision triangles, never render-mesh fallback."""
+    source=Path(path).resolve(strict=True);helper=Path(helper).resolve(strict=True)
+    if source.suffix.lower()!=".nif" or source.stat().st_size>128*1024*1024 or not helper.is_file() or helper.suffix.lower() in {".bat",".cmd",".ps1"}:
+        raise ValueError("expected bounded NIF and native helper")
+    from .navmesh import num,point
+    scale=num(unit_scale,.000001,100000)
+    cp=subprocess.run([str(helper),"extract-collision",str(source),str(scale)],shell=False,capture_output=True,text=True,timeout=180)
+    if cp.returncode:raise RuntimeError(cp.stderr[-4000:])
+    if len(cp.stdout)>100*1024*1024:raise ValueError("collision output limit")
+    report=json.loads(cp.stdout);vertices=[point(v) for v in report["vertices"]];triangles=report["triangles"]
+    if not vertices or not triangles or max(len(vertices),len(triangles))>500000:raise ValueError("invalid native collision output")
+    if any(len(t)!=3 or len(set(t))!=3 or any(type(i) is not int or not 0<=i<len(vertices) for i in t) for t in triangles):raise ValueError("invalid native collision index")
+    return {"vertices":vertices,"triangles":triangles}
