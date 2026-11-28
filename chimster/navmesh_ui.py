@@ -70,6 +70,13 @@ def mount(parent):
         report=route(mesh,*selected,mesh.get("links",[]),closed)
         corridor.clear();corridor.update(report["triangles"]);draw()
         status.set("Route found: "+str(len(corridor))+" triangles" if report["reachable"] else "No route")
+    def simplify_mesh():
+        nonlocal mesh
+        if mesh is None:raise ValueError("generate first")
+        from .navmesh_simplify import simplify
+        updated=simplify(mesh);past.append(mesh);past[:]=past[-5:]
+        mesh=updated;selected.clear();corridor.clear();draw()
+        status.set(str(mesh["simplification"]))
     def exclude():
         nonlocal mesh
         if mesh is None or not selected:raise ValueError("select triangles")
@@ -105,7 +112,7 @@ def mount(parent):
         if p:
             with Path(p).open("x",encoding="utf-8") as f:json.dump(mesh,f)
     buttons=ttk.Frame(parent);buttons.pack(fill="x")
-    for label,fn in (("Load source",load),("Auto generate",auto),("Route",path),("Portal states",links),("Exclude selected",exclude),("Undo",undo),("Quality",review),("Save mesh",save)):
+    for label,fn in (("Load source",load),("Auto generate",auto),("Route",path),("Portal states",links),("Simplify",simplify_mesh),("Exclude selected",exclude),("Undo",undo),("Quality",review),("Save mesh",save)):
         ttk.Button(buttons,text=label,command=lambda fn=fn:guard(fn)).pack(side="left")
     layer_select.bind("<<ComboboxSelected>>",draw)
     canvas.bind("<Button-1>",pick);canvas.bind("<Configure>",draw)
