@@ -12,15 +12,25 @@ MAX_LIP = 64 * 1024 * 1024
 def digest(data):
     return hashlib.sha256(data).hexdigest()
 
-def header(data):
-    if not 12 < len(data) <= MAX_LIP:
-        raise ValueError("missing or oversized modern LIP payload")
-    version, size, flags = struct.unpack_from("<iii", data)
-    if version <= 0 or size <= 0 or flags < 0:
-        raise ValueError("invalid modern LIP header")
-    return {"version":version,"declared_size":size,"flags":flags,
-            "payload_bytes":len(data)-12,
-            "validation":"header-only; facial curves and game playback unverified"}
+def header(data, game=None):
+    """Inspect the observed native frame-grid header, not the wrapper ABI."""
+    if not 24 < len(data) <= MAX_LIP:
+        raise ValueError("missing or oversized native LIP payload")
+    version,ticks,curves,frames,components,first,targets,unknown = struct.unpack_from("<IIIHHiHH",data)
+    if version!=1 or not frames or not curves or components!=3:
+        raise ValueError("unsupported native LIP header")
+    detected={16:"Skyrim",43:"Fallout4"}.get(targets)
+    if detected is None or game is not None and detected!=game:
+        raise ValueError("unsupported or mismatched native target count")
+    stride={"Skyrim":132,"Fallout4":240}[detected]
+    if ticks!=stride*frames+28:
+        raise ValueError("unsupported native time-grid invariant")
+    return {"version":version,"game":detected,"duration_ticks":ticks,
+            "frames":frames,"first_frame":first,"active_curves":curves,
+            "target_count":targets,"components":components,"unknown_u22":unknown,
+            "payload_bytes":len(data)-24,
+            "validation":"observed native header only; curve payload and runtime unverified"}
+
 
 def build(source, output, *, game, transcript, tool, backend="facefxwrapper",
           fonix=None, ffmpeg=None, experimental=False):
@@ -59,7 +69,7 @@ def build(source, output, *, game, transcript, tool, backend="facefxwrapper",
             audio.native_lip(wav,lip,exe,fonix,game,transcript)
         if lip.stat().st_size>MAX_LIP:raise ValueError("oversized LIP")
         data=lip.read_bytes()
-        meta=header(data)
+        meta=header(data,game)
         if digest(Path(exe).read_bytes())!=tool_hash:
             raise ValueError("backend executable changed during generation")
         report={"game":game,"backend":backend,"experimental":backend=="openfacefx",
@@ -82,7 +92,7 @@ def verify(directory, source, transcript):
     directory=Path(directory)
     report=json.loads((directory/"receipt.json").read_text(encoding="utf-8"))
     data=(directory/"voice.lip").read_bytes()
-    header(data)
+    header(data,report["game"])
     return {"lip_matches":digest(data)==report["lip_sha256"],
             "audio_matches":digest(Path(source).read_bytes())==report["source_sha256"],
             "transcript_matches":digest(transcript.encode("utf-8"))==report["transcript_sha256"],
