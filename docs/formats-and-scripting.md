@@ -38,6 +38,16 @@ The dependency inventory records explicit Scriptname extends and Import links, u
 
 Only unnamespaced flat sources are included; subdirectories are not searched. Maximum 2,000 PSC files and 32 MiB per inventory. No incremental cache, full type dependency resolution, compiler verification or native engine validation yet. Synthetic regression cases committed; execution deferred.
 
+### Native VMAD inspection and scalar editing
+Skyrim-family VMAD version 5, object formats 1 and 2: inspect existing attached script names, status bytes, scalar properties and basic arrays. Object references expose raw on-disk FormIDs and bytes, not resolved load-order identities. Fragment/alias tails are reported as opaque and are not edited.
+
+    python -m chimster vmad-inspect skyrimse Example.esp 0x00000800
+    python -m chimster vmad-edit skyrimse Example.esp staged/Example.esp 0x00000800 ExampleScript Count 4 PLUGIN_SHA256 VMAD_SHA256
+
+The second command requires the hashes from the inspection and a separate, new same-name plugin path. Only existing scalar string, int, float and bool values on selected uncompressed record families may be changed. Unrelated bytes, record IDs, master tables, and group labels are preserved; affected record/group lengths are adjusted and the resulting VMAD reopened. Unsupported versions, unknown property types, compressed target records, and opaque fragment tails fail closed. No object reference writing, new script attachment, alias/fragment generation, VMAD remapping, Fallout 4 structs, or runtime certification yet. Synthetic fixtures committed, execution deferred.
+
+Format references: https://github.com/BadDogSkyrim/BethesdaLibrary/blob/main/docs/file-formats/scripts.md and https://github.com/TES5Edit/meta/blob/master/UESPWiki/QUSTDef.wiki .
+
 ## Voice
 The formats module packs and unpacks supported FUZ containers. A FUZ is not a speech synthesizer: it contains separate lip-sync and audio payloads. XWM encoding, actual lip-sync generation and Wwise conversion remain unimplemented. Do not republish extracted game voice assets.
 
