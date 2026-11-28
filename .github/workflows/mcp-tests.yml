@@ -1,0 +1,35 @@
+name: MCP interoperability tests
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'chimster/mcp_*.py'
+      - 'chimster/editor_presence.py'
+      - 'chimster/editor_commands.py'
+      - 'chimster/project*.py'
+      - 'tests/test_mcp*.py'
+      - '.github/workflows/mcp-tests.yml'
+permissions:
+  contents: read
+jobs:
+  mcp:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ['3.10', '3.12']
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install Chimster
+        run: python -m pip install .
+      - name: Compile interoperability source
+        run: python -m compileall -q chimster
+      - name: Run MCP regression tests
+        run: python -m unittest discover -s tests -p "test_mcp*.py" -v
+      - name: CLI discovery smoke test
+        run: python -m chimster --mcp --describe
