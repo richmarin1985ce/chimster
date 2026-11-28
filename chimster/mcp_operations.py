@@ -49,10 +49,13 @@ class CreationSession:
     The host must explicitly enable creation before launching the server.
     The token binds the exact proposal, not human approval.
     """
-    def __init__(self, project, enabled=False):
+    def __init__(self, project, enabled=False, allow_edit=False):
         self.project = project
         self.enabled = enabled
         self.pending = None
+        self.allow_edit = allow_edit
+        self.undo = None
+        self.redo = None
 
     def preview(self, id, kind, filename, text, revision):
         identifier(id)
@@ -72,22 +75,72 @@ class CreationSession:
         if m["revision"] != revision or any(k.casefold()==id.casefold() for k in m["artifacts"]):
             raise ValueError("stale revision or artifact already exists")
         token = secrets.token_urlsafe(24) if self.enabled else None
-        self.pending = (token, id, kind, filename, raw, revision) if self.enabled else None
+        self.pending = (token, id, kind, filename, raw, revision, False) if self.enabled else None
         return {"operation":"create", "id":id, "kind":kind, "filename":filename,
                 "bytes":len(raw), "sha256":hashlib.sha256(raw).hexdigest(),
                 "revision":revision, "apply_enabled":self.enabled, "proposal_token":token}
 
     def apply(self, token):
-        if not self.enabled or self.pending is None or not secrets.compare_digest(token, self.pending[0]):
+        if self.pending is None or not token.isascii() or not secrets.compare_digest(token, self.pending[0]):
             raise ValueError("no matching proposal")
-        _, key, kind, filename, raw, revision = self.pending
+        _, key, kind, filename, raw, revision, replace = self.pending
+        if not (self.allow_edit if replace else self.enabled):
+            raise ValueError("operation not granted")
         self.pending = None
         with tempfile.TemporaryDirectory(prefix="chimster-mcp-") as d:
             p = Path(d)/filename
             p.write_bytes(raw)
-            m = self.project.add(key, kind, p, revision, replace=False)
+            m = self.project.add(key, kind, p, revision, replace=replace)
+        self.undo = (revision,m["revision"])
+        self.redo = None
         return {"id":key, "revision":m["revision"], "artifact":m["artifacts"][key],
                 "undo_target_revision":revision}
+
+    def preview_replace(self, id, text, revision, sha256):
+        import difflib
+        m,a,p=artifact_input(self.project,id,MAX_TEXT)
+        if m["revision"]!=revision or a["sha256"]!=sha256:
+            raise ValueError("stale revision or artifact digest")
+        filename=a["filename"]
+        if a["kind"] in {"plugin","mesh","texture","audio","package","ledger"} or Path(filename).suffix.lower() not in {".json",".txt",".psc",".lua",".xml",".csv",".md",".geck",".obscript",".mwscript"}:
+            raise ValueError("unsupported text draft")
+        if not filename.isascii() or any(c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.- " for c in filename) or filename.split(".")[0].strip().upper() in {"CON","PRN","AUX","NUL",*[f"COM{i}" for i in range(1,10)],*[f"LPT{i}" for i in range(1,10)]}:
+            raise ValueError("unsafe filename")
+        old=p.read_text(encoding="utf-8-sig")
+        raw=text.encode("utf-8")
+        if len(raw)>MAX_TEXT or "\x00" in text or "\x00" in old:
+            raise ValueError("invalid draft text")
+        if Path(filename).suffix.lower()==".json":
+            json.loads(text)
+        token=secrets.token_urlsafe(24) if self.allow_edit else None
+        self.pending=(token,id,a["kind"],filename,raw,revision,True) if self.allow_edit else None
+        import itertools
+        before=old.splitlines()
+        after=text.splitlines()
+        diff=list(itertools.islice(difflib.unified_diff(before,after,fromfile="before",tofile="after"),201)) if max(len(before),len(after))<=4000 else []
+        clipped=len(diff)>200 or max(len(before),len(after))>4000 or sum(map(len,diff))>16000
+        return {"operation":"replace","id":id,"revision":revision,"before_sha256":sha256,
+                "after_sha256":hashlib.sha256(raw).hexdigest(),"bytes":len(raw),
+                "diff":"\n".join(diff[:200])[:16000],"diff_truncated":clipped,
+                "proposal_token":token,"apply_enabled":self.allow_edit}
+
+    def recover(self, direction, revision):
+        if not self.allow_edit:
+            raise ValueError("edit permission required")
+        pair=self.undo if direction=="undo" else self.redo if direction=="redo" else None
+        if pair is None or pair[1]!=revision:
+            raise ValueError("no matching session revision")
+        if self.project.read()["revision"]!=revision:
+            raise ValueError("intervening project changes")
+        m=self.project.rollback(pair[0],revision)
+        self.pending=None
+        if direction=="undo":
+            self.undo=None
+            self.redo=(revision,m["revision"])
+        else:
+            self.redo=None
+            self.undo=(revision,m["revision"])
+        return {"operation":direction,"revision":m["revision"],"restored_revision":pair[0]}
 
 def inspect_plugin_artifact(project, id):
     from .core import inspect_plugin
