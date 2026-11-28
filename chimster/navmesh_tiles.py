@@ -123,3 +123,10 @@ def assemble(tiles,size):
     return {"schema":1,"vertices":vertices,"triangles":triangles,**report,"links":links,
             "triangle_layers":layers,"triangle_tiles":owners,"seam_edges":seams,"issues":issues,
             "scope":"portable tiled collision AutoNav with reciprocal halo seam verification"}
+
+def load(path,limit=256*1024*1024):
+    """Bounded project/cache JSON reader; the quest loader's 8MB cap is too small."""
+    from pathlib import Path
+    p=Path(path)
+    if p.stat().st_size>limit:raise ValueError("navigation JSON exceeds input budget")
+    with p.open(encoding="utf-8") as stream:return json.load(stream)
