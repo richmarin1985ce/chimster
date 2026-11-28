@@ -1,11 +1,8 @@
-"""Staged native LOD tool handoff and output auditing (no fake runtime NIFs)."""
+"""Built-in native LOD output auditing and worldspace name handling."""
 from pathlib import Path
 import re
 import hashlib
 import json
-from .xedit import Workspace
-from .lod_tools import tool_plan,run_tool
-from .world_lod_metadata import world_bounds
 from .loadorder import fingerprint
 
 GAME={"new-vegas":"newvegas","fallout3":"fallout3","oblivion":"oblivion","skyrim":"skyrim","skyrim-se":"skyrimse","fallout4":"fallout4"}
@@ -15,55 +12,6 @@ def world_name(browser,world):
     name=row.get("editor_id","")
     if not re.fullmatch(r"[A-Za-z0-9_ -]{1,128}",name):raise ValueError("Unsafe or missing worldspace EditorID")
     return name
-
-def prepare(browser,world,workspace,executable):
-    name=world_name(browser,world)
-    if GAME.get(browser.profile)!=workspace.game:raise ValueError("Workspace game does not match browser")
-    paths=workspace.paths()
-    # Require identical staged copies of the browser load order, including exported drafts.
-    sources=getattr(browser,"source_paths",None)
-    hashes=getattr(browser,"source_hashes",None)
-    if not sources or not hashes:raise ValueError("Export staged edits and reopen their ESP before native generation")
-    by_name={}
-    for p in paths["data"].iterdir():
-        if p.is_file() and p.suffix.lower() in (".esm",".esp",".esl"):
-            k=p.name.casefold()
-            if k in by_name:raise ValueError("Duplicate staged plugin name")
-            by_name[k]=p
-    expected=[p.name.casefold() for p in sources]
-    actual=[]
-    for line in paths["plugins"].read_text(encoding="utf-8-sig").splitlines():
-        line=line.strip()
-        if line and not line.startswith("#"):actual.append(line.lstrip("*").casefold())
-    # Some games omit implicit masters from plugins.txt. Do not guess.
-    if actual!=expected:raise ValueError("Staged plugins.txt must list the exact browser load order including masters")
-    for path,digest in zip(sources,hashes):
-        staged=by_name.get(path.name.casefold())
-        if staged is None or fingerprint(staged)!=digest or fingerprint(path)!=digest:
-            raise ValueError("Staged or source plugin changed: "+path.name)
-    ext=".dlodsettings" if workspace.game in ("newvegas","fallout3") else ".lod"
-    setting="LODSettings/"+name+ext
-    candidates=[p for p in paths["data"].rglob("*") if p.is_file() and p.relative_to(paths["data"]).as_posix().casefold()==setting.casefold()]
-    if not candidates:
-        # Look only in explicit staged archives; registration still requires review.
-        from .archive_reader import directory
-        from .compatibility_asset_lookup import normalize
-        for p in paths["data"].iterdir():
-            if p.suffix.casefold() not in (".bsa",".ba2"):continue
-            try:
-                if normalize(setting) in directory(p):candidates.append(p)
-            except (OSError,ValueError):continue
-    plan=tool_plan(workspace,"xlodgen",executable)
-    return {**plan,"world":name,"game":workspace.game,"settings":setting,
-            "settings_sources":[str(p) for p in candidates],"settings_missing":not candidates,
-            "world_bounds":world_bounds(r["grid"] for r in browser.cells[world] if "grid" in r),
-            "source_plugins":expected,"source_hashes":list(hashes),
-            "notes":"Select this world in xLODGen. Generate missing LODSettings with the external tool/GECK. Review native outputs before installing."}
-
-def launch(browser,world,workspace,executable):
-    plan=prepare(browser,world,workspace,executable)
-    if plan["settings_missing"]:raise ValueError("Missing LODSettings; prepare with GECK or xLODGen before generation")
-    return run_tool(workspace,"xlodgen",executable),plan
 
 def audit(output,world,game):
     root=Path(output).resolve(strict=True)
