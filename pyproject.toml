@@ -9,6 +9,7 @@ requires-python = ">=3.10"
 license = "MIT"
 license-files = ["LICENSE"]
 [project.optional-dependencies]
+recording = ["sounddevice>=0.4,<1"]
 archives = ["lz4>=4.3,<5"]
 textures = ["Pillow>=10,<13"]
 viewport = ["moderngl>=5.12,<6", "Pillow>=10,<13"]
