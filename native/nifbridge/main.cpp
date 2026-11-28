@@ -57,12 +57,23 @@ static int extractCollision(const char* filename,const char* scaleArg){
     if(dynamic_cast<bhkRigidBodyT*>(body))bodyTransform=rigid(body->rotation,Vector3(body->translation.x,body->translation.y,body->translation.z));
     std::vector<Vector3> verts;std::vector<std::array<unsigned,3>> tris;
     std::vector<std::vector<Vector3>> hulls;size_t hullPoints=0;
+    std::vector<std::array<float,6>> solids;
     auto scaled=[&](Vector3 p){
         p.x*=scale;p.y*=scale;p.z*=scale;
         require(std::isfinite(p.x)&&std::isfinite(p.y)&&std::isfinite(p.z)&&std::abs(p.x)<=1e7&&std::abs(p.y)<=1e7&&std::abs(p.z)<=1e7,"invalid collision vertex");
         return p;
     };
     auto push=[&](Vector3 p){require(verts.size()<500000,"collision vertex limit");verts.push_back(scaled(p));};
+    // Curved primitives are obstruction-only conservative world AABBs.
+    // They must not be promoted to walkable triangle surfaces.
+    auto solid=[&](Vector3 a,Vector3 b,float r,Transform apply){
+        require(std::isfinite(r)&&r>0&&solids.size()<4096,"invalid primitive radius or count");
+        a=scaled(apply(a));b=scaled(apply(b));r*=scale;
+        std::array<float,6> box={std::min(a.x,b.x)-r,std::min(a.y,b.y)-r,std::min(a.z,b.z)-r,
+                                  std::max(a.x,b.x)+r,std::max(a.y,b.y)+r,std::max(a.z,b.z)+r};
+        for(float v:box)require(std::isfinite(v)&&std::abs(v)<=1e7,"invalid primitive bounds");
+        solids.push_back(box);
+    };
     std::set<const bhkShape*> stack;
     std::function<void(bhkShape*,Transform,unsigned)> walk;
     walk=[&](bhkShape* shape,Transform apply,unsigned depth){
@@ -73,6 +84,19 @@ static int extractCollision(const char* filename,const char* scaleArg){
             for(int z:{-1,1})for(int y:{-1,1})for(int x:{-1,1})push(apply(Vector3(x*d.x,y*d.y,z*d.z)));
             const unsigned faces[12][3]={{0,2,1},{1,2,3},{4,5,6},{5,7,6},{0,1,4},{1,5,4},{2,6,3},{3,6,7},{0,4,2},{2,4,6},{1,3,5},{3,7,5}};
             for(auto& t:faces)tris.push_back({base+t[0],base+t[1],base+t[2]});
+        }else if(auto sphere=dynamic_cast<bhkSphereShape*>(shape)){
+            solid(Vector3(0,0,0),Vector3(0,0,0),sphere->radius,apply);
+        }else if(auto capsule=dynamic_cast<bhkCapsuleShape*>(shape)){
+            require(std::isfinite(capsule->radius1)&&std::isfinite(capsule->radius2)&&capsule->radius1>=0&&capsule->radius2>=0&&
+                    std::isfinite(capsule->radius)&&capsule->radius>=0,"invalid capsule radii");
+            solid(capsule->point1,capsule->point2,std::max({capsule->radius,capsule->radius1,capsule->radius2}),apply);
+        }else if(auto cylinder=dynamic_cast<bhkCylinderShape*>(shape)){
+            require(std::isfinite(cylinder->cylinderRadius)&&cylinder->cylinderRadius>0&&std::isfinite(cylinder->radius)&&cylinder->radius>=0,"invalid cylinder radius");
+            solid(Vector3(cylinder->vertexA.x,cylinder->vertexA.y,cylinder->vertexA.z),
+                  Vector3(cylinder->vertexB.x,cylinder->vertexB.y,cylinder->vertexB.z),cylinder->cylinderRadius+cylinder->radius,apply);
+        }else if(auto multi=dynamic_cast<bhkMultiSphereShape*>(shape)){
+            require(!multi->spheres.empty()&&multi->spheres.size()<=4096,"invalid multisphere count");
+            for(const auto& sphere:multi->spheres)solid(sphere.center,sphere.center,sphere.radius,apply);
         }else if(auto convex=dynamic_cast<bhkConvexVerticesShape*>(shape)){
             require(convex->verts.size()>=4&&convex->verts.size()<=64,"convex core point limit");
             require(hulls.size()<128&&hullPoints+convex->verts.size()<=4096,"convex core work limit");
@@ -156,13 +180,15 @@ static int extractCollision(const char* filename,const char* scaleArg){
         require(tris.size()<=500000,"collision triangle limit");stack.erase(shape);
     };
     walk(h.GetBlock(body->shapeRef),bodyTransform,0);
-    require((!verts.empty()&&!tris.empty())||!hulls.empty(),"empty collision geometry");
+    require((!verts.empty()&&!tris.empty())||!hulls.empty()||!solids.empty(),"empty collision geometry");
     std::cout<<std::setprecision(9)<<"{\"vertices\":[";
     for(size_t i=0;i<verts.size();i++){if(i)std::cout<<",";auto p=verts[i];std::cout<<"["<<p.x<<","<<p.y<<","<<p.z<<"]";}
     std::cout<<"],\"triangles\":[";
     for(size_t i=0;i<tris.size();i++){if(i)std::cout<<",";auto t=tris[i];std::cout<<"["<<t[0]<<","<<t[1]<<","<<t[2]<<"]";}
     std::cout<<"],\"convex_cores\":[";
     for(size_t i=0;i<hulls.size();i++){if(i)std::cout<<",";std::cout<<"[";for(size_t j=0;j<hulls[i].size();j++){if(j)std::cout<<",";auto p=hulls[i][j];std::cout<<"["<<p.x<<","<<p.y<<","<<p.z<<"]";}std::cout<<"]";}
+    std::cout<<"],\"solid_obstacles\":[";
+    for(size_t i=0;i<solids.size();i++){if(i)std::cout<<",";auto b=solids[i];std::cout<<"{\"min\":["<<b[0]<<","<<b[1]<<","<<b[2]<<"],\"max\":["<<b[3]<<","<<b[4]<<","<<b[5]<<"]}";}
     std::cout<<"]}\n";return 0;
 }
 // Static geometry extraction; not a lossless NIF editor.
