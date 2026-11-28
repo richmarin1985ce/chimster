@@ -54,13 +54,30 @@ def mount(parent):
             index=0
             heading=ttk.Label(win);heading.pack()
             page=tk.Text(win,wrap="word",width=65,height=22,padx=20,pady=20)
-            page.pack(fill="both",expand=True)
+            page.pack(fill="both",expand=True);page._book_fonts=[]
             def show(delta=0):
                 nonlocal index
                 index=max(0,min(len(b.pages)-1,index+delta))
                 heading.configure(text=f"{b.title} — {index+1}/{len(b.pages)}")
                 page.configure(state="normal");page.delete("1.0","end")
-                page.insert("1.0",b.pages[index]);page.configure(state="disabled")
+                for tag in page.tag_names():
+                    if tag!="sel":page.tag_delete(tag)
+                page._book_fonts.clear()
+                from .book_markup import runs
+                import tkinter.font as tkfont
+                fonts={}
+                for value,styles in runs(b.pages[index]):
+                    key=tuple(styles)
+                    if key not in fonts:
+                        name="style"+str(len(fonts));fonts[key]=name
+                        kinds={t for t,a in styles}
+                        font=tkfont.Font(root=win,font=page.cget("font"))
+                        font.configure(weight="bold" if "b" in kinds else "normal",slant="italic" if "i" in kinds else "roman",underline="u" in kinds)
+                        align=next((a for t,a in reversed(styles) if a in ("left","center","right")), "center" if "center" in kinds else "left")
+                        page.tag_configure(name,font=font,justify=align)
+                        page._book_fonts.append(font)
+                    page.insert("end",value,fonts[key])
+                page.configure(state="disabled")
             bar=ttk.Frame(win);bar.pack()
             ttk.Button(bar,text="Previous",command=lambda:show(-1)).pack(side="left")
             ttk.Button(bar,text="Next",command=lambda:show(1)).pack(side="left")
