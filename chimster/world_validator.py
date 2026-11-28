@@ -11,7 +11,7 @@ KINDS=REFS|{"WRLD","CELL","LAND","NAVM","ROAD","LTEX"}
 DELETED=0x20
 PERSISTENT=0x400
 
-def validate(paths,max_records=2000000,max_issues=10000,quest_links=False):
+def validate(paths,max_records=2000000,max_issues=10000,quest_links=False,navmesh=False):
     paths=[Path(p).resolve(strict=True) for p in paths]
     names=[plugin_name(p.name) for p in paths]
     if not names or len(set(names))!=len(names):raise ValueError("supply distinct plugins in active load order, masters first")
@@ -113,6 +113,19 @@ def validate(paths,max_records=2000000,max_issues=10000,quest_links=False):
                                         if target:item["links"].append((target,set(kinds),"quest-"+tag.decode("ascii").lower()))
                                         if kind=="INFO" and tag==b"TPIC" and target!=item.get("topic"):
                                             issue("info-topic-mismatch",name,off,"TPIC differs from group owner")
+                            if navmesh and kind=="NAVM":
+                                from .fnv_navmesh import inspect as inspect_navmesh
+                                try:mesh,edges=inspect_navmesh(parts)
+                                except (ValueError,struct.error) as exc:issue("navmesh-layout",name,off,str(exc),"warning")
+                                else:
+                                    item["navmesh"]={"triangles":len(mesh["triangles"]),"external":mesh["external"],"doors":mesh["doors"]}
+                                    if fid(mesh["raw_cell"],off)!=owner:issue("navmesh-cell",name,off,"NAVM DATA cell differs from owning group")
+                                    for code,tri,edge in mesh["issues"]:issue("navmesh-"+code,name,off,f"Triangle or entry {tri}, edge {edge}")
+                                    if mesh["opaque_fields"]:issue("navmesh-opaque",name,off,"Grid or auxiliary data not fully validated","warning")
+                                    for i,offset,kinds in edges:
+                                        tag,value=parts[i];target=val32(value[offset:offset+4],off)
+                                        if target:item["links"].append((target,set(kinds),"navmesh-"+tag.decode("ascii").lower()))
+                                    item["navmesh_external"]=[(fid(x["raw_target"],off),x["triangle"]) for x in mesh["external"] if x["raw_target"]]
                             if kind=="CELL":
                                 if b"XCLC" in fields:
                                     v=fields[b"XCLC"]
@@ -213,6 +226,17 @@ def validate(paths,max_records=2000000,max_issues=10000,quest_links=False):
         for target,types,role in r["links"]:
             t=live(target)
             if t is None or types and t["kind"] not in types or role=="base-object" and t["kind"] in {"WRLD","CELL","LAND","NAVM","ROAD","LTEX","TXST","REFR","ACHR","ACRE"}:issue("unresolved-"+role,name,off,f"{identity} -> {target}")
+        if navmesh and "navmesh" in r:
+            for target,tri in r.get("navmesh_external",[]):
+                other=live(target)
+                if other and "navmesh" in other and tri>=other["navmesh"]["triangles"]:issue("navmesh-external-triangle",name,off,str(target))
+            for target,types,role in r["links"]:
+                if role=="navmesh-nvdp":
+                    other=live(target)
+                    if other:
+                        base=live(other.get("base"))
+                        if not base or base["kind"]!="DOOR":issue("navmesh-door-base",name,off,str(target))
+                        if other["owner"]!=r["owner"]:issue("navmesh-door-cell",name,off,str(target),"warning")
         if "marker" in r:
             for target,types,role in r["links"]:
                 if role in ("marker-xpod","marker-xlrm"):
@@ -253,4 +277,4 @@ def validate(paths,max_records=2000000,max_issues=10000,quest_links=False):
         if kind=="LAND" and r["owner"] is not None:
             if r["owner"] in lands:issue("duplicate-land",name,off,f"{identity} and {lands[r['owner']]}")
             lands[r["owner"]]=identity
-    return {"game":"newvegas","valid":not counts["error"] and not incomplete,"complete":not incomplete,"errors":counts["error"],"warnings":counts["warning"],"issues":issues,"plugins":reports,"winning_records":len(winning),"exterior_cells":len(coords),"persistent_cells":len(persistent),"interior_cells":interiors,"persistent_references":persistent_refs,"land_records":len(lands),"room_markers":sum(1 for r in winning.values() if "room_header" in r.get("marker",{}) and not r["flags"]&DELETED),"portal_markers":sum(1 for r in winning.values() if "portal_rooms" in r.get("marker",{}) and not r["flags"]&DELETED),"teleport_references":sum(1 for r in winning.values() if "teleport" in r and not r["flags"]&DELETED),"quest_links_checked":quest_links,"scope":"FNV hierarchy and selected references; not a complete schema or engine validator; no modifications"}
+    return {"game":"newvegas","valid":not counts["error"] and not incomplete,"complete":not incomplete,"errors":counts["error"],"warnings":counts["warning"],"issues":issues,"plugins":reports,"winning_records":len(winning),"exterior_cells":len(coords),"persistent_cells":len(persistent),"interior_cells":interiors,"persistent_references":persistent_refs,"land_records":len(lands),"room_markers":sum(1 for r in winning.values() if "room_header" in r.get("marker",{}) and not r["flags"]&DELETED),"portal_markers":sum(1 for r in winning.values() if "portal_rooms" in r.get("marker",{}) and not r["flags"]&DELETED),"teleport_references":sum(1 for r in winning.values() if "teleport" in r and not r["flags"]&DELETED),"navmesh_checked":navmesh,"navmesh_records":sum(1 for r in winning.values() if "navmesh" in r and not r["flags"]&DELETED),"quest_links_checked":quest_links,"scope":"FNV hierarchy and selected references; not a complete schema or engine validator; no modifications"}
