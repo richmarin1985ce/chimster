@@ -52,6 +52,19 @@ class ProductionTests(unittest.TestCase):
         with self.assertRaises(ValueError):self.b.production.apply(q["proposal_token"])
         self.assertNotIn("nav",self.p.read()["artifacts"])
 
+    def test_multi_step_history(self):
+        for i in range(3):
+            q=self.b.creation.preview("item"+str(i),"other","item.txt",str(i),self.p.read()["revision"])
+            self.b.creation.apply(q["proposal_token"])
+        self.assertEqual(self.b.creation.history_status()["undo_steps"],3)
+        for count in (2,1,0):
+            self.b.creation.recover("undo",self.p.read()["revision"])
+            self.assertEqual(len(self.p.read()["artifacts"]),count)
+        for count in (1,2,3):
+            self.b.creation.recover("redo",self.p.read()["revision"])
+            self.assertEqual(len(self.p.read()["artifacts"]),count)
+        self.assertEqual(self.b.creation.history_status()["redo_steps"],0)
+
     def test_mesh_preview(self):
         self.add("mesh","mesh","triangle.obj","v 0 0 0\nv 1 0 0\nv 0 0 1\nvt 0 0\nvt 1 0\nvt 0 1\nf 1/1 2/2 3/3\n")
         q=self.b.production_preview("mesh-preview",id="mesh",output_id="preview",revision=1)
