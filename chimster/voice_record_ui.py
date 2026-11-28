@@ -8,9 +8,11 @@ def launch(parent):
     win=tk.Toplevel(parent);win.title("Chimster — Voice takes");win.geometry("850x550")
     values={k:tk.StringVar() for k in ("Registry","Line stem","Performer","Rights","Staging","Seconds")}
     values["Seconds"].set("10")
+    from .drop_import import path_field
     for name,v in values.items():
         row=ttk.Frame(win);row.pack(fill="x")
-        ttk.Label(row,text=name,width=14).pack(side="left");ttk.Entry(row,textvariable=v).pack(side="left",fill="x",expand=True)
+        ttk.Label(row,text=name,width=14).pack(side="left");field=ttk.Entry(row,textvariable=v);field.pack(side="left",fill="x",expand=True)
+        if name=="Registry":path_field(field,v,directory=True)
         if name in ("Registry","Staging"):
             def choose(v=v):
                 p=filedialog.askdirectory(parent=win)
