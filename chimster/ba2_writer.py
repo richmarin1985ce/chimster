@@ -2,7 +2,8 @@
 import struct,zlib
 from .compatibility_asset_lookup import normalize
 
-def build(entries,limit=256*1024*1024,compress=False):
+def build(entries,limit=256*1024*1024,compress=False,*,version=1):
+    if version not in (1,7,8):raise ValueError('Unsupported Fallout 4 BA2 version')
     rows=[];seen=set();total=24
     for name,data,name_hash,dir_hash in entries:
         key=normalize(name)
@@ -20,7 +21,7 @@ def build(entries,limit=256*1024*1024,compress=False):
         candidate=zlib.compress(data) if compress else data
         packed=len(candidate) if compress and len(candidate)<len(data) else 0
         stored=candidate if packed else data
-        records.append(struct.pack("<I4sIIQIII",nh,ext,dh,0,offset,packed,len(data),0xbaadf00d))
+        records.append(struct.pack("<I4sIIQIII",nh,ext,dh,0x00100100,offset,packed,len(data),0xbaadf00d))
         payload.append(stored);offset+=len(stored)
         names.append(struct.pack("<H",len(name))+name)
-    return struct.pack("<4sI4sIQ",b"BTDX",1,b"GNRL",len(rows),offset)+b"".join(records+payload+names)
+    return struct.pack("<4sI4sIQ",b"BTDX",version,b"GNRL",len(rows),offset)+b"".join(records+payload+names)
