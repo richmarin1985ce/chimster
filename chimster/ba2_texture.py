@@ -10,7 +10,7 @@ def exact(stream,n):
 def directory(stream):
     stream.seek(0,2);size=stream.tell();stream.seek(0)
     magic,version,kind,count,names=struct.unpack("<4sI4sIQ",exact(stream,24))
-    if (magic,version,kind)!=(b"BTDX",1,b"DX10"):raise ValueError("Unsupported texture archive")
+    if magic!=b"BTDX" or version not in (1,7,8) or kind!=b"DX10":raise ValueError("Unsupported texture archive")
     if count>1000000 or not 24+24*count<=names<=size:raise ValueError("Invalid directory extent")
     rows=[]
     for _ in range(count):
