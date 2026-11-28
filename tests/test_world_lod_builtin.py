@@ -201,3 +201,28 @@ class BuiltinLODTests(unittest.TestCase):
         self.assertEqual(result["formid"],0x01000800)
         self.assertEqual(result["tiles"][0]["native_mesh_target"],"meshes/landscape/lod/16779264.-32.0.32.nif")
         self.assertFalse(result["native_runtime_assets"])
+
+    def test_oblivion_native_mesh_candidate(self):
+        from chimster.oblivion_lod_nif import encode,inspect
+        mesh=terrain_grid([[0.,1.],[2.,3.]])
+        for cutout in (False,True):
+            raw=encode(mesh,"textures/landscapelod/generated/60.0.0.32.dds",cutout)
+            report=inspect(raw)
+            self.assertEqual(report["triangles"],2)
+            self.assertEqual(report["vertices"],4)
+            self.assertEqual(report["cutout"],cutout)
+            with self.assertRaises(ValueError):inspect(raw[:-1])
+
+    def test_oblivion_placement_and_cmp(self):
+        from chimster.world_lod_oblivion_objects import encode_cell,decode_cell,encode_index,decode_index,far_path
+        rows={0x01001234:[((-4096.,100.,200.),(0.,0.,1.),1.25),((0.,0.,0.),(0.,0.,0.),1.)]}
+        raw=encode_cell(rows)
+        self.assertEqual(len(raw),68)
+        decoded=decode_cell(raw)[0x01001234]
+        self.assertEqual(decoded[0][0],(-4095.5,100.5,200.970703125))
+        self.assertAlmostEqual(decoded[0][2],125.970001220703,places=4)
+        self.assertEqual(decoded[0][1],(0.,0.,1.))
+        with self.assertRaises(ValueError):decode_cell(raw[:-1])
+        self.assertEqual(decode_index(encode_index([(-3,1),(2,-1)])),[(-3,1),(2,-1)])
+        self.assertEqual(far_path("Architecture/Tower.NIF"),"meshes/Architecture/Tower_far.nif")
+        with self.assertRaises(ValueError):far_path("../outside.nif")
