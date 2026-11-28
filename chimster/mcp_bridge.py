@@ -8,6 +8,7 @@ from .mcp_operations import (CreationSession, diagnose, read_text, MAX_TEXT,
 from .mcp_jobs import Jobs
 from .mcp_events import Subscriptions
 from .mcp_native import NativeProposals
+from .mcp_extended import native_profile, native_browse, MeshProposals
 
 VERSIONS = ("2024-11-05", "2025-03-26", "2025-06-18", "2025-11-25")
 MAX_LINE = 1024 * 1024
@@ -24,6 +25,7 @@ class Bridge:
         if allow_native and (not allow_edit or project is None or project.read()["game"]!="newvegas"):
             raise ValueError("native edits require explicit FNV project and edit permission")
         self.native=NativeProposals(project,self.creation,allow_native) if project is not None else None
+        self.mesh=MeshProposals(project,self.creation,allow_create) if project is not None else None
         self.jobs = Jobs(project) if project is not None else None
         self.initialized = False
         self.ready = False
@@ -52,6 +54,17 @@ class Bridge:
                           schema({"target":{"type":"integer","minimum":0},"offset":{"type":"integer","minimum":0},
                                   "limit":{"type":"integer","minimum":1,"maximum":100}}, ["target"]),
                           lambda **args: revision_diff(project,**args))
+            try:
+                native_profile(project.read()["game"])
+            except ValueError:
+                pass
+            else:
+                self.register("native_record_browse","Browse supported native record structures and optional schema diagnostics; not retail certification.",
+                              schema({"id":key,"offset":{"type":"integer","minimum":0},"limit":{"type":"integer","minimum":1,"maximum":100},"signature":{"type":"string","maxLength":4},"validate":{"type":"boolean"}},["id"]),lambda **args:native_browse(project,**args))
+            self.register("asset_preview_transform","Stage a transformed intermediate OBJ as a separate project artifact.",
+                          schema({"id":key,"output_id":key,"scale_percent":{"type":"integer","minimum":1,"maximum":1000},"yaw_degrees":{"type":"integer","minimum":-360,"maximum":360},"ground":{"type":"boolean"},"revision":{"type":"integer","minimum":0},"sha256":{"type":"string","maxLength":64}},["id","output_id","scale_percent","yaw_degrees","ground","revision","sha256"]),self.mesh.preview)
+            if allow_create:
+                self.register("asset_apply_transform","Publish exact staged OBJ as a new artifact; does not overwrite the source.",schema({"token":{"type":"string","maxLength":80}},["token"]),self.mesh.apply,write=True)
             if project.read()["game"]=="newvegas":
                 self.register("fnv_record_inspect", "Inspect one FNV native record by original plugin identity and local FormID.",
                               schema({"id":key,"origin":{"type":"string","maxLength":120},
@@ -111,6 +124,8 @@ class Bridge:
             return self.jobs.start(operation,lambda:diagnose(self.project,id,operation))
         if "asset_inspect_"+operation in self.registry and operation in ("audio","mesh","scene","font"):
             return self.jobs.start(operation,lambda:inspect_asset(self.project,id,operation))
+        if operation=="native" and "native_record_browse" in self.registry:
+            return self.jobs.start(operation,lambda:native_browse(self.project,id,validate=True))
         if operation=="plugin":
             return self.jobs.start(operation,lambda:inspect_plugin_artifact(self.project,id))
         raise ValueError("unsupported diagnostic")
