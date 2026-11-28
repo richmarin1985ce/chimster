@@ -38,6 +38,7 @@ def launch():
  from .project_ui import mount as mount_project
  def viewport_control(action):
   tabs.select(viewport_tab)
+  if action=="viewport-state":return load_cell_preview.snapshot()
   load_cell_preview.camera_command(action)
  mount_project(f,game,viewport_control)
  f=tab('Core management')
