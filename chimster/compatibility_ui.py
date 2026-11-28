@@ -6,16 +6,17 @@ from .game_installations import GAMES,inspect as installation
 from .compatibility_audit import audit
 from .compatibility_dependencies import validate
 from .compatibility_policy import capabilities
+from .native_profiles import canonical_profile
 from .compatibility_archives import inspect as archive
 from .compatibility_nif import inspect as nif
 from .compatibility_strings import parse
 
 def mount(parent,game=None):
     profile=tk.StringVar(value="new-vegas")
-    aliases={"newvegas":"new-vegas","skyrimse":"skyrim-se","skyrimvr":"skyrim-vr","fallout4vr":"fallout4-vr"}
     def sync(*_):
         if game is not None:
-            target=aliases.get(game.get(),game.get())
+            try:target=canonical_profile(game.get())
+            except ValueError:return
             if target in GAMES:profile.set(target)
     if game is not None:game.trace_add("write",sync);sync()
     bar=ttk.Frame(parent);bar.pack(fill="x")
