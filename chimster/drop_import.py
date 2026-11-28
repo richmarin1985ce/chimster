@@ -84,3 +84,18 @@ def editor_drop(parent, routes, *, confirm=True, target=None):
         return True
     label.destroy()
     return False
+
+
+def path_field(widget, variable, extensions=None, *, directory=False):
+    """Set an explicit input field, never launch a tool or write output."""
+    from tkinter import messagebox
+    def receive(paths):
+        if len(paths)!=1:raise ValueError("Drop exactly one path")
+        p=paths[0]
+        if p.is_symlink():raise ValueError("Symbolic links are not accepted")
+        if directory:
+            if not p.is_dir():raise ValueError("Drop a directory")
+        elif not p.is_file() or extensions is not None and p.suffix.lower() not in extensions:
+            raise ValueError("Unsupported input file")
+        variable.set(str(p))
+    return bind_files(widget,receive,lambda msg:messagebox.showerror("Input path",msg,parent=widget))
