@@ -19,6 +19,30 @@ class ModernNifTests(unittest.TestCase):
                     p=Path(d)/(game+".nif");r=export(m,game,p,os.environ["CHIMSTER_NIFBRIDGE"],materials)
                     self.assertEqual(r["triangles"],176)
                     self.assertGreater(p.stat().st_size,128)
+                    # Exercise the compiled reader as well as the writer on every supported stream.
+                    import subprocess,shlex
+                    read=subprocess.run([os.environ["CHIMSTER_NIFBRIDGE"],"extract-mesh",str(p)],
+                                        capture_output=True,text=True,timeout=60)
+                    self.assertEqual(read.returncode,0,read.stderr)
+                    lines=iter(read.stdout.splitlines())
+                    self.assertEqual(next(lines),"CHIMSTER_IMPORT_1 2")
+                    triangle_count=0
+                    cutouts=[]
+                    for _ in range(2):
+                        name,diffuse,normal,cut,nv,nt=shlex.split(next(lines))
+                        self.assertTrue(name.startswith("shape_"))
+                        cutouts.append(int(cut))
+                        vertex_count=int(nv)
+                        for _ in range(vertex_count):
+                            self.assertEqual(len(next(lines).split()),5)
+                        for _ in range(int(nt)):
+                            indices=list(map(int,next(lines).split()))
+                            self.assertEqual(len(set(indices)),3)
+                            self.assertTrue(all(0<=i<vertex_count for i in indices))
+                        triangle_count+=int(nt)
+                    self.assertEqual(triangle_count,len(m.faces))
+                    self.assertEqual(sorted(cutouts),[0,1])
+                    self.assertIsNone(next(lines,None))
 
     @unittest.skipUnless(os.environ.get("CHIMSTER_NIFBRIDGE"),"optional compiled native backend")
     def test_native_box_collision(self):
