@@ -92,6 +92,5 @@ class MeshProposals:
             p.write_bytes(raw)
             m=self.project.add(key,"mesh",p,revision,replace=False)
         self.recovery.pending=None
-        self.recovery.undo=(revision,m["revision"])
-        self.recovery.redo=None
+        self.recovery.record_commit(revision,m["revision"])
         return {"id":key,"revision":m["revision"],"artifact":m["artifacts"][key],"undo_target_revision":revision}
