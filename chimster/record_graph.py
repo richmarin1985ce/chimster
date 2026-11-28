@@ -99,9 +99,7 @@ class Graph:
         if opaque:self.opaque.add(owner)
         edges=[]
         for edge in extracted:
-            spec=FIELDS.get((signature,parts[edge.field][0]))
-            kinds=spec[2] if spec and spec[1]==edge.offset else None
-            edges.append((edge.field,edge.target,kinds))
+            edges.append((edge.field,edge.target,edge.expected_types or None))
         for i,target,kinds in edges:
             self.incoming[target].append((owner,i))
             row=self.records.get(target)
