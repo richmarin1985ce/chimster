@@ -17,7 +17,8 @@ def mount(parent,game,viewport_control=None):
             try:
                 presence.close()
                 box=mailbox(presence.id)
-                for p in box.glob("*.json"):p.unlink(missing_ok=True)
+                for pattern in ("*.json","*.snapshot"):
+                    for p in box.glob(pattern):p.unlink(missing_ok=True)
                 box.rmdir()
             except (OSError,ValueError):pass
     parent.bind("<Destroy>",close_presence,add="+")
@@ -40,8 +41,8 @@ def mount(parent,game,viewport_control=None):
         if previous and table.exists(previous[0]):table.selection_set(previous[0])
     def dashboard_command(action,artifact):
         if action.startswith("viewport-"):
-            if viewport_control:viewport_control(action)
-            return
+            if viewport_control:return viewport_control(action)
+            return None
         refresh()
         if action=="select" and table.exists(artifact):
             table.selection_set(artifact);table.see(artifact)
