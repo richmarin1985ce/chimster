@@ -62,25 +62,19 @@ def inspect_pex(path, game):
             "source": fields[0], "size": p.stat().st_size,
             "sha256": digest(p), "scope": "header only"}
 
-def diagnostics(output):
-    """Common CK/Caprica location syntax; retain every unmatched message."""
-    result = []
-    for line in output.splitlines():
-        if not line.strip():
-            continue
-        match = re.match(r"^(.*?\.psc)\s*\((\d+)\s*,\s*(\d+)\)\s*:\s*(.*)$", line, re.I)
-        if not match:
-            match = re.match(r"^(.*?\.psc):(\d+):(\d+):\s*(.*)$", line, re.I)
-        if match:
-            path, row, column, message = match.groups()
-            severity = "warning" if re.search(r"\bwarning\b", message, re.I) else "error"
-            result.append({"file": path, "line": int(row), "column": int(column),
-                           "severity": severity, "message": message})
-        else:
-            result.append({"severity": "info", "message": line})
-    return result
+from .compiler_diagnostics import parse as diagnostics, summarize
 
-def plan(game, backend, exe, source, flags, imports, output):
+def compiler_options(game,backend,*,optimize=False,release=False,final=False,warnings_as_errors=False):
+    target,_,_=family(game)
+    if backend not in {"ck","caprica"}:raise ValueError("unsupported compiler backend")
+    if backend=="ck" and target=="skyrim" and (release or final):
+        raise ValueError("release/final switches not enabled for Skyrim CK")
+    if warnings_as_errors and backend!="caprica":
+        raise ValueError("warnings-as-errors requires Caprica")
+    prefix="-" if backend=="ck" else "--"
+    return [prefix+key for key,value in (("optimize",optimize),("release",release),("final",final),("all-warnings-as-errors",warnings_as_errors)) if value]
+
+def plan(game, backend, exe, source, flags, imports, output, *, options=None):
     target, _, _ = family(game)
     if backend not in {"ck", "caprica"}:
         raise ValueError("unsupported compiler backend")
@@ -108,16 +102,17 @@ def plan(game, backend, exe, source, flags, imports, output):
                 "--flags", str(flag)]
         for root in roots:
             args.extend(["--import", root])
+    args.extend(compiler_options(game,backend,**(options or {})))
     return {"game": game, "backend": backend, "args": args, "source": str(src),
             "flags": str(flag), "output": str(out), "imports": roots,
             "source_sha256": digest(src), "flags_sha256": digest(flag),
             "compiler_sha256": digest(binary), "lint": lint,
             "scope": "preview; external compiler/runtime not verified"}
 
-def build(game, backend, exe, source, flags, imports, output, *, execute=False, timeout=120):
+def build(game, backend, exe, source, flags, imports, output, *, execute=False, timeout=120, options=None):
     if type(timeout) is not int or not 1 <= timeout <= 900:
         raise ValueError("timeout must be between 1 and 900 seconds")
-    preview = plan(game, backend, exe, source, flags, imports, output)
+    preview = plan(game, backend, exe, source, flags, imports, output, options=options)
     if not execute:
         return preview
     out = Path(preview["output"])
@@ -131,11 +126,16 @@ def build(game, backend, exe, source, flags, imports, output, *, execute=False, 
         try:
             cp = subprocess.run(args, shell=False, cwd=temp, capture_output=True,
                                 encoding="utf-8", errors="replace", timeout=timeout)
-        except subprocess.TimeoutExpired:
-            return {**preview, "status": "timeout", "diagnostics": []}
+        except subprocess.TimeoutExpired as exc:
+            def decode(s):return s.decode("utf-8",errors="replace") if isinstance(s,bytes) else s or ""
+            items=diagnostics(decode(exc.stdout),stream="stdout")+diagnostics(decode(exc.stderr),stream="stderr")
+            return {**preview, "status": "timeout", "diagnostics": items,"summary":summarize(items)}
+        except OSError as exc:
+            return {**preview,"status":"launch-failed","diagnostics":[{"severity":"error","message":str(exc)}]}
         log = cp.stdout + "\n" + cp.stderr
+        items=diagnostics(cp.stdout,stream="stdout")+diagnostics(cp.stderr,stream="stderr")
         result = {**preview, "returncode": cp.returncode,
-                  "diagnostics": diagnostics(log), "compiler_log": log}
+                  "diagnostics": items, "summary":summarize(items), "compiler_log": log}
         if cp.returncode:
             return {**result, "status": "compiler-failed"}
         candidates = list(stage.iterdir())
