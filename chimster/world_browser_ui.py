@@ -19,8 +19,8 @@ def mount(parent, game, open_preview=None, viewport_drop=None):
     state["loose"] = None
     state["archives"] = ()
     state["draft"] = None
-    def choose_models():
-        folder = filedialog.askdirectory(title="Choose game Data directory with loose meshes")
+    def choose_models(dropped=None):
+        folder = dropped if dropped is not None else filedialog.askdirectory(title="Choose game Data directory with loose meshes")
         if folder:
             from .world_models import LooseModels
             state["loose"] = LooseModels(folder)
@@ -29,8 +29,8 @@ def mount(parent, game, open_preview=None, viewport_drop=None):
     def configure_models():
         from .world_models import ArchiveModels
         state["models"]=ArchiveModels(state["archives"],state["loose"]) if state["archives"] else state["loose"]
-    def choose_archives():
-        paths=filedialog.askopenfilenames(title="Select BSAs in low-to-high priority order",filetypes=[("Bethesda archives","*.bsa")])
+    def choose_archives(dropped=None):
+        paths=dropped if dropped is not None else filedialog.askopenfilenames(title="Select BSAs in low-to-high priority order",filetypes=[("Bethesda archives","*.bsa")])
         if not paths:return
         if not messagebox.askyesno("Archive preview order","Later archives win; loose files override. Confirm order:\\n"+"\\n".join(Path(p).name for p in paths),parent=parent):return
         try:
@@ -46,9 +46,9 @@ def mount(parent, game, open_preview=None, viewport_drop=None):
     plugins.pack(fill="x")
     def allow_reset():
         return not (state.get('draft') and state['draft'].operations) or messagebox.askyesno('Discard draft?','Changing the load order or rebuilding discards the in-memory draft. Export first if needed. Continue?',parent=parent)
-    def add():
+    def add(dropped=None):
         if not allow_reset():return
-        for p in filedialog.askopenfilenames(filetypes=[("Bethesda plugins", "*.esm *.esp")]):
+        for p in (dropped if dropped is not None else filedialog.askopenfilenames(filetypes=[("Bethesda plugins", "*.esm *.esp")])):
             if p not in state["paths"]:
                 state["paths"].append(p)
         update_paths()
@@ -625,3 +625,5 @@ def mount(parent, game, open_preview=None, viewport_drop=None):
     object_query.trace_add("write",refresh_objects)
     game.trace_add("write",profile_changed)
     ttk.Button(toolbar,text="Warnings",command=lambda:show(state["index"].issues if state["index"] else [])).pack(side="left")
+    from .drop_import import editor_drop
+    editor_drop(parent,[((".esp",".esm"),add,True),((".bsa",),choose_archives,True),(("<directory>",),choose_models,False)],confirm=False,target=plugins)
