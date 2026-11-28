@@ -143,7 +143,7 @@ def export(browser,world,output,assets,limit=512,previous=None,atlas=True):
                 for p in sorted({p for _,d,n,cut in active if not cut for p in (d,n)}):
                     try:source.get(p)
                     except (ValueError,OSError):source.hashes[p]="unavailable"
-            digest=sha256(json.dumps(["object-lod-v3",name,x,y,atlas,[(m.vertices,m.uv,m.faces,d,n,cut) for m,d,n,cut in active],sorted(source.hashes.items())],separators=(",",":"),allow_nan=False).encode()).hexdigest()
+            digest=sha256(json.dumps(["object-lod-v4",name,x,y,atlas,[(m.vertices,m.uv,m.faces,d,n,cut) for m,d,n,cut in active],sorted(source.hashes.items())],separators=(",",":"),allow_nan=False).encode()).hexdigest()
             cached=prior.get((x,y),{})
             files=cached.get("files",{})
             if (cached.get("input_sha256")==digest and set(files) in ({path},{path,*texpaths})
