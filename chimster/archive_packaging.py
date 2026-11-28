@@ -47,6 +47,7 @@ def package_directory(source,destination,*,compress=True,limit=256*1024*1024,for
             yield name,raw
     if format=='tes3':return package_tes3(destination,assets(),limit=limit)
     if format in ('103','104','105'):return package_classic(destination,assets(),version=int(format),compress=compress,limit=limit)
+    if format=='dx10':return package_textures(destination,assets(),compress=compress,limit=limit)
     if format!='ba2':raise ValueError('Unsupported packaging format')
     return package_assets(destination,assets(),compress=compress,limit=limit)
 
@@ -91,3 +92,25 @@ def package_classic(destination,entries,*,version=103,compress=False,limit=256*1
     finally:
         os.unlink(temp)
     return {"path":str(target),"members":len(rows),"bytes":len(data),"version":version,"roundtrip_verified":True,"retail_verified":False}
+
+def package_textures(destination,entries,*,compress=True,limit=256*1024*1024):
+    from . import ba2_texture_writer,ba2_texture,dds_texture
+    rows=list(entries)
+    data=ba2_texture_writer.build(rows,limit=limit,compress=compress)
+    stream=io.BytesIO(data)
+    index=ba2_texture.directory(stream)
+    if len(index)!=len(rows):raise ValueError("Directory verification failed")
+    for name,raw in rows:
+        decoded=ba2_texture.read(stream,index[normalize(name)],limit)
+        if dds_texture.parse(decoded,limit)!=dds_texture.parse(raw,limit):
+            raise ValueError("Texture verification failed: "+name)
+    target=Path(destination)
+    if target.suffix.lower()!=".ba2":raise ValueError("Expected BA2 destination")
+    fd,temp=tempfile.mkstemp(prefix=".chimster-",dir=target.parent)
+    try:
+        with os.fdopen(fd,"wb") as out:
+            out.write(data);out.flush();os.fsync(out.fileno())
+        os.link(temp,target)
+    finally:
+        os.unlink(temp)
+    return {"path":str(target),"members":len(rows),"bytes":len(data),"format":"DX10","roundtrip_verified":True,"retail_verified":False}
