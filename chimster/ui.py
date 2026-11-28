@@ -194,6 +194,9 @@ def launch():
  ttk.Button(bar,text='Down',command=lambda:move_world_plugin(1)).pack(side='left')
  ttk.Button(bar,text='Clear',command=lambda:pathlist.delete(0,'end')).pack(side='left')
  ttk.Button(bar,text='Validate',command=check_world).pack(side='left')
+ f=tab('Asset Forge')
+ from .asset_ui import mount as mount_assets
+ mount_assets(f)
  f=tab('Terrain editor')
  from .terrain_ui import mount as mount_terrain
  mount_terrain(f)
