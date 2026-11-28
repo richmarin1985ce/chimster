@@ -46,6 +46,8 @@ def preview(browser, key, radius=0, models=None):
                 heights = [[h/UNITS for h in line] for line in decode_land(land["height_raw"])]
                 asset = "land:"+label(land["key"])
                 assets[asset] = terrain_grid(heights, spacing=1)
+                for level,step in enumerate((2,4,8),1):
+                    assets[asset+"@lod"+str(level)]=terrain_grid(heights,step=step,spacing=1)
                 instances.append(Instance(asset,asset,(coord[0]*4096-ox)/UNITS,(coord[1]*4096-oy)/UNITS))
                 land_count += 1
             except ValueError as exc:
@@ -83,6 +85,17 @@ def preview(browser, key, radius=0, models=None):
             try:
                 if candidate not in assets:
                     assets[candidate] = models(model)
+                    from .lod_assets import simplify
+                    mesh=assets[candidate]
+                    extent=max(max(v[a] for v in mesh.vertices)-min(v[a] for v in mesh.vertices) for a in range(3))
+                    if extent>0 and len(mesh.faces)>64:
+                        previous=mesh
+                        for tier,divisor in enumerate((24,12,6),1):
+                            try:lod=simplify(mesh,extent/divisor,max(4,32//(2**tier)))
+                            except ValueError:continue
+                            if len(lod.faces)<len(previous.faces):
+                                assets[candidate+"@lod"+str(tier)]=lod
+                                previous=lod
                 asset = candidate
                 model_count += 1
             except Exception as exc:
