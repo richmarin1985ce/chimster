@@ -194,6 +194,16 @@ def mount(parent):
         if cell is not None:s.simplify(cell);selected.set("");draw()
     def undo():
         session().undo();selected.set("");draw()
+    def save_project():
+        s=session();p=filedialog.asksaveasfilename(defaultextension=".casset",filetypes=[("Asset project","*.casset")])
+        if p:
+            from .asset_project import save
+            save(s,p);status.set("Saved editable asset: "+p)
+    def open_project():
+        p=filedialog.askopenfilename(filetypes=[("Asset project","*.casset")])
+        if p:
+            from .asset_project import load
+            replace(load(p))
     def export_obj():
         s=session();path=filedialog.asksaveasfilename(defaultextension=".obj",filetypes=[("Wavefront OBJ","*.obj")])
         if path:s.export_obj(path);status.set("Exported intermediate geometry: "+path)
@@ -233,6 +243,6 @@ def mount(parent):
         ttk.Button(more,text=label,command=guard(fn)).pack(side="left")
     ttk.Label(more,text="Shift-click multi-select; right-drag orbit; wheel zoom").pack(side="left")
     for actions in ((("Generate preview",generate),("Import OBJ",import_obj),("Import NIF",import_nif),("Transform",transform),("Material binding",material)),
-                    (("Simplify LOD",simplify),("Undo",undo),("Export OBJ",export_obj),("Export NIF",export_nif))):
+                    (("Open asset",open_project),("Save new asset",save_project),("Simplify LOD",simplify),("Undo",undo),("Export OBJ",export_obj),("Export NIF",export_nif))):
         bar=ttk.Frame(parent);bar.pack(fill="x")
         for label,fn in actions:ttk.Button(bar,text=label,command=guard(fn)).pack(side="left")
