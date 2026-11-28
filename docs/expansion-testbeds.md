@@ -4,7 +4,7 @@ Section 3 remains the overriding engineering priority. These original fan expans
 
 | Target | Project | Setting |
 |---|---|---|
-| Fallout New Vegas | Fallout: Route 66 | Existing Flagstaff campaign and surrounding highway region |
+| Fallout New Vegas | Fallout: Flagstaff | Existing Flagstaff campaign and surrounding highway region |
 | Skyrim | Provisional: Realm of Order | Jyggalag, original realm interpretation; no major Skyrim questline; lore review required |
 | Fallout 3 | Fallout: Baltimore (working title) | Baltimore harbor, industrial districts and surrounding neighborhoods |
 | Fallout 4 | Fallout: Nautica | Nantucket and maritime locations |
