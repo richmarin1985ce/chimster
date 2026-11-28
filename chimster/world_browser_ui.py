@@ -312,7 +312,16 @@ def mount(parent, game, open_preview=None):
             state["draft"]=draft
         key=state["cell"]
         try:
-            if action=="duplicate":
+            if action=="world":
+                world=state["world"]
+                if world is None:return
+                row=index.worlds[world]
+                name=simpledialog.askstring("Worldspace properties","Editor ID",initialvalue=row["editor_id"],parent=parent)
+                if not name:return
+                title=simpledialog.askstring("Worldspace properties","Display name",initialvalue=row["name"],parent=parent)
+                if title is None:return
+                draft.world_properties(world,name,title)
+            elif action=="duplicate":
                 if key is None:return
                 row=index.active[key]
                 name=simpledialog.askstring("Duplicate cell","New editor ID",parent=parent)
@@ -369,6 +378,11 @@ def mount(parent, game, open_preview=None):
                 if p:draft.export(p)
                 return
             state["index"]=draft.index()
+            updated=state["index"]
+            current_world=state["world"]
+            state["worlds"]=[None]+[r["key"] for r in updated.matching(updated.worlds.values(),"")]
+            worlds.configure(values=["Interiors / unassigned"]+[updated.name(updated.worlds[k])+" ["+label(k)+"]" for k in state["worlds"][1:]])
+            worlds.current(state["worlds"].index(current_world) if current_world in state["worlds"] else 0)
             refresh_cells()
             if key is not None:select_key(key)
             status.set(f"Draft: {len(draft.operations)} staged operations; source plugins unchanged")
@@ -377,7 +391,7 @@ def mount(parent, game, open_preview=None):
             messagebox.showerror("World edit draft",str(exc),parent=parent)
     editbar=ttk.Frame(parent)
     editbar.pack(fill="x",before=pane)
-    for title,action in (("New cell","new"),("Rename","rename"),("Duplicate","duplicate"),("Place static","place"),("Transform","transform"),("Undo","undo"),("Redo","redo"),("Export draft","export"),("Export ESP","esp")):
+    for title,action in (("World properties","world"),("New cell","new"),("Rename","rename"),("Duplicate","duplicate"),("Place static","place"),("Transform","transform"),("Undo","undo"),("Redo","redo"),("Export draft","export"),("Export ESP","esp")):
         ttk.Button(editbar,text=title,command=lambda a=action:edit_draft(a)).pack(side="left")
     def object_palette():
         if state["index"] is None:return
