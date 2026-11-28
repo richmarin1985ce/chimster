@@ -703,6 +703,30 @@ def mount(parent, game, open_preview=None, viewport_drop=None):
             status.set("Native vegetation billboard candidate exported; tree tile format pending.")
         except (ValueError,OSError,TypeError) as exc:messagebox.showerror("Vegetation LOD",str(exc),parent=parent)
     ttk.Button(nav,text="Vegetation LOD",command=vegetation_lod).pack(side="left")
+    def tree_tiles():
+        index=state["index"];world=state["world"]
+        if index is None or world is None:return
+        if index.profile not in ("skyrim","skyrim-se"):
+            messagebox.showinfo("Tree LOD","New Vegas and Fallout 3 use the object LOD builder for supported vegetation assets.",parent=parent);return
+        specfile=filedialog.askopenfilename(title="Select tree billboard specification JSON",filetypes=[("JSON","*.json")])
+        if not specfile:return
+        folder=filedialog.askdirectory(title="Choose parent directory for tree LOD package")
+        if not folder:return
+        try:
+            import json
+            from .world_lod_tree_tiles import export
+            from .world_lod_object_builtin import Assets
+            loose=state.get("loose");root=loose.root if loose else None
+            archives=state.get("archives",())
+            if root is None and not archives:
+                root=filedialog.askdirectory(title="Select game Data for tree textures") or None
+                if root is None:return
+            spec=json.loads(Path(specfile).read_text(encoding="utf-8"))
+            out=Path(folder)/("tree_lod_"+world.origin.replace(".","_")+"_"+format(world.local,"06x"))
+            show(export(index,world,out,spec,Assets(root,archives)))
+            status.set("Built-in Skyrim tree LOD candidates exported; runtime validation pending.")
+        except (ValueError,OSError,TypeError,KeyError) as exc:messagebox.showerror("Tree LOD",str(exc),parent=parent)
+    ttk.Button(nav,text="Build tree tiles",command=tree_tiles).pack(side="left")
     def profile_changed(*_):
         # Preserve staged work; changing the game selector must not discard it.
         if state.get('draft') and state['draft'].operations:
