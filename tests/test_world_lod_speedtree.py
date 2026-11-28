@@ -61,3 +61,52 @@ class SpeedTreeTests(unittest.TestCase):
                 if p.endswith(".spt"):return fixture()
                 raise FileNotFoundError(p)
         with self.assertRaises(ValueError):prepare(Missing(),"Oak.spt",(64,128))
+
+    def test_project_lossless_and_relink(self):
+        import json
+        from chimster.speedtree_project import import_bytes,export_project,inspect_source,relink
+        raw=fixture()
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);project=root/"tree"
+            meta=import_bytes(raw,project,"Oak.spt")
+            self.assertTrue(meta["parse_complete"])
+            self.assertEqual(meta["textures"][0]["index"],0)
+            result=export_project(project,root/"original.spt")
+            self.assertTrue(result["byte_identical"])
+            self.assertEqual((root/"original.spt").read_bytes(),raw)
+            (project/"edits.json").write_text(json.dumps({"scalars":{"seed":44},"textures":{"0":"Bark/NewBark.dds"}}))
+            result=export_project(project,root/"edited.spt")
+            self.assertFalse(result["byte_identical"])
+            edited=inspect_source((root/"edited.spt").read_bytes())
+            self.assertEqual(edited["fields"]["seed"],44)
+            self.assertEqual(edited["textures"][0]["value"],"Bark/NewBark.dds")
+            self.assertEqual((project/"source.spt").read_bytes(),raw)
+            with self.assertRaises(FileExistsError):export_project(project,root/"edited.spt")
+            (project/"source.spt").write_bytes(raw+b"x")
+            with self.assertRaises(ValueError):export_project(project,root/"bad.spt")
+        with self.assertRaises(ValueError):relink(raw,{"0":"../escape.dds"})
+
+    def test_opaque_variant_roundtrip(self):
+        import json
+        from chimster.speedtree_project import import_bytes,export_project
+        unknown=fixture()+tag(987654,b"opaque payload")
+        variant=fixture().replace(b"__IdvSpt_02_",b"__IdvSpt_99_")
+        for raw in (unknown,variant):
+            with tempfile.TemporaryDirectory() as tmp:
+                root=Path(tmp);project=root/"tree"
+                meta=import_bytes(raw,project)
+                self.assertFalse(meta["parse_complete"])
+                result=export_project(project,root/"copy.spt")
+                self.assertTrue(result["byte_identical"])
+                self.assertEqual((root/"copy.spt").read_bytes(),raw)
+                (project/"edits.json").write_text(json.dumps({"scalars":{"seed":1},"textures":{}}))
+                with self.assertRaises(ValueError):export_project(project,root/"edited.spt")
+
+    def test_texture_indices_include_empty_slots(self):
+        from chimster.speedtree_project import inspect_source,relink
+        raw=fixture()+tag(70000)+text(70002,b"")+text(70004,b"normal.dds\0")+tag(70001)
+        info=inspect_source(raw)
+        self.assertEqual([r["value"] for r in info["textures"]],["bark.dds","","normal.dds"])
+        edited=relink(raw,{"1":"Leaf.dds","2":"LongerNormal.dds"})
+        self.assertEqual([r["value"] for r in inspect_source(edited)["textures"]],["bark.dds","Leaf.dds","LongerNormal.dds"])
+        self.assertIn(b"LongerNormal.dds\0",edited)
