@@ -11,6 +11,8 @@ def inspect(profile,data):
     if profile not in ("fallout3","new-vegas"):raise ValueError("Unverified allocation profile")
     nodes=parse(profile,data)
     if not nodes or nodes[0].signature!=b"TES4":raise ValueError("Missing header")
+    flags=struct.unpack_from("<I",nodes[0].header,8)[0]
+    if flags&~1:raise ValueError("Only classic full-slot plugin headers are supported for allocation")
     parts=list(subrecords(profile,nodes[0]))
     headers=[v for k,v in parts if k==b"HEDR"]
     if len(headers)!=1 or len(headers[0])!=12:raise ValueError("Invalid HEDR")
@@ -23,7 +25,7 @@ def inspect(profile,data):
         n=stack.pop();actual+=1
         if n.signature==b"GRUP":stack.extend(n.children);continue
         fid=struct.unpack_from("<I",n.header,12)[0]
-        if not fid or fid>>24>len(masters) or fid in used:raise ValueError("Invalid or duplicate FormID")
+        if not fid or not fid&0xffffff or fid>>24>len(masters) or fid in used:raise ValueError("Invalid or duplicate FormID")
         used.add(fid)
     return {"version":version,"count":count,"actual_count":actual,"next_id":cursor,"masters":masters,"used":used,"raw":raw}
 
