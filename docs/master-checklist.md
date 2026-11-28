@@ -43,6 +43,20 @@ Current baseline: PR23 merged at 7c356fbde0c879c0de46c47290e0bd7cb812635e; eight
 - Section 3: exact generated FNV perk effects now carry QUST/SPEL type constraints, and consumable ENIT offsets carry SPEL/SOUN constraints. Shared graph and native catalog use these constraints; one-pass field iterables are materialized and existing catalog type information is retained. Synthetic regression tests added.
 - Open release gates: independent local retail plugin/archive/engine validation for all nine active targets, version-specific VR and AE behavior, comprehensive per-game native field and nested record schemas, general master addition/removal/renumbering, unknown layouts, and full typed reference traversal. CI execution remains deferred under the existing quota policy. No section-wide completion claim.
 
+### Active-scope milestone estimate (2026-11-27)
+Equal-weight engineering milestones: implemented = 1, partial = 0.5, pending = 0. This is a source-inspection estimate, not a measured code-coverage or retail-readiness percentage. Implemented means the bounded milestone exists, not that new regression tests have passed.
+
+| Section | Implemented | Partial | Pending | Estimate |
+|---|---:|---:|---:|---:|
+| 2 Compatibility | 5 | 3 | 2 | 65% |
+| 3 Records | 3 | 6 | 1 | 60% |
+
+Section 2 implemented milestones: active profile routing, local installation detection, structural parser, dependency audit, archive read/package infrastructure. Partial: asset/string/NIF adapters, precedence/independent comparison, version-specific capability coverage. Pending: independent retail format validation and runtime verification.
+
+Section 3 implemented milestones: structural read/raw preservation, staged reference edit transactions, regression fixture infrastructure. Partial: persistent identity coverage, typed field schemas, native creation, forward/reverse dependency coverage, master remap, record comparison/editor coverage. Pending: independent retail validation. No deferred game families counted.
+
+Follow-up code: VR catalog entries explicitly empty rather than crashing or inheriting desktop field offsets; deferred manifest aligns with release policy; remap previews fingerprint all source fields and reject stale payloads or absent disk slots; typed nullable FNV slots available to the edit path without adding null graph edges. New regression fixtures added; execution remains deferred.
+
 ## Critical path
 1. Stable project FormID allocation, typed native record schema and dependency-safe edits.
 2. Integrated native interior cells, architectural assets, room/portal/trigger volumes, placed references and collision.
