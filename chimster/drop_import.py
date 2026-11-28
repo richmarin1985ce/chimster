@@ -57,3 +57,30 @@ def load_bundle(paths,current,*,tier="phones"):
     if "profile" in found:
         state["profile"]=mc.profile(json.loads(found["profile"].read_text(encoding="utf-8-sig")))
     return state
+
+
+def editor_drop(parent, routes, *, confirm=True, target=None):
+    """Register an editor's actual import actions; never invoke export or tools.
+    routes: [(extensions, callback, multiple)] with '<directory>' for folders.
+    """
+    from tkinter import ttk,messagebox
+    def receive(paths):
+        if not paths or len(paths)>128:raise ValueError("Drop 1–128 local files")
+        kinds=[]
+        for path in paths:
+            if path.is_symlink() or not (path.is_file() or path.is_dir()):
+                raise ValueError("Only local regular files or folders are accepted")
+            kinds.append("<directory>" if path.is_dir() else path.suffix.lower())
+        matches=[(callback,multi) for extensions,callback,multi in routes if all(k in extensions for k in kinds) and (multi or len(paths)==1)]
+        if len(matches)!=1:raise ValueError("Drop one supported file type; use Browse for other imports")
+        if confirm and not messagebox.askyesno("Import files","Open "+", ".join(p.name for p in paths[:5])+(" …" if len(paths)>5 else "")+" in this editor? Unsaved editor changes may be replaced.",parent=parent):return
+        callback,multi=matches[0]
+        callback(tuple(str(p) for p in paths) if multi else str(paths[0]))
+    def error(msg):messagebox.showerror("File import",msg,parent=parent)
+    label=ttk.Label(parent,text="Drop files here: "+", ".join(sorted({e for extensions,_,_ in routes for e in extensions})),relief="groove",padding=5)
+    if bind_files(label,receive,error):
+        label.pack(fill="x",side="bottom")
+        if target is not None:bind_files(target,receive,error)
+        return True
+    label.destroy()
+    return False
