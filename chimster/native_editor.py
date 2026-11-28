@@ -55,6 +55,23 @@ class NativeSession:
     def review(self,key,reverse=False):
         return self.dependencies.closure([key],reverse)
 
+    def validate(self):
+        """Read-only diagnostics; unresolved external records are not presumed invalid."""
+        issues=[]
+        for key,paths in self.paths.items():
+            if len(paths)>1:
+                issues.append(("duplicate-identity",key,tuple(paths)))
+        for path,row in self.rows.items():
+            if row["opaque"]:
+                issues.append(("incomplete-schema",path,tuple(row["opaque"])))
+            for index,offset,target,kinds in row["edges"]:
+                actual=self.types.get(target)
+                if actual is None:
+                    issues.append(("unresolved-target",path,index,offset,target))
+                elif kinds and actual not in kinds:
+                    issues.append(("wrong-target-type",path,index,offset,target,actual,kinds))
+        return issues
+
     def remap_preview(self,path,destination):
         node=self.node(path)
         return plan(self.profile,node.signature.decode("ascii"),
