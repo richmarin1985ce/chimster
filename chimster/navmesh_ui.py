@@ -14,8 +14,10 @@ def mount(parent):
         "heights":[[0]*11 for _ in range(11)],"agent":{"radius":.3,"height":1.8,"max_slope":45,"max_step":.4}},indent=2))
     status=tk.StringVar(value="Load a heightfield, room layout or collision triangle source, then generate.")
     ttk.Label(parent,textvariable=status,wraplength=900).pack(fill="x")
-    mesh=None;past=[];selected=[];corridor=set();closed=set()
+    mesh=None;past=[];selected=[];corridor=set();closed=set();tile_cache=None
     elevation=tk.StringVar(value="All")
+    tiled=tk.BooleanVar(value=False)
+    ttk.Checkbutton(bar,text="Incremental tiles",variable=tiled).pack(side="left")
     mode=tk.BooleanVar(value=False);spacing=tk.DoubleVar(value=.5);radius=tk.DoubleVar(value=.3);height=tk.DoubleVar(value=1.8)
     ttk.Checkbutton(bar,text="Room layout",variable=mode).pack(side="left")
     for label,var in (("Spacing",spacing),("Radius",radius),("Height",height)):
@@ -48,14 +50,19 @@ def mount(parent):
             canvas.create_line(*xy(center(link["from"])),*xy(center(link["to"])),fill="#f49b68" if link["id"] in closed else "#d8e6fb",width=2,dash=(4,3))
         status.set(f"{len(ts)} triangles | {len(mesh['regions'])} surface islands | {len(mesh.get('links',[]))} transitions | selected {selected}")
     def auto():
-        nonlocal mesh
+        nonlocal mesh,tile_cache
         spec=json.loads(editor.get("1.0","end-1c"))
         if "vertices" in spec and "triangles" in spec:
             from .navmesh_collision import generate_collision
-            candidate=generate_collision(spec)
+            if tiled.get():
+                from .navmesh_tiles import build as build_tiles
+                bundle=build_tiles(spec,tile_cache)
+                candidate=bundle["mesh"];tile_cache=bundle["cache"]
+            else:candidate=generate_collision(spec)
         else:candidate=build(spec,spacing.get(),{"radius":radius.get(),"height":height.get()}) if mode.get() else generate(spec)
         if mesh is not None:past.append(mesh);past[:]=past[-5:]
         mesh=candidate;selected.clear();corridor.clear();closed.clear();draw()
+        if tiled.get() and "vertices" in spec and "triangles" in spec:status.set(f"{len(bundle['rebuilt'])} tiles rebuilt | {len(bundle['reused'])} reused | {mesh['seam_edges']} verified seam edges | {len(mesh['triangles'])} triangles")
     def pick(e):
         items=canvas.find_overlapping(e.x,e.y,e.x,e.y)
         for item in reversed(items):
