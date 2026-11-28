@@ -264,9 +264,18 @@ def mount(parent, game, open_preview=None):
         if state['index'] is None or state['cell'] is None or open_preview is None:
             status.set('Select a cell first.');return
         try:
-            from .world_preview import preview
+            from .world_preview import preview, Neighborhood
             scene, report = preview(state['index'],state['cell'],int(radius.get()),state['models'] if state['index'].profile=="new-vegas" else None)
-            if open_preview(scene,report,focus,viewport_select):
+            index=state['index']
+            loader=Neighborhood(index,state['cell'],int(radius.get()),state['models'] if index.profile=='new-vegas' else None)
+            def stream(x,y):
+                if state['index'] is not index or canonical_profile(game.get())!=index.profile:return None
+                result=loader.move(x,y)
+                if result is not None:
+                    select_key(loader.key)
+                    show(result[1])
+                return result
+            if open_preview(scene,report,focus,viewport_select,stream):
                 show(report)
         except (OSError,ValueError,TypeError,KeyError) as exc:
             messagebox.showerror('Cell preview',str(exc),parent=parent)
