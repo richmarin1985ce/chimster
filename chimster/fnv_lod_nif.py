@@ -153,7 +153,7 @@ def check(raw,expected):
     return {"triangles":expected,"vertices":sum(len(g.vertices) for g in geom),"block_types":[t for t,_ in rows],"runtime_verified":False}
 
 
-def read_static_groups(raw):
+def read_static_groups(raw,include_cutout=False):
     """Read unskinned stream-34 shapes grouped by texture pair.
 
     Refuses unsupported transforms, shader layouts and scene graphs; never silently
@@ -161,7 +161,7 @@ def read_static_groups(raw):
     """
     rows=blocks(raw)
     allowed={"NiNode","BSFadeNode","BSMultiBoundNode","NiTriShape","BSSegmentedTriShape",
-             "NiTriShapeData","BSShaderPPLightingProperty","BSShaderTextureSet","BSMultiBound","BSMultiBoundAABB"}
+             "NiTriShapeData","BSShaderPPLightingProperty","BSShaderTextureSet","BSMultiBound","BSMultiBoundAABB","NiAlphaProperty"}
     # Only traverse render objects. Physics and inert metadata are not copied.
     inert={"NiStringExtraData","NiIntegerExtraData","BSXFlags","BSBound","NiBinaryExtraData"}
     if any(t not in allowed and t not in inert and not t.startswith("bhk") for t,_ in rows):raise ValueError("Unsupported static NIF blocks")
@@ -205,23 +205,31 @@ def read_static_groups(raw):
             if r.i!=len(data):raise ValueError("Unsupported node tail")
             return
         geom,skin,material_count,active,needs=r.get("iiIiB")
-        if skin!=-1 or material_count or len(props)!=1:raise ValueError("Unsupported shape material or skin")
+        if skin!=-1 or material_count or not 1<=len(props)<=2:raise ValueError("Unsupported shape material or skin")
+        shader_ids=[p for p in props if 0<=p<len(rows) and rows[p][0]=="BSShaderPPLightingProperty"]
+        alpha_ids=[p for p in props if 0<=p<len(rows) and rows[p][0]=="NiAlphaProperty"]
+        if len(shader_ids)!=1 or len(shader_ids)+len(alpha_ids)!=len(props):raise ValueError("Unsupported shape property")
+        cutout=bool(alpha_ids)
+        if cutout:
+            if not include_cutout:raise ValueError("Alpha-tested material needs grouped cutout reader")
+            a=Reader(ref(alpha_ids[0],{"NiAlphaProperty"})[1]);_,count,controller=a.get("iIi");flags,threshold=a.get("HB")
+            if count or controller!=-1 or flags!=0x1200 or threshold!=128 or a.i!=len(a.raw):raise ValueError("Unsupported alpha test layout")
         if kind=="BSSegmentedTriShape":
             count,=r.get("I")
             if count>256:raise ValueError("Segment limit")
             r.take(count*9)
         if r.i!=len(data):raise ValueError("Unsupported shape tail")
         g=decode_geometry(ref(geom,{"NiTriShapeData"})[1])
-        shader=Reader(ref(props[0],{"BSShaderPPLightingProperty"})[1])
+        shader=Reader(ref(shader_ids[0],{"BSShaderPPLightingProperty"})[1])
         _,n,controller=shader.get("iIi")
         if n or controller!=-1:raise ValueError("Animated shader unsupported")
         shade,shader_type,f1,f2,env,clamp,tex=shader.get("HIIIfIi")
-        if shader_type!=1 or f1 & ~0x82000001 or f2 & ~0x17:raise ValueError("Unsupported material flags")
+        if shader_type!=1 or f1 & ~(0x82000001| (0x100 if cutout else 0)) or f2 & ~0x17:raise ValueError("Unsupported material flags")
         tr=Reader(ref(tex,{"BSShaderTextureSet"})[1]);n,=tr.get("I")
         if n!=6:raise ValueError("Unsupported texture set")
         paths=[tr.string().decode("ascii").replace("\\","/") for _ in range(n)]
         if tr.i!=len(tr.raw) or not paths[0] or not paths[1] or any(paths[2:]):raise ValueError("Unsupported texture set")
-        material=tuple(paths[:2]);mesh=groups.setdefault(material,Mesh())
+        material=(*paths[:2],cutout);mesh=groups.setdefault(material,Mesh())
         offset=len(mesh.vertices)
         if offset+len(g.vertices)>100000 or len(mesh.faces)+len(g.faces)>100000:raise ValueError("Static geometry budget")
         for vertex in g.vertices:
@@ -233,7 +241,7 @@ def read_static_groups(raw):
     visit(0)
     if not groups:raise ValueError("No supported static geometry")
     for mesh in groups.values():validate_mesh(mesh)
-    return [(mesh,*paths) for paths,mesh in sorted(groups.items())]
+    return [(mesh,*paths) if include_cutout else (mesh,*paths[:2]) for paths,mesh in sorted(groups.items())]
 
 def read_static(raw):
     groups=read_static_groups(raw)
