@@ -113,11 +113,19 @@ def generate(spec):
     report=topology(vertices,triangles)
     return {"schema":1,"vertices":vertices,"triangles":triangles,**report,"rejected":dict(reject),"walkable_cells":len(kept),"source_cells":nx*ny,"scope":"portable single-layer heightfield; collision proxies and conservative whole-cell clearance"}
 
-def route(mesh,start,end,links=(),closed=()):
+def route(mesh,start,end,links=(),closed=(),*,avoid=(),cost_overrides=None):
     """Triangle corridor with optional directed, named off-mesh links."""
     triangles=mesh["triangles"];vertices=mesh["vertices"]
     n=len(triangles)
     if type(start) is not int or type(end) is not int or not 0<=start<n or not 0<=end<n:raise ValueError("invalid route endpoints")
+    labels=mesh.get("triangle_areas",["ground"]*n)
+    if len(labels)!=n:raise ValueError("area metadata length")
+    costs={"ground":1.,**mesh.get("area_costs",{}),**(cost_overrides or {})}
+    costs={k:num(v,.01,10000) for k,v in costs.items()}
+    if not set(labels)<=costs.keys():raise ValueError("missing area cost")
+    avoid=set(avoid)
+    if not avoid<=costs.keys():raise ValueError("unknown avoided area")
+    if labels[start] in avoid or labels[end] in avoid:return {"reachable":False,"triangles":[],"transitions":[],"cost":None}
     graph=[[(j,None) for j in row if j>=0] for row in topology(vertices,triangles)["neighbors"]]
     closed=set(closed);names=set()
     for link in links:
@@ -140,7 +148,8 @@ def route(mesh,start,end,links=(),closed=()):
                 if name is not None:transitions.append(name)
             return {"reachable":True,"triangles":path[::-1],"transitions":transitions[::-1],"cost":d}
         for j,name in graph[i]:
-            nd=d+math.dist(centers[i],centers[j])
+            if labels[j] in avoid:continue
+            nd=d+math.dist(centers[i],centers[j])*(costs[labels[i]]+costs[labels[j]])*.5
             if nd<cost.get(j,math.inf):cost[j]=nd;prev[j]=(i,name);heapq.heappush(q,(nd,j))
     return {"reachable":False,"triangles":[],"transitions":[],"cost":None}
 
@@ -174,5 +183,8 @@ def remove_triangles(mesh,selected):
     result={**mesh,"triangles":new,**topology(mesh["vertices"],new),"links":links}
     for key in ("triangle_rooms","triangle_layers","triangle_areas","triangle_tiles"):
         if key in mesh:result[key]=[mesh[key][i] for i in keep]
+    if "triangle_areas" in result:
+        from collections import Counter
+        result["area_report"]={**result.get("area_report",{}),"counts":dict(Counter(result["triangle_areas"]))}
     result["manual_exclusions"]=mesh.get("manual_exclusions",0)+len(selected)
     return result
