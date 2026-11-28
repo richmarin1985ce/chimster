@@ -29,13 +29,15 @@ def mount(parent):
     native_preview=False
     selection_callback=None
     stream_callback=None;preview_origin=(0,0,0);pan_drag=None;preview_cell=None
+    native_weather={}
+    native_day=tk.StringVar(value="Day")
     def draw():
         nonlocal renderer,panda,photo,render_size,failure
         canvas.delete("mesh");canvas.delete("gl")
         try:
             pos=tuple(float(x) for x in light_pos.get().split(","))
             lights=(LocalLight(position=pos,direction=local_fx.get("direction",(0,0,-1)) if spot_enabled.get() else None,shadows=spot_enabled.get(),**{k:v for k,v in local_fx.items() if k!="direction"}),) if point_enabled.get() else ()
-            effects=replace(preset(effect_name.get()),water_level=float(water_height.get()) if water_enabled.get() else None,lights=lights,fog_volumes=extra_volumes,**custom_fx).validate()
+            effects=replace(preset(effect_name.get()),water_level=float(water_height.get()) if water_enabled.get() else None,lights=lights,fog_volumes=extra_volumes,**{**weather_effects(),**custom_fx}).validate()
         except ValueError as exc:
             status.set("Effects: "+str(exc));return
         if backend.get()=="Panda3D" and canvas.winfo_width()>4 and canvas.winfo_height()>4:
@@ -175,7 +177,15 @@ def mount(parent):
         x,y,z=camera.center
         camera=replace(camera,center=(x+cos(a)*right+sin(a)*forward,y-sin(a)*right+cos(a)*forward,z))
         draw()
+    def weather_effects():
+        sample=native_weather.get(native_day.get().lower()) if native_preview else None
+        if not sample:return {}
+        far=sample["far"]/128
+        density=min(1,2.3/far) if far>0 else 0
+        return {"fog_color":sample["fog_color"],"fog_density":density,"sun_color":sample["sun_color"],"ambient":sum(sample["ambient_color"])/3}
     def apply_world_environment(report):
+        nonlocal native_weather
+        native_weather=report.get("environment",{}).get("weather_preview") or {}
         # Native water level is a geometry height, not a material/engine simulation.
         env=report.get("environment",{}).get("values",{})
         heights=env.get("heights")
@@ -268,6 +278,8 @@ def mount(parent):
     ttk.Label(fxbar,text="Light XYZ").pack(side="left")
     ttk.Entry(fxbar,textvariable=light_pos,width=12).pack(side="left")
     ttk.Button(fxbar,text="Apply",command=draw).pack(side="left")
+    day_choice=ttk.Combobox(fxbar,textvariable=native_day,values=("Day","Night"),state="readonly",width=6)
+    day_choice.pack(side="left");day_choice.bind("<<ComboboxSelected>>",lambda e:draw())
     def advanced_lighting():
         nonlocal custom_fx,local_fx,extra_volumes,settings
         import json
