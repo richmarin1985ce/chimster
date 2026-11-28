@@ -21,7 +21,7 @@ def export(spec,output,masters=(),allocator=None):
     if not isinstance(cells,list) or not 1<=len(cells)<=10000 or not isinstance(statics,list) or len(statics)>50000 or not isinstance(doors,list) or len(doors)>50000:
         raise ValueError("interior size limit")
     b=Bindings(masters,p);ids=allocator or FormIDs(p.name)
-    base={};base_types={};top=[];door_top=[];blocks={};used=set();expected={};placements={};portal_bindings=[];native_bindings=[];marker_ids={}
+    base={};base_types={};top=[];door_top=[];blocks={};used=set();expected={};placements={};portal_bindings=[];native_bindings=[];marker_ids={};navigation={};navigation_manifest=[];door_navlinks={}
     def alloc(kind,key):
         ident(key)
         return b.slot|ids.get(kind+"/"+key.casefold())
@@ -42,7 +42,7 @@ def export(spec,output,masters=(),allocator=None):
         base[door["id"]]=fid;base_types[door["id"]]="DOOR"
     count=0;groups=1+bool(top)+bool(door_top);cell_ids={}
     for cell in cells:
-        if set(cell)-{"id","title","placements","layout","portal_doors","native_markers","activation_chains","environment","visibility"}:raise ValueError("unknown cell fields")
+        if set(cell)-{"id","title","placements","layout","portal_doors","native_markers","activation_chains","environment","visibility","navmesh_stage"}:raise ValueError("unknown cell fields")
         register(cell["id"]);cid=alloc("CELL",cell["id"]);cell_ids[cell["id"]]=cid;expected[cid]="CELL"
         for r in cell.get("placements",[]):
             ident(r["id"]);key=cell["id"]+"/"+r["id"]
@@ -77,6 +77,35 @@ def export(spec,output,masters=(),allocator=None):
             if not editor or editor.casefold()!=required:raise ValueError("marker base must be explicit RoomMarker or PortalMarker STAT")
             marker_ids[key]=(fid,base_id,m)
             if len(marker_ids)>50000:raise ValueError("total native marker limit")
+    # Explicit staging only: GECK must regenerate NAVI and finalized links.
+    from .fnv_navmesh_finalize import finalize
+    for cell in cells:
+        if "navmesh_stage" not in cell:continue
+        stage=cell["navmesh_stage"]
+        if not isinstance(stage,dict) or set(stage)-{"mesh","version","divisor","count_width","doors","cover","flags"}:
+            raise ValueError("invalid navigation staging fields")
+        cid=cell_ids[cell["id"]];nid=b.slot|ids.get("NAVM/"+cell["id"].casefold())
+        door_rows=[]
+        for d in stage.get("doors",[]):
+            if set(d)!={"placement","triangle","tail_hex","backlink_tail_hex"}:raise ValueError("explicit native door binding required")
+            key=cell["id"]+"/"+d["placement"]
+            if key not in placements or key in door_navlinks:raise ValueError("unknown or duplicate navigation door")
+            ref,row,_,kind=placements[key]
+            if kind!="DOOR" or row.get("persistent") is not True:raise ValueError("navigation door must be a persistent door")
+            tail=bytes.fromhex(d["backlink_tail_hex"])
+            if len(tail)!=2:raise ValueError("explicit XNDP tail required")
+            door_rows.append({"reference":ref,"triangle":d["triangle"],"tail_hex":d["tail_hex"]})
+            door_navlinks[key]=(nid,d["triangle"],tail)
+        candidate=finalize(stage["mesh"],cid,stage["version"],divisor=stage["divisor"],count_width=stage["count_width"],
+                           doors=door_rows,cover=stage.get("cover",[]),flags=stage.get("flags"))
+        # NAVM arrays frequently exceed the 16-bit subrecord length.
+        def native_sub(tag,value):
+            if len(value)<=65535:return sub(tag,value)
+            return sub(b"XXXX",struct.pack("<I",len(value)))+struct.pack("<4sH",tag,0)+value
+        body=b"".join(native_sub(k.encode("ascii"),bytes.fromhex(v)) for k,v in candidate["fields"])
+        navigation[cell["id"]]=record(b"NAVM",body,nid);expected[nid]="NAVM"
+        navigation_manifest.append({"cell":cell["id"],"cell_form":cid,"mesh_form":nid,
+                                    "payload_sha256":candidate["payload_sha256"],"review_required":candidate["review_required"]})
     def link(key):
         if not isinstance(key,str) or key not in placements:raise ValueError("unknown local placement link")
         return placements[key]
@@ -122,6 +151,9 @@ def export(spec,output,masters=(),allocator=None):
                 other,_,_,_=link(r["linked_ref"])
                 if other==fid:raise ValueError("self linked reference")
                 payload+=sub(b"XLKR",struct.pack("<I",other))
+            if key in door_navlinks:
+                nid,triangle,tail=door_navlinks[key]
+                payload+=sub(b"XNDP",struct.pack("<Ih2s",nid,triangle,tail))
             payload+=sub(b"XSCL",parts[b"XSCL"])+sub(b"DATA",parts[b"DATA"])
             placed=record(b"REFR",payload,fid)
             if persistent:
@@ -172,6 +204,7 @@ def export(spec,output,masters=(),allocator=None):
                         raise ValueError("native portal rectangle differs from portable layout")
                 buckets[9].append(record(b"REFR",b"".join(sub(tag,value) for tag,value in fields),fid))
                 expected[fid]="REFR";native_bindings.append({"cell":cell["id"],"kind":kind,"layout_id":mid,"local_id":fid&0xffffff})
+        if cell["id"] in navigation:buckets[9].append(navigation[cell["id"]])
         children=b"".join(group(kind,cid,b"".join(rows)) for kind,rows in buckets.items() if rows)
         if children:
             raw+=group(6,cid,children);groups+=1+sum(bool(rows) for rows in buckets.values())
@@ -191,10 +224,10 @@ def export(spec,output,masters=(),allocator=None):
         if len(report["records"])!=len(expected) or {b.slot|r["local_id"]:r["signature"] for r in report["records"]}!=expected:
             raise ValueError("interior record identity mismatch")
         from .world_validator import validate
-        validation=validate([*b.paths,p])
+        validation=validate([*b.paths,p],navmesh=bool(navigation))
         if not validation["valid"]:raise ValueError("interior hierarchy validation failed")
         b.check()
     except Exception:
         if created:p.unlink()
         raise
-    return {"output":str(p),"cells":len(cells),"placements":count,"records":len(expected),"portal_bindings":portal_bindings,"native_marker_bindings":native_bindings,"portable_only_fields":[{"cell":c["id"],"fields":[k for k in ("activation_chains","environment","visibility") if k in c]} for c in cells if any(k in c for k in ("activation_chains","environment","visibility"))],"doors":len(door_top),"scope":"experimental generated FNV interiors and door links; template-derived native room and portal records; geometry conventions and runtime behavior unverified"}
+    return {"output":str(p),"cells":len(cells),"placements":count,"records":len(expected),"portal_bindings":portal_bindings,"native_marker_bindings":native_bindings,"portable_only_fields":[{"cell":c["id"],"fields":[k for k in ("activation_chains","environment","visibility") if k in c]} for c in cells if any(k in c for k in ("activation_chains","environment","visibility"))],"doors":len(door_top),"navigation_manifest":navigation_manifest,"navigation_status":"UNFINALIZED: open in GECK and finalize new cells before use" if navigation else "not requested","scope":"experimental generated FNV interiors and door links; template-derived native room and portal records; geometry conventions and runtime behavior unverified"}
