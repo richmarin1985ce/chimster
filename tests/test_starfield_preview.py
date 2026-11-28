@@ -136,3 +136,21 @@ class StarfieldPreviewTests(unittest.TestCase):
         self.assertTrue(meta["bind_pose"])
         self.assertEqual(len(m.vertices),3)
         with self.assertRaises(ValueError):decode(raw+struct.pack("<I",1))
+
+    def test_native_json_mat(self):
+        from chimster.starfield_materials import native_row
+        import json
+        def c(name,data,i=0):return {"Type":"BSMaterial::"+name,"Data":data,"Index":i}
+        doc={"Version":1,"Objects":[
+            {"Components":[c("LayerID",{"ID":"layer"}),c("AlphaSettingsComponent",{"HasOpacity":True,"AlphaTestThreshold":.4})]},
+            {"ID":"layer","Components":[c("MaterialID",{"ID":"material"})]},
+            {"ID":"material","Components":[c("TextureSetID",{"ID":"tex"}),c("Color",{"Value":{"Data":{"x":.2,"y":.3,"z":.4,"w":1.}}})]},
+            {"ID":"tex","Components":[c("MRTextureFile",{"FileName":"test/color.dds"}),c("TextureFile",{"FileName":"test/normal.dds"},1),c("MaterialParamFloat",{"Value":.8})]}]}
+        row=native_row(json.dumps(doc).encode())
+        self.assertEqual(row["diffuse"],"textures/test/color.dds")
+        self.assertEqual(row["normal"],"textures/test/normal.dds")
+        self.assertEqual(row["tint"],(.2,.3,.4))
+        self.assertEqual(row["cutout"],.4)
+        self.assertEqual(row["normal_strength"],.8)
+        doc["Objects"].pop()
+        with self.assertRaises(ValueError):native_row(json.dumps(doc).encode())

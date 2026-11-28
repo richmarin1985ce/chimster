@@ -454,12 +454,15 @@ def mount(parent):
                         archives=filedialog.askopenfilenames(parent=win,title="Select BA2 archives in low-to-high priority",filetypes=[("BA2 archives","*.ba2")])
                         loose=filedialog.askdirectory(parent=win,title="Optional loose Data directory")
                         if archives or loose:
-                            sources=Sources(archives,loose);preview_materials=None
+                            sources=Sources(archives,loose)
+                            from .starfield_materials import NativeMaterials
+                            preview_materials=NativeMaterials(None,sources)
                             if messagebox.askyesno("Starfield material preview","Use an optional .mat-to-texture preview mapping?",parent=win):
-                                from .starfield_materials import PreviewMaterials
+                                from .starfield_materials import NativeMaterials
                                 material_map=filedialog.askopenfilename(parent=win,filetypes=[("Preview material mapping","*.json")])
-                                if material_map:preview_materials=PreviewMaterials(material_map,sources)
-                            mapped=AutoMeshes(sources,units,materials=preview_materials)
+                                if material_map:preview_materials=NativeMaterials(material_map,sources)
+                            bind_pose=messagebox.askyesno("Static character preview","Include skinned geometry in its undeformed bind pose? No animation or bone transforms are applied.",parent=win)
+                            mapped=AutoMeshes(sources,units,materials=preview_materials,bind_pose=bind_pose)
                     elif messagebox.askyesno("Starfield geometry","Use an optional NIF-to-.mesh manifest for native static geometry?",parent=win):
                         manifest=filedialog.askopenfilename(parent=win,filetypes=[("Mesh manifest","*.json")])
                         if manifest:
