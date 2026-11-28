@@ -147,13 +147,13 @@ class NativeSession:
         return self.revision
 
     def typed_fields(self,path):
-        """Show only explicitly supported common scalar adapters."""
-        from .native_typed_edit import common_fields
+        """Show only explicitly supported typed property adapters."""
+        from .native_typed_edit import property_fields
         path=tuple(path)
         if path not in self.rows:raise ValueError("Select a record")
         root=self.nodes[0]
         localized=root.signature==b"TES4" and bool(struct.unpack_from("<I",root.header,8)[0]&0x80)
-        return common_fields(self.profile,self.node(path),localized)
+        return property_fields(self.profile,self.node(path),localized)
 
     def apply_typed(self,revision,edits):
         """Apply a typed batch atomically; never change identity or write files."""
