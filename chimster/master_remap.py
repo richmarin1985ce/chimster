@@ -87,7 +87,7 @@ def reorder(source,output,masters,*,allow_set_change=False):
     # Exact generated exterior/interior and dialogue hierarchies only.
     child_groups={0:{1,2,7},1:{4,6},2:{3},3:{6},4:{5},5:{6},6:{8,9},8:set(),9:set(),7:set()}
     child_records={1:{b"CELL"},2:set(),3:{b"CELL"},4:set(),5:{b"CELL"},6:set(),8:{b"REFR"},9:{b"LAND",b"REFR"},7:{b"INFO"}}
-    def visit(i,limit,parent_kind=None,parent_label=None):
+    def visit(i,limit,parent_kind=None,parent_label=None,interior_block=None):
         nonlocal links,group_changes,compressed_count
         if limit-i<24:raise ValueError("truncated group")
         g,size,label,typ,_,_=struct.unpack_from("<4sI4sIII",raw,i)
@@ -96,6 +96,8 @@ def reorder(source,output,masters,*,allow_set_change=False):
             if typ!=0 or label not in allowed:raise ValueError("unsupported top-level group")
         elif typ not in child_groups.get(parent_kind,set()) or (parent_kind==0 and (typ,parent_label) not in {(1,b"WRLD"),(2,b"CELL"),(7,b"DIAL")}):
             raise ValueError("unsupported nested group")
+        if typ==2:interior_block=struct.unpack("<i",label)[0]
+        if typ in (2,3) and not 0<=struct.unpack("<i",label)[0]<=9:raise ValueError("invalid interior block label")
         new_label=label
         if typ in (1,6,7,8,9):
             if typ in (8,9) and label!=parent_label:raise ValueError("mismatched cell group owner")
@@ -109,7 +111,7 @@ def reorder(source,output,masters,*,allow_set_change=False):
                 kind=struct.unpack_from("<I",raw,j+12)[0]
                 if kind in (1,6,7) and (previous is None or raw[j+8:j+12]!=previous):
                     raise ValueError("group owner must follow its record")
-                child,j=visit(j,end,typ,label);records.append(child);previous=None;continue
+                child,j=visit(j,end,typ,label,interior_block);records.append(child);previous=None;continue
             k,n,flags,fid,*_=HEADER.unpack_from(raw,j);stop=j+24+n
             allowed_records={label} if typ==0 else child_records[typ]
             if k not in allowed_records or stop>end or flags & ~(0x40000|(0x400 if k in (b"CELL",b"REFR") else 0)):
@@ -138,7 +140,7 @@ def reorder(source,output,masters,*,allow_set_change=False):
                 if k==b"CELL":
                     interior=dict(parts).get(b"DATA")==b"\x01"
                     if interior!=(typ==3):raise ValueError("cell flags disagree with hierarchy")
-                    if typ==3 and (fid&0xffffff)//10%10!=struct.unpack("<i",label)[0]:raise ValueError("interior subblock mismatch")
+                    if typ==3 and ((fid&0xffffff)//10%10!=struct.unpack("<i",label)[0] or (fid&0xffffff)%10!=interior_block):raise ValueError("interior subblock mismatch")
                 payload,nchanged=rewrite_world(k,parts,remap_typed);links+=nchanged
             elif k in QUEST_PATTERNS:
                 if k==b"INFO":
