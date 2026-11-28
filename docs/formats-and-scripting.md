@@ -83,6 +83,19 @@ Legacy backend scope remains unchanged: xNVSE CompileScript is a runtime UDF mec
 
 New regression fixtures use mocked tool execution. Execution remains deferred, including real compiler/decompiler, editor and engine verification.
 
+### Compiler readiness and runtime diagnostics
+Discover candidate compilers, source roots and flag files using the selected installation directory and PATH. No tool is executed by discovery. Pin a chosen compiler and flag file in a local, new JSON profile, with explicitly ordered import roots and options:
+
+    python -m chimster compiler-discover skyrimse --install /path/to/game
+    python -m chimster compiler-profile-create compiler.json skyrimse ck /path/to/PapyrusCompiler.exe /path/to/TESV_Papyrus_Flags.flg --import /path/to/source --optimize
+    python -m chimster compiler-profile-build compiler.json Example.psc build --execute
+    python -m chimster compiler-profile-build compiler.json project-source project-build --project --execute
+    python -m chimster papyrus-log Papyrus.0.log
+
+Profiles reject changed executable or flag hashes and never automatically substitute a detected compiler. Compiler discovery, profile builds, legacy inspect/prepare/attach and offline runtime log analysis are available in the Script editor. Profile creation currently uses CLI. Runtime analysis groups timestamped errors/warnings and recognized Papyrus stack frames; it is not a live debugger. The original legacy editor is still required to generate compiled bytecode.
+
+Single-file builds fingerprint PSC and FLG import files before and after compilation, reject detected errors despite a zero process exit code, and recheck the published artifact hash. Symlink entries in source trees are rejected and the inventory is bounded. Fingerprinting detects changes but does not isolate external tools from concurrent filesystem changes; compiler DLLs and environment remain outside the fingerprint. Large libraries incur hashing overhead. Compiler option definitions reviewed against https://open-papyrus.github.io/docs/Creation_Kit/Fallout_4/Compiler_Reference.html and https://github.com/Orvid/Caprica/blob/master/Caprica/main_options.cpp. Tests committed but execution deferred; installed compiler, retail plugin and engine verification remain open.
+
 ## Voice
 The formats module packs and unpacks supported FUZ containers. A FUZ is not a speech synthesizer: it contains separate lip-sync and audio payloads. XWM encoding, actual lip-sync generation and Wwise conversion remain unimplemented. Do not republish extracted game voice assets.
 
