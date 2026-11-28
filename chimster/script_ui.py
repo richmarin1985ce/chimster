@@ -291,6 +291,79 @@ def mount(frame, game):
             except queue.Empty:editor.after(100,poll);return
             busy[0]=False;show_build(r);status.set(r.get("status","Compiler finished"))
         threading.Thread(target=worker,daemon=True).start();editor.after(100,poll)
+    compiler_bar=ttk.Frame(frame);compiler_bar.pack(fill="x",before=pane)
+    def run_tool(action):
+        if busy[0]:return
+        q=queue.Queue();busy[0]=True;status.set("Working...")
+        def worker():
+            try:q.put(action())
+            except Exception as exc:q.put({"status":"error","message":str(exc)})
+        def poll():
+            try:r=q.get_nowait()
+            except queue.Empty:editor.after(100,poll);return
+            busy[0]=False;show_build(r);status.set(r.get("status","Finished"))
+        threading.Thread(target=worker,daemon=True).start();editor.after(100,poll)
+    def discover_compiler():
+        from .compiler_profiles import discover
+        target=game.get()
+        root=filedialog.askdirectory(title="Choose game install directory (Cancel searches PATH)")
+        try:report(discover(target,root or None))
+        except (OSError,ValueError) as exc:messagebox.showerror("Compiler discovery",str(exc))
+    def profile_build():
+        if busy[0]:return
+        from .compiler_profiles import load,configured_build
+        cfg=filedialog.askopenfilename(title="Select trusted local compiler profile",filetypes=[("JSON","*.json")])
+        if not cfg:return
+        try:
+            settings=load(cfg)
+            if settings["game"]!=game.get():raise ValueError("Profile game does not match selected game")
+        except (OSError,ValueError,KeyError,TypeError) as exc:messagebox.showerror("Compiler profile",str(exc));return
+        project=messagebox.askyesno("Build type","Build an entire flat source directory? No selects a saved script.")
+        if project:
+            source_path=filedialog.askdirectory(title="Select saved PSC project directory")
+        else:
+            if saved["path"] is None or saved["text"]!=source() or language.get()!="papyrus":
+                status.set("Open or save unchanged Papyrus source first");return
+            source_path=saved["path"]
+            try:
+                if source_path.read_text(encoding="utf-8-sig")!=saved["text"]:raise ValueError("Source changed on disk")
+            except (OSError,ValueError) as exc:messagebox.showerror("Compiler profile",str(exc));return
+        if not source_path:return
+        output_path=filedialog.asksaveasfilename(title="Name a NEW output directory")
+        if not output_path:return
+        if not messagebox.askyesno("Execute compiler",f"Run trusted local compiler? It is not sandboxed.\n{settings['compiler']}"):return
+        run_tool(lambda:configured_build(cfg,source_path,output_path,project=project,execute=True))
+    def runtime_log():
+        from .papyrus_runtime import inspect
+        path=filedialog.askopenfilename(title="Choose local Papyrus runtime log",filetypes=[("Logs","*.log *.txt"),("All files","*")])
+        if path:run_tool(lambda:inspect(path))
+    def legacy_handoff():
+        if busy[0]:return
+        from .legacy_compile import PROFILES,inspect,prepare,attach
+        from tkinter import simpledialog
+        target=game.get()
+        if target not in PROFILES:status.set("Select a legacy game");return
+        action=simpledialog.askstring("Legacy script handoff","inspect, prepare or attach?",initialvalue="inspect",parent=frame)
+        if action not in ("inspect","prepare","attach"):return
+        plugin=filedialog.askopenfilename(title="Select original or draft plugin",filetypes=[("Plugins","*.esp *.esm")])
+        if not plugin:return
+        if action=="inspect":run_tool(lambda:inspect(plugin,target));return
+        folder=filedialog.askdirectory(title="Choose separate output directory")
+        if not folder:return
+        destination=Path(folder)/Path(plugin).name
+        if action=="prepare":
+            ident=simpledialog.askstring("Script identity","Script name" if target=="morrowind" else "Disk FormID (0x...)",parent=frame)
+            if not ident:return
+            src=filedialog.askopenfilename(title="Select saved UTF-8 script source")
+            if not src:return
+            if not messagebox.askyesno("Uncompiled draft","Create an uncompiled draft for the native editor? Do not load it in a game."):return
+            run_tool(lambda:prepare(plugin,destination,target,ident,src))
+        else:
+            donor=filedialog.askopenfilename(title="Select same-name compiled donor plugin")
+            if donor:run_tool(lambda:attach(plugin,donor,destination,target))
+    for label,fn in [("Discover compiler",discover_compiler),("Build with profile",profile_build),
+                     ("Legacy handoff",legacy_handoff),("Runtime log",runtime_log)]:
+        ttk.Button(compiler_bar,text=label,command=fn).pack(side="left")
     ttk.Button(api_bar,text="Recover PEX",command=recover_script).pack(side="left")
     ttk.Button(api_bar,text="Diagnostics",command=jump_diagnostic).pack(side="left")
     ttk.Button(api_bar,text="Lua check",command=check_lua).pack(side="left")
