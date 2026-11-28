@@ -173,6 +173,16 @@ class Draft:
                                 "title":title,"origin":origin,"size":size,"environment":settings,"starter_land":True})
         return world
 
+    def create_climate(self,name,spec):
+        from .world_climate import validate
+        name=self.unique_name(name)
+        spec=validate(spec,self.index())
+        self.checkpoint()
+        key=self.allocate()
+        self.rows[key]={"key":key,"signature":"CLMT","plugin":self.name,"flags":0,"world":None,"cell":None,"bucket":None,"editor_id":name,"name":"","climate_spec":spec}
+        self.operations.append({"action":"create_climate","key":key_json(key),"editor_id":name,"spec":spec})
+        return key
+
     def set_environment(self,key,values):
         from .world_environment import normalize, validate_parent
         index=self.index()
