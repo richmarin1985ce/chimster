@@ -354,7 +354,7 @@ def mount(parent, game, open_preview=None, viewport_drop=None):
                     ttk.Label(body,text=name.replace("_"," ").title()).grid(row=i,column=0,sticky="w",pady=3)
                     ttk.Combobox(body,values=list(options),textvariable=value,state="readonly",width=35).grid(row=i,column=1,sticky="ew")
                     choices[name]=(value,options)
-                ttk.Label(win,text="Blank numeric fields remain unchanged. 0x02: no fast travel; 0x10: no LOD water.").pack(anchor="w",padx=8)
+                ttk.Label(win,text="Blank numeric fields unchanged. 0x02: no fast travel; 0x10: no LOD water. Land height does not reshape existing LAND.").pack(anchor="w",padx=8)
                 def save():
                     try:
                         changes={}
@@ -448,6 +448,7 @@ def mount(parent, game, open_preview=None, viewport_drop=None):
             state["worlds"]=[None]+[r["key"] for r in updated.matching(updated.worlds.values(),"")]
             worlds.configure(values=["Interiors / unassigned"]+[updated.name(updated.worlds[k])+" ["+label(k)+"]" for k in state["worlds"][1:]])
             worlds.current(state["worlds"].index(current_world) if current_world in state["worlds"] else 0)
+            state["world"]=state["worlds"][worlds.current()]
             refresh_cells()
             if key is not None:select_key(key)
             status.set(f"Draft: {len(draft.operations)} staged operations; source plugins unchanged")
