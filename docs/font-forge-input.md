@@ -1,5 +1,8 @@
 # Font Forge input requirements
 
+**Release status: feature-complete; testing and defect correction only.** Creator-approved scope freeze. Dedicated Windows, Linux and macOS validation passed on implementation revision `df53d18b13beabe2be884d5dcacb244cbb6091c5` (Actions run 46115761137). The Linux desktop mount/drop-registration smoke test passed. Physical file drops, hardware and installed application behavior still require manual verification. Earlier proposed additions (native tablet APIs, full-font round trips, CFF/variable outline editing, game-specific font registration and other enhancements) are deferred outside the current release scope, not outstanding Font Forge feature commitments. Do not expand scope unless explicitly reopened.
+
+
 Support Wacom and other OS-compatible pen tablets, including Windows Ink, Linux tablet input and macOS tablet events where available. Mouse and touch fallback required. Capture position, optional pressure, tilt, eraser and stroke boundaries through a platform-neutral adapter. Never assume pressure support from pointer events alone. Provide freehand glyph drawing, adjustable smoothing, stroke-to-closed-outline conversion, editable quadratic Bezier contours, baseline and em grid, undo, Unicode mapping and TTF export through fontTools. Pressure affects stroke width before outline conversion; retain editable outlines. No proprietary tablet SDK or separate application required for baseline input. Test real hardware separately; synthetic events do not certify tablet compatibility. Preserve native game font registration as a separate export step. No placeholder fonts required. Implementation and hardware verification pending.
 
 ## Deferred subsection
