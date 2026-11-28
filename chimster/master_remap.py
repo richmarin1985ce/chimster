@@ -84,9 +84,9 @@ def reorder(source,output,masters,*,allow_set_change=False):
     links=0
     group_changes=0;compressed_count=0
     allowed=set(SCHEMAS)|set(PATTERNS)|set(WORLD_PATTERNS)|set(QUEST_PATTERNS)|{b"FLST"}
-    # Exact generated exterior hierarchy only; no arbitrary group nesting.
-    child_groups={0:{1,7},1:{4},4:{5},5:{6},6:{9},9:set(),7:set()}
-    child_records={1:{b"CELL"},4:set(),5:{b"CELL"},6:set(),9:{b"LAND",b"REFR"},7:{b"INFO"}}
+    # Exact generated exterior/interior and dialogue hierarchies only.
+    child_groups={0:{1,2,7},1:{4,6},2:{3},3:{6},4:{5},5:{6},6:{8,9},8:set(),9:set(),7:set()}
+    child_records={1:{b"CELL"},2:set(),3:{b"CELL"},4:set(),5:{b"CELL"},6:set(),8:{b"REFR"},9:{b"LAND",b"REFR"},7:{b"INFO"}}
     def visit(i,limit,parent_kind=None,parent_label=None):
         nonlocal links,group_changes,compressed_count
         if limit-i<24:raise ValueError("truncated group")
@@ -94,11 +94,11 @@ def reorder(source,output,masters,*,allow_set_change=False):
         if g!=b"GRUP" or size<24 or i+size>limit:raise ValueError("invalid group")
         if parent_kind is None:
             if typ!=0 or label not in allowed:raise ValueError("unsupported top-level group")
-        elif typ not in child_groups.get(parent_kind,set()) or (parent_kind==0 and (typ,parent_label) not in {(1,b"WRLD"),(7,b"DIAL")}):
+        elif typ not in child_groups.get(parent_kind,set()) or (parent_kind==0 and (typ,parent_label) not in {(1,b"WRLD"),(2,b"CELL"),(7,b"DIAL")}):
             raise ValueError("unsupported nested group")
         new_label=label
-        if typ in (1,6,7,9):
-            if typ==9 and label!=parent_label:raise ValueError("mismatched cell group owner")
+        if typ in (1,6,7,8,9):
+            if typ in (8,9) and label!=parent_label:raise ValueError("mismatched cell group owner")
             old_id=struct.unpack("<I",label)[0]
             new_label=struct.pack("<I",remap_typed(old_id,(PARENTS[BASE[typ]],)))
             group_changes+=new_label!=label
@@ -112,8 +112,9 @@ def reorder(source,output,masters,*,allow_set_change=False):
                 child,j=visit(j,end,typ,label);records.append(child);previous=None;continue
             k,n,flags,fid,*_=HEADER.unpack_from(raw,j);stop=j+24+n
             allowed_records={label} if typ==0 else child_records[typ]
-            if k not in allowed_records or stop>end or flags & ~(0x40000|(0x400 if k==b"CELL" else 0)):
+            if k not in allowed_records or stop>end or flags & ~(0x40000|(0x400 if k in (b"CELL",b"REFR") else 0)):
                 raise ValueError("unsupported record")
+            if k==b"REFR" and bool(flags&0x400)!=(typ==8):raise ValueError("reference persistence bucket mismatch")
             compressed=bool(flags&0x40000)
             original=raw[j+24:stop]
             parts=list(subrecords("new-vegas",Node(k,raw[j:j+24],original)))
@@ -134,6 +135,10 @@ def reorder(source,output,masters,*,allow_set_change=False):
                     new.append(sub(tag,v))
                 payload=b"".join(new)
             elif k in WORLD_PATTERNS:
+                if k==b"CELL":
+                    interior=dict(parts).get(b"DATA")==b"\x01"
+                    if interior!=(typ==3):raise ValueError("cell flags disagree with hierarchy")
+                    if typ==3 and (fid&0xffffff)//10%10!=struct.unpack("<i",label)[0]:raise ValueError("interior subblock mismatch")
                 payload,nchanged=rewrite_world(k,parts,remap_typed);links+=nchanged
             elif k in QUEST_PATTERNS:
                 if k==b"INFO":
@@ -184,4 +189,4 @@ def reorder(source,output,masters,*,allow_set_change=False):
     except Exception:
         if created:out.unlink()
         raise
-    return {"output":str(out),"records":len(report["records"]),"changed_list_references":links,"changed_embedded_references":links,"changed_group_owners":group_changes,"compressed_records":compressed_count,"masters":after["masters"],"added_masters":added,"removed_masters":removed,"load_order_review_required":bool(added or removed or old!=b.names),"scope":"known generated flat, exterior world and script-free quest subset only; no opaque fields, arbitrary nesting or arbitrary local renumbering; dependency changes can alter winning overrides and runtime behavior"}
+    return {"output":str(out),"records":len(report["records"]),"changed_list_references":links,"changed_embedded_references":links,"changed_group_owners":group_changes,"compressed_records":compressed_count,"masters":after["masters"],"added_masters":added,"removed_masters":removed,"load_order_review_required":bool(added or removed or old!=b.names),"scope":"known generated flat, exterior/interior world and script-free quest subset only; no opaque fields, arbitrary nesting or arbitrary local renumbering; dependency changes can alter winning overrides and runtime behavior"}
