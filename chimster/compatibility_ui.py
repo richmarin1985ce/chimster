@@ -111,19 +111,22 @@ def mount(parent,game=None):
     def package_archive():
         from .archive_packaging import package_directory
         from tkinter import messagebox
+        formats={"morrowind":("tes3",".bsa"),"fallout4":("ba2",".ba2"),"fallout4-vr":("ba2",".ba2")}
+        if profile.get() not in formats:raise ValueError("Archive writing is not available for this game profile")
+        fmt,suffix=formats[profile.get()]
         source=filedialog.askdirectory(title="Select original mod asset directory")
         if not source:return
-        target=filedialog.asksaveasfilename(defaultextension=".ba2",filetypes=[("BA2 archive","*.ba2")])
+        target=filedialog.asksaveasfilename(defaultextension=suffix,filetypes=[("Game archive","*"+suffix)])
         if not target:return
-        if not messagebox.askyesno("Experimental BA2 packaging","Package all files in the selected directory? Use only assets you are authorized to distribute. Retail compatibility is unverified."):return
-        return package_directory(source,target)
+        if not messagebox.askyesno("Experimental archive packaging","Package all files in the selected directory? Use only assets you are authorized to distribute. Retail compatibility is unverified."):return
+        return package_directory(source,target,format=fmt)
     def validate_archive():
         from .archive_validation import audit
         source=filedialog.askopenfilename(filetypes=[("Archives","*.bsa *.ba2")])
         if source:return audit(source)
     actions=ttk.Frame(parent);actions.pack(fill="x")
     for label,fn in [
-        ("Package BA2",package_archive),("Validate archive",validate_archive),("Export member",export_member),("Packed assets",packed_assets),("Asset lookup",assets),("Installation",root),("Capabilities",lambda:capabilities(profile.get())),
+        ("Package archive",package_archive),("Validate archive",validate_archive),("Export member",export_member),("Packed assets",packed_assets),("Asset lookup",assets),("Installation",root),("Capabilities",lambda:capabilities(profile.get())),
         ("Plugin",lambda:choose(lambda p,d:audit(profile.get(),d))),
         ("Dependencies",dependencies),("Archive header",lambda:choose(lambda p,d:archive(d),36)),
         ("NIF header",lambda:choose(lambda p,d:nif(d),256)),
