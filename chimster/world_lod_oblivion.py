@@ -25,9 +25,13 @@ def plan(browser,world):
     return {"world":name,"formid":fid,"load_order":list(order),"bounds":world_bounds(grids),"tiles":tiles,
             "native_runtime_assets":False,"external_tools":False,"scope":"Oblivion native terrain mesh and texture candidates; runtime unverified"},grids
 
-def export(browser,world,output,size=128,intermediates=False):
+def export(browser,world,output,size=128,intermediates=False,assets=None):
     if size not in (64,128,256):raise ValueError("Unsupported texture dimensions")
     report,grids=plan(browser,world)
+    from .world_lod_materials import Baker
+    baker=Baker(browser,assets) if assets is not None else None
+    materials={cell["grid"]:land["land_materials"] for cell in browser.cells[world] if "grid" in cell for land in browser.children[cell["key"]] if land["signature"]=="LAND" and "land_materials" in land}
+    report["texture_mode"]="source material blend with fallback" if baker else "procedural fallback"
     out=Path(output);out.mkdir(exist_ok=False)
     try:
         for tile in report["tiles"]:
@@ -42,12 +46,14 @@ def export(browser,world,output,size=128,intermediates=False):
                 obj=out/"intermediate"/(tile["stem"]+".obj");obj.parent.mkdir(exist_ok=True)
                 write_obj(mesh,obj);written.append(obj)
                 tile["intermediate_mesh"]=str(obj.relative_to(out))
-            a,b=textures(grids,x,y,32,size)
+            a,b=textures(grids,x,y,32,size,baker,materials)
             paths=(tile["diffuse_target"],tile["normal_target"])
             for rel,data,normal in zip(paths,(a,b),(False,True)):
                 p=out/rel;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(mip_dds(size,size,data,normal=normal))
             tile["triangles"]=len(mesh.faces)
             tile["files"]={str(p.relative_to(out)):sha256(p.read_bytes()).hexdigest() for p in (*written,*(out/r for r in paths))}
+        if baker:
+            report["source_texture_hashes"]=baker.hashes;report["material_issues"]=sorted(baker.issues)
         (out/"manifest.json").write_text(json.dumps(report,indent=2),encoding="utf-8")
     except Exception:shutil.rmtree(out);raise
     return report
