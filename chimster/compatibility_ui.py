@@ -118,13 +118,19 @@ def mount(parent,game=None):
             choice=messagebox.askyesnocancel('BA2 archive type','Create a texture-only DX10 archive?\nYes: DDS textures only.\nNo: general-purpose archive.')
             if choice is None:return
             if choice:fmt='dx10'
+        ba2_version=1
+        if fmt in ("ba2","dx10") and profile.get()=="fallout4":
+            from tkinter import simpledialog
+            ba2_version=simpledialog.askinteger("BA2 version","Archive version: 1 (original), 7 or 8 (newer Fallout 4)",initialvalue=1,minvalue=1,maxvalue=8)
+            if ba2_version is None:return
+            if ba2_version not in (1,7,8):raise ValueError("Select version 1, 7 or 8")
         source=filedialog.askdirectory(title="Select original mod asset directory")
         if not source:return
         target=filedialog.asksaveasfilename(defaultextension=suffix,filetypes=[("Game archive","*"+suffix)])
         if not target:return
         if not messagebox.askyesno("Experimental archive packaging","Package all files in the selected directory? Use only assets you are authorized to distribute. Retail compatibility is unverified."):return
         compress=fmt!="tes3" and messagebox.askyesno("Compression","Compress assets when beneficial? BSA 105 compression requires LZ4.")
-        return package_directory(source,target,format=fmt,compress=compress)
+        return package_directory(source,target,format=fmt,compress=compress,ba2_version=ba2_version)
     def validate_archive():
         from .archive_validation import audit
         source=filedialog.askopenfilename(filetypes=[("Archives","*.bsa *.ba2")])
