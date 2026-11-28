@@ -148,24 +148,28 @@ static int extractCollision(const char* filename,const char* scaleArg){
                 }
                 require(chunk.verts.size()%3==0&&chunk.verts.size()/3<=500000-verts.size(),"invalid compressed vertex array");
                 unsigned count=chunk.verts.size()/3;base=verts.size();
+                // Pinned nifly NiVector exposes const data()/cbegin()/cend(), not const operator[].
+                const auto* coordinates=chunk.verts.data();
+                const auto* indices=chunk.indices.data();
                 // Skyrim compressed vertices are quantized at 1/1000 Havok unit.
                 for(unsigned j=0;j<chunk.verts.size();j+=3){
-                    push(apply(chunkTransform(Vector3(chunk.translation.x+chunk.verts[j]*.001f,
-                                       chunk.translation.y+chunk.verts[j+1]*.001f,
-                                       chunk.translation.z+chunk.verts[j+2]*.001f))));
+                    push(apply(chunkTransform(Vector3(chunk.translation.x+coordinates[j]*.001f,
+                                       chunk.translation.y+coordinates[j+1]*.001f,
+                                       chunk.translation.z+coordinates[j+2]*.001f))));
                 }
                 size_t pos=0;
-                for(auto length:chunk.strips){
+                for(auto it=chunk.strips.cbegin();it!=chunk.strips.cend();++it){
+                    const auto length=*it;
                     require(length>=3&&pos+length<=chunk.indices.size(),"invalid compressed strip length");
                     for(unsigned j=0;j+2<length;j++){
-                        auto a=chunk.indices[pos+j],b=chunk.indices[pos+j+1],c=chunk.indices[pos+j+2];
+                        auto a=indices[pos+j],b=indices[pos+j+1],c=indices[pos+j+2];
                         if(j%2)std::swap(a,b);
                         append(base,count,a,b,c);
                     }
                     pos+=length;
                 }
                 require((chunk.indices.size()-pos)%3==0,"invalid compressed triangle list");
-                for(;pos<chunk.indices.size();pos+=3)append(base,count,chunk.indices[pos],chunk.indices[pos+1],chunk.indices[pos+2]);
+                for(;pos<chunk.indices.size();pos+=3)append(base,count,indices[pos],indices[pos+1],indices[pos+2]);
             }
         }else if(auto packed=dynamic_cast<bhkPackedNiTriStripsShape*>(shape)){
             auto data=h.GetBlock(packed->dataRef);
