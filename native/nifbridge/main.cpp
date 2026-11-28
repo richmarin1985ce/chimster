@@ -13,12 +13,84 @@
 #include <map>
 #include <stdexcept>
 #include <filesystem>
+#include <functional>
+#include <set>
+#include <array>
 using namespace nifly;
 struct CollisionBox { float lo[3],hi[3]; unsigned material; };
 struct Expected { size_t vertices, triangles; std::string diffuse,normal; bool cutout; };
 static void require(bool ok,const char* message){if(!ok)throw std::runtime_error(message);}
+// Read native static root collision only. Fail closed on unsupported shapes.
+static int extractCollision(const char* filename,const char* scaleArg){
+    float scale=std::stof(scaleArg);require(std::isfinite(scale)&&scale>0&&scale<=100000,"explicit Havok unit scale required");
+    require(std::filesystem::file_size(filename)<=128*1024*1024,"NIF input limit");
+    std::ifstream input(filename,std::ios::binary);NifFile nif;
+    require(bool(input)&&nif.Load(input)==0&&nif.IsValid()&&!nif.HasUnknown(),"invalid or unknown NIF");
+    auto& h=nif.GetHeader();const auto& ver=h.GetVersion();
+    require(ver.File()==NiFileVersion::V20_2_0_7&&ver.User()==11&&ver.Stream()==34,"collision extraction currently FO3/FNV only");
+    auto root=nif.GetRootNode();require(root,"missing root");
+    auto m=root->GetTransformToParent().ToMatrix();
+    for(int i=0;i<16;i++)require(std::abs(m[i]-(i%5==0?1.f:0.f))<1e-5f,"nonidentity root transform unsupported");
+    auto coll=dynamic_cast<bhkCollisionObject*>(h.GetBlock(root->collisionRef));
+    require(coll&&coll->targetRef.index==nif.GetBlockID(root),"expected root collision");
+    unsigned collisionCount=0;
+    for(unsigned i=0;i<h.GetNumBlocks();i++)if(h.GetBlock<NiCollisionObject>(i))++collisionCount;
+    require(collisionCount==1,"multiple or nested collision objects unsupported");
+    auto body=dynamic_cast<bhkRigidBody*>(h.GetBlock(coll->bodyRef));
+    require(body&&body->motionSystem==7&&body->mass==0&&body->collisionFilter.layer==1,"expected fixed static collision body");
+    Vector3 translation;
+    if(dynamic_cast<bhkRigidBodyT*>(body)){
+        auto q=body->rotation;
+        require(std::abs(q.x)+std::abs(q.y)+std::abs(q.z)<1e-5f&&std::abs(std::abs(q.w)-1)<1e-5f,"rotated rigid body unsupported");
+        translation=Vector3(body->translation.x,body->translation.y,body->translation.z);
+    }
+    std::vector<Vector3> verts;std::vector<std::array<unsigned,3>> tris;
+    auto push=[&](Vector3 p){
+        p.x*=scale;p.y*=scale;p.z*=scale;
+        require(std::isfinite(p.x)&&std::isfinite(p.y)&&std::isfinite(p.z)&&std::abs(p.x)<=1e7&&std::abs(p.y)<=1e7&&std::abs(p.z)<=1e7,"invalid collision vertex");
+        require(verts.size()<500000,"collision vertex limit");verts.push_back(p);
+    };
+    std::set<const bhkShape*> stack;
+    std::function<void(bhkShape*,Vector3,unsigned)> walk;
+    walk=[&](bhkShape* shape,Vector3 offset,unsigned depth){
+        require(shape&&depth<32&&stack.insert(shape).second,"invalid collision shape graph");
+        if(auto b=dynamic_cast<bhkBoxShape*>(shape)){
+            auto d=b->dimensions;require(d.x>0&&d.y>0&&d.z>0,"invalid box dimensions");
+            unsigned base=verts.size();
+            for(int z:{-1,1})for(int y:{-1,1})for(int x:{-1,1})push(Vector3(offset.x+x*d.x,offset.y+y*d.y,offset.z+z*d.z));
+            const unsigned faces[12][3]={{0,2,1},{1,2,3},{4,5,6},{5,7,6},{0,1,4},{1,5,4},{2,6,3},{3,6,7},{0,4,2},{2,4,6},{1,3,5},{3,7,5}};
+            for(auto& t:faces)tris.push_back({base+t[0],base+t[1],base+t[2]});
+        }else if(auto tf=dynamic_cast<bhkTransformShape*>(shape)){
+            for(int i=0;i<16;i++)if(i<12||i==15)require(std::abs(tf->xform[i]-(i%5==0?1.f:0.f))<1e-5f,"nontranslation child transform unsupported");
+            walk(h.GetBlock(tf->shapeRef),Vector3(offset.x+tf->xform[12],offset.y+tf->xform[13],offset.z+tf->xform[14]),depth+1);
+        }else if(auto list=dynamic_cast<bhkListShape*>(shape)){
+            require(list->subShapeRefs.GetSize()<=4096,"collision list limit");
+            for(unsigned i=0;i<list->subShapeRefs.GetSize();i++)walk(h.GetBlock<bhkShape>(list->subShapeRefs.GetBlockRef(i)),offset,depth+1);
+        }else if(auto mopp=dynamic_cast<bhkMoppBvTreeShape*>(shape)){
+            walk(h.GetBlock(mopp->shapeRef),offset,depth+1);
+        }else if(auto packed=dynamic_cast<bhkPackedNiTriStripsShape*>(shape)){
+            auto data=h.GetBlock(packed->dataRef);
+            require(data&&!data->compressed&&data->compressedVertData.size()==data->numVerts,"unsupported packed vertex encoding");
+            require(std::abs(packed->scaling.x-1)<1e-5f&&std::abs(packed->scaling.y-1)<1e-5f&&std::abs(packed->scaling.z-1)<1e-5f,"nonunit packed scale unsupported");
+            unsigned base=verts.size();
+            for(auto p:data->compressedVertData)push(Vector3(p.x+offset.x,p.y+offset.y,p.z+offset.z));
+            auto append=[&](const Triangle& t){require(t.p1<data->numVerts&&t.p2<data->numVerts&&t.p3<data->numVerts,"invalid packed triangle");tris.push_back({base+t.p1,base+t.p2,base+t.p3});};
+            for(auto& t:data->triData)append(t.tri);
+            for(auto& t:data->triNormData)append(t.tri);
+        }else throw std::runtime_error("unsupported native collision shape");
+        require(tris.size()<=500000,"collision triangle limit");stack.erase(shape);
+    };
+    walk(h.GetBlock(body->shapeRef),translation,0);
+    require(!verts.empty()&&!tris.empty(),"empty collision geometry");
+    std::cout<<std::setprecision(9)<<"{\"vertices\":[";
+    for(size_t i=0;i<verts.size();i++){if(i)std::cout<<",";auto p=verts[i];std::cout<<"["<<p.x<<","<<p.y<<","<<p.z<<"]";}
+    std::cout<<"],\"triangles\":[";
+    for(size_t i=0;i<tris.size();i++){if(i)std::cout<<",";auto t=tris[i];std::cout<<"["<<t[0]<<","<<t[1]<<","<<t[2]<<"]";}
+    std::cout<<"]}\n";return 0;
+}
 int main(int argc,char** argv){
  try {
+    if(argc==4&&std::string(argv[1])=="extract-collision")return extractCollision(argv[2],argv[3]);
     require(argc>=4&&argc<=6,"usage: chimster-nifbridge GAME INPUT.cmesh OUTPUT.nif [box|compound FILE]");
     bool box=argc==5&&std::string(argv[4])=="box";
     bool compound=argc==6&&std::string(argv[4])=="compound";
