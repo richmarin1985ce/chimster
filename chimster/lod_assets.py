@@ -56,6 +56,8 @@ def simplify(mesh,cell,uv_bins=64):
             groups.setdefault(k,set()).add(i);keys.append(k)
         face_keys.append((keys,mat))
     out=Mesh();idx={}
+    for attr in ("lod_shader","lod_alpha_threshold"):
+        if hasattr(mesh,attr):setattr(out,attr,getattr(mesh,attr))
     for k,ids in groups.items():
         ids=sorted(ids);idx[k]=len(out.vertices)
         out.vertices.append(tuple(sum(mesh.vertices[j][a] for j in ids)/len(ids) for a in range(3)))
