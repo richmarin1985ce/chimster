@@ -138,21 +138,41 @@ def mount(parent, game=None):
     def edit_field():
         path=selected();s=state["session"]
         fields=s.typed_fields(path)
-        if not fields:raise ValueError("No supported scalar fields on this record")
-        tags={f["tag"]:f for f in fields}
-        tag=simpledialog.askstring("Typed field","Choose field: "+", ".join(tags),parent=parent)
-        if tag is None:return
-        tag=tag.strip().upper()
-        if tag not in tags:raise ValueError("Unsupported field")
-        field=tags[tag]
-        value=simpledialog.askstring("Edit "+tag,"New "+field["type"]+" value (JSON; quote text):",
-                                    initialvalue=json.dumps(field["value"],ensure_ascii=False),parent=parent)
-        if value is None:return
-        old=s.data
-        s.apply_typed(s.revision,[(path,tag.encode("ascii"),field["occurrence"],{"value":json.loads(value)})])
-        if s.data!=old:
-            state["undo"].append(old);state["undo"]=state["undo"][-8:];state["redo"].clear()
-        restore_selection(path)
+        if not fields:raise ValueError("No supported typed fields on this record")
+        revision=s.revision
+        dialog=tk.Toplevel(parent);dialog.title("Native property inspector")
+        dialog.geometry("620x440")
+        ttk.Label(dialog,text=str(s.rows[path]["key"])).pack(anchor="w")
+        ttk.Label(dialog,text="Select a property; changes are staged, never written to the source.").pack(anchor="w")
+        frame=ttk.Frame(dialog);frame.pack(fill="both",expand=True)
+        grid=ttk.Treeview(frame,columns=("field","occurrence","value"),show="tree headings")
+        grid.heading("#0",text="Property");grid.column("#0",width=160)
+        for col,label,width in (("field","Native field",85),("occurrence","Entry",65),("value","Current value",220)):
+            grid.heading(col,text=label);grid.column(col,width=width)
+        scroll=ttk.Scrollbar(frame,orient="vertical",command=grid.yview)
+        grid.configure(yscrollcommand=scroll.set);scroll.pack(side="right",fill="y");grid.pack(fill="both",expand=True)
+        entries={}
+        for field in fields:
+            values=field["value"] if field["type"]=="properties" else {"value":field["value"]}
+            for key,value in values.items():
+                item=grid.insert("","end",text=key,values=(field["tag"],field["occurrence"]+1,json.dumps(value,ensure_ascii=False)))
+                entries[item]=(field,key,value)
+        def apply_property():
+            if state["session"] is not s or s.revision!=revision:
+                raise ValueError("Property inspector is stale; reopen it")
+            if not grid.selection():raise ValueError("Select a property")
+            field,key,old_value=entries[grid.selection()[0]]
+            # Text is entered literally; numerical and boolean values use JSON.
+            value=simpledialog.askstring("Edit "+key,"New value:",initialvalue=old_value if isinstance(old_value,str) else json.dumps(old_value),parent=dialog)
+            if value is None:return
+            value=value if isinstance(old_value,str) else json.loads(value)
+            old=s.data
+            s.apply_typed(revision,[(path,field["tag"].encode("ascii"),field["occurrence"],{key:value})])
+            if s.data!=old:
+                state["undo"].append(old);state["undo"]=state["undo"][-8:];state["redo"].clear()
+            dialog.destroy();restore_selection(path)
+        ttk.Button(dialog,text="Apply selected property",command=guard(apply_property)).pack(anchor="e")
+        grid.bind("<Double-1>",lambda event:guard(apply_property)())
     def history(reverse):
         s=state["session"]
         if s is None:raise ValueError("Open a plugin first")
