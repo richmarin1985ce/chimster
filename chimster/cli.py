@@ -82,10 +82,12 @@ def build_parser():
  b=c.add_parser('compare'); b.add_argument('old'); b.add_argument('new')
  b=c.add_parser('package-layout'); b.add_argument('paths',nargs='+')
  a=s.add_parser('navmesh-auto'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--rooms',action='store_true'); a.add_argument('--simplify',action='store_true'); a.add_argument('--spacing',type=float,default=0.5); a.add_argument('--radius',type=float,default=0.3); a.add_argument('--height',type=float,default=1.8)
+ a=s.add_parser('navmesh-adaptive'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--levels',type=int,default=3); a.add_argument('--tile-cells',type=int,default=32); a.add_argument('--triangle-budget',type=int,default=250000); a.add_argument('--policy'); a.add_argument('--previous')
+ a=s.add_parser('navmesh-areas'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--policy')
  a=s.add_parser('navmesh-tiled'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--previous'); a.add_argument('--tile-cells',type=int,default=32)
  a=s.add_parser('navmesh-nif'); a.add_argument('nif'); a.add_argument('output'); a.add_argument('helper'); a.add_argument('--unit-scale',type=float,required=True); a.add_argument('--spacing',type=float,required=True); a.add_argument('--radius',type=float,default=0.3); a.add_argument('--height',type=float,default=1.8); a.add_argument('--max-step',type=float,default=0.4); a.add_argument('--max-slope',type=float,default=45)
  a=s.add_parser('navmesh-simplify'); a.add_argument('project'); a.add_argument('output')
- a=s.add_parser('navmesh-route'); a.add_argument('project'); a.add_argument('start',type=int); a.add_argument('end',type=int); a.add_argument('--closed',action='append',default=[])
+ a=s.add_parser('navmesh-route'); a.add_argument('project'); a.add_argument('start',type=int); a.add_argument('end',type=int); a.add_argument('--closed',action='append',default=[]); a.add_argument('--avoid-area',action='append',default=[])
  a=s.add_parser('navmesh-draft'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--cell',type=lambda x:int(x,0),required=True); a.add_argument('--version',type=int,required=True)
  a=s.add_parser('fnv-interior'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--master',action='append',default=[]); a.add_argument('--ledger-in'); a.add_argument('--ledger-out')
  a=s.add_parser('world-check'); a.add_argument('plugins',nargs='+'); a.add_argument('--strict',action='store_true'); a.add_argument('--quest-links',action='store_true'); a.add_argument('--navmesh',action='store_true')
@@ -372,6 +374,20 @@ def main(argv=None):
    from pathlib import Path
    with Path(n.output).open("x",encoding="utf-8") as stream:json.dump(mesh,stream)
    result={"output":n.output,"vertices":len(mesh["vertices"]),"triangles":len(mesh["triangles"]),"regions":len(mesh["regions"]),"issues":mesh.get("issues",[]),"scope":mesh["scope"]}
+  elif n.cmd=='navmesh-adaptive':
+   from .navmesh_adaptive import refine
+   from .navmesh_tiles import load
+   from pathlib import Path
+   bundle=refine(load(n.project),levels=n.levels,tile_cells=n.tile_cells,triangle_budget=n.triangle_budget,policy=load(n.policy) if n.policy else None,previous=load(n.previous)["cache"] if n.previous else None)
+   with Path(n.output).open("x",encoding="utf-8") as stream:json.dump(bundle,stream)
+   result={"output":n.output,**bundle["refinement"]}
+  elif n.cmd=='navmesh-areas':
+   from .navmesh_tiles import load
+   from .navmesh_areas import classify
+   from pathlib import Path
+   source=load(n.project);mesh=classify(source.get("mesh",source),load(n.policy) if n.policy else None)
+   with Path(n.output).open("x",encoding="utf-8") as stream:json.dump(mesh,stream)
+   result={"output":n.output,**mesh["area_report"]}
   elif n.cmd=='navmesh-tiled':
    from .navmesh_tiles import build,load
    from pathlib import Path
@@ -398,7 +414,7 @@ def main(argv=None):
   elif n.cmd=='navmesh-route':
    from .navmesh_tiles import load
    from .navmesh import route
-   mesh=load(n.project);mesh=mesh.get("mesh",mesh);result=route(mesh,n.start,n.end,mesh.get("links",[]),n.closed)
+   mesh=load(n.project);mesh=mesh.get("mesh",mesh);result=route(mesh,n.start,n.end,mesh.get("links",[]),n.closed,avoid=n.avoid_area)
   elif n.cmd=='navmesh-draft':
    from .quest_editor import load
    from .fnv_navmesh import draft
