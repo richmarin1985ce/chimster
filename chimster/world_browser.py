@@ -67,11 +67,14 @@ def read_plugin(path):
                 parts = list(subrecords("new-vegas", node))
                 fields = dict(parts)
                 row["editor_id"] = text_field(fields.get(b"EDID"))
+                if sig not in KINDS and b"MODL" in fields:
+                    row["model"] = text_field(fields[b"MODL"])
                 if sig in KINDS:
                     row["name"] = text_field(fields.get(b"FULL"))
                 if sig == "CELL":
                     grid = fields.get(b"XCLC", b"")
-                    if len(grid) in (8, 12):
+                    row["persistent_cell"] = bool(flags & 0x400)
+                    if len(grid) in (8, 12) and not row["persistent_cell"]:
                         row["grid"] = struct.unpack_from("<2i", grid)
                     data = fields.get(b"DATA", b"")
                     row["interior"] = bool(data and data[0] & 1)
