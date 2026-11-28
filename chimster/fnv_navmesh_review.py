@@ -59,6 +59,13 @@ def review(meshes,navi,door_backlinks=(),*,tolerance=.01):
         if fid not in parsed:issues.append({"code":"navi-mesh-outside-review","mesh":fid})
         elif registered[fid]!=locations[fid]:issues.append({"code":"navi-location-mismatch","mesh":fid})
     for fid in set(parsed)-set(registered):issues.append({"code":"navi-registration-missing","mesh":fid})
+    for row in index.get("connections",[]):
+        fid=row["mesh"]
+        if fid not in parsed:continue
+        r=parsed[fid]
+        expected={e["raw_target"] for e in r["external"]}
+        if set(row["standard"])|set(row["preferred"])!=expected:issues.append({"code":"nvci-neighbor-mismatch","mesh":fid})
+        if set(row["doors"])!={d["raw_target"] for d in r["doors"]}:issues.append({"code":"nvci-door-mismatch","mesh":fid})
     return {"valid_known_fields":not issues,"issues":issues,"meshes":len(parsed),"doors":len(doors),
             "registered":len(registered),"opaque_navi_fields":index["opaque"],
             "review_required":["NAVI opaque NVMI suffix and NVCI semantics","independent native grid and GECK finalization"],
