@@ -51,6 +51,8 @@ def plan(name):
     for c in r["counties"]:
         filename=f"tl_{YEAR}_{c}_roads.zip"
         urls[filename]=f"https://www2.census.gov/geo/tiger/TIGER{YEAR}/ROADS/{filename}"
+        water=f"tl_{YEAR}_{c}_areawater.zip"
+        urls[water]=f"https://www2.census.gov/geo/tiger/TIGER{YEAR}/AREAWATER/{water}"
     return {**r,"project":name,"bounds":[x0,y0,x1,y1],"width":w,"height":h,
             "source_spacing_m":10,"tiger_year":YEAR,"urls":urls,
             "scale_status":"proposed horizontal compression, not native game units"}
@@ -121,6 +123,39 @@ def acquire(name, folder):
             if temp.exists(): temp.unlink()
     print(json.dumps({"project":name,"sources":{f:digest(folder/f) for f in spec["urls"]}},indent=2))
 
+def water_polygons(spec, source):
+    """Return clipped census water polygons; absence is unknown, never guaranteed land."""
+    import fiona
+    from shapely.geometry import shape, box
+    from shapely.ops import transform
+    from pyproj import Transformer
+    extent=box(*spec["bounds"])
+    def parts(g):
+        if g.is_empty: return
+        if g.geom_type=="Polygon":
+            yield g
+        elif g.geom_type in ("MultiPolygon","GeometryCollection"):
+            for item in g.geoms: yield from parts(item)
+    result=[]
+    for county in spec["counties"]:
+        path=source/f"tl_{YEAR}_{county}_areawater.zip"
+        validate_zip(path)
+        with fiona.open("zip://"+str(path.resolve())) as ds:
+            if not ds.crs: raise ValueError("water source has no CRS")
+            project=Transformer.from_crs(ds.crs,f"EPSG:{spec['epsg']}",always_xy=True).transform
+            for row in ds:
+                if row["geometry"] is None: continue
+                g=transform(project,shape(row["geometry"]))
+                if not g.is_valid: raise ValueError("invalid source water polygon")
+                props=dict(row["properties"])
+                for i,poly in enumerate(parts(g.intersection(extent))):
+                    if poly.area>0:
+                        result.append((poly,{"id":f"{county}:{row.id}:{i}",
+                            "name":props.get("FULLNAME") or "",
+                            "mtfcc":props.get("MTFCC") or ""}))
+    if not result: raise ValueError("no water polygons in coastal project extent")
+    return result
+
 def import_sources(name, source, out):
     import fiona
     from shapely.geometry import shape, box, mapping
@@ -158,25 +193,34 @@ def import_sources(name, source, out):
                         "mtfcc":props.get("MTFCC") or "","linearid":props.get("LINEARID"),
                         "source_length_m":part.length,"geometry":mapping(transform(to_local,part))})
     if not features: raise ValueError("no roads intersect source extent")
+    waters=water_polygons(spec,source)
+    from rasterio.features import rasterize
     # Publish only a new output folder. Source files stay untouched.
     out.mkdir(parents=True,exist_ok=False)
     with rasterio.open(source/"dem.tif") as ds:
         a=ds.read(1,masked=True)
         valid=~np.ma.getmaskarray(a) & np.isfinite(np.asarray(a))
+        mapped_water=rasterize(((mapping(poly),1) for poly,_ in waters),
+            out_shape=(ds.height,ds.width),transform=ds.transform,fill=0,dtype="uint8")
         # Rows reversed so local +y is north; invalid heights remain explicit via mask.
         np.savez_compressed(out/"terrain-source.npz",
             elevation_m=np.where(valid,np.asarray(a),np.nan)[::-1].astype("float32"),
-            valid=valid[::-1])
+            valid=valid[::-1],mapped_water=mapped_water[::-1])
+    write_json(out/"water-local.json",{"schema":"chimster.local-water.v1",
+        "units":"provisional playable meters","origin_source_xy":[x0,y0],
+        "xy_scale":spec["xy_scale"],"features":[{**props,"geometry":mapping(transform(to_local,poly))} for poly,props in waters],
+        "warning":"Census mapped water polygons only; absent coverage is not land, no tidal datum or depth implied"})
     write_json(out/"roads-local.json",{"schema":"chimster.local-roads.v1",
         "units":"provisional playable meters","origin_source_xy":[x0,y0],
         "xy_scale":spec["xy_scale"],"features":features,
         "warning":"centerlines only; not verified topology, bridge heights, postwar or playable roads"})
-    write_json(out/"manifest.json",{"plan":spec,"dem":dem_meta,"road_segments":len(features),
+    write_json(out/"manifest.json",{"plan":spec,"dem":dem_meta,"road_segments":len(features),"water_polygons":len(waters),
+        "mapped_water_samples":int(mapped_water.sum()),"water_mask_semantics":"1=mapped Census water; 0=not mapped, may be unknown",
         "source_hashes":{f:digest(source/f) for f in spec["urls"]},
         "terrain_origin_sample_xy":[x0+5,y0+5],"terrain_row_order":"south to north",
         "playable_sample_spacing_m":10*spec["xy_scale"],
         "vertical_scale":1,"status":"source geometry; no native game records",
-        "pending":["independent shoreline mask","road deduplication and grade separation",
+        "pending":["independent shoreline and coverage verification","road deduplication and grade separation",
                    "authored postwar network","native terrain and road export"]})
     print(f"Imported {len(features)} street segments; output {out}")
 
