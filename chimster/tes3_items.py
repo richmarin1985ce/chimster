@@ -36,6 +36,9 @@ def inspect(profile,data):
             if (row["signature"],tag) in SCHEMAS:
                 try:row["properties"]=decode_properties(row["signature"],tag,bytes.fromhex(raw))
                 except ValueError as e:row["issues"].append(str(e))
+        if node.signature in (b"LEVI",b"LEVC") and not row.get("deleted"):
+            try:row["leveled"]=leveled(node.signature,list(subrecords(profile,node)))
+            except ValueError as e:row["issues"].append(str(e))
         names=row["fields"].get("NAME",[])
         if len(names)==1 and names[0]:row["identity"]=names[0].casefold()
         else:row["issues"].append("Missing or ambiguous NAME")
@@ -132,3 +135,29 @@ def edit_magic_effect(raw,**changes):
     if d["range"] not in (0,1,2) or any(d[k]<0 for k in ("area","duration","minimum","maximum")) or d["minimum"]>d["maximum"]:raise ValueError("Invalid effect parameters")
     try:return struct.pack("<Hbb5i",*(d[k] for k in ("effect","skill","attribute","range","area","duration","minimum","maximum")))
     except struct.error as e:raise ValueError("Effect property outside native range") from e
+
+def leveled(signature,parts):
+    tag={b"LEVI":b"INAM",b"LEVC":b"CNAM"}[signature]
+    entries=[];pending=None;meta={}
+    for k,v in parts:
+        if pending is not None and k!=b"INTV":raise ValueError("Missing leveled entry level")
+        if k==tag:
+            if not v.rstrip(b"\0") or b"\0" in v.rstrip(b"\0"):raise ValueError("Invalid leveled ID")
+            pending=v.rstrip(b"\0").decode("cp1252")
+        elif k==b"INTV":
+            if pending is None or len(v)!=2:raise ValueError("Invalid leveled entry")
+            entries.append({"id":pending,"level":struct.unpack("<H",v)[0]});pending=None
+        elif k in (b"DATA",b"INDX",b"NNAM"):
+            size=1 if k==b"NNAM" else 4
+            if len(v)!=size or k in meta:raise ValueError("Invalid leveled metadata")
+            meta[k]=int.from_bytes(v,"little")
+    if pending is not None or meta.get(b"INDX")!=len(entries) or b"DATA" not in meta or not 0<=meta.get(b"NNAM",256)<=100:raise ValueError("Invalid leveled list")
+    return {"flags":meta[b"DATA"],"chance_none":meta[b"NNAM"],"entries":entries}
+
+def edit_leveled_level(raw,level):
+    if len(raw)!=2 or type(level)!=int or not 1<=level<=65535:raise ValueError("Invalid entry level")
+    return struct.pack("<H",level)
+
+def edit_chance_none(raw,chance):
+    if len(raw)!=1 or type(chance)!=int or not 0<=chance<=100:raise ValueError("Invalid chance none")
+    return bytes([chance])
