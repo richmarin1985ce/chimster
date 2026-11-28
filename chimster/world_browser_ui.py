@@ -711,13 +711,46 @@ def mount(parent, game, open_preview=None, viewport_drop=None):
             status.set("Native vegetation billboard candidate exported; tree tile format pending.")
         except (ValueError,OSError,TypeError) as exc:messagebox.showerror("Vegetation LOD",str(exc),parent=parent)
     ttk.Button(nav,text="Vegetation LOD",command=vegetation_lod).pack(side="left")
+    def source_vegetation():
+        index=state["index"]
+        if index is None:return
+        model=simpledialog.askstring("Source foliage","Relative game mesh path (NIF)",parent=parent)
+        if not model:return
+        name=simpledialog.askstring("Source foliage","New asset name",initialvalue="Vegetation",parent=parent)
+        if not name:return
+        folder=filedialog.askdirectory(title="Choose output parent directory")
+        if not folder:return
+        try:
+            import re
+            from .world_lod_object_builtin import Assets
+            from .world_lod_vegetation import build_source
+            if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}",name):raise ValueError("Invalid asset name")
+            loose=state.get("loose");root=loose.root if loose else None;archives=state.get("archives",())
+            if root is None and not archives:
+                root=filedialog.askdirectory(title="Select source game Data directory") or None
+                if root is None:return
+            show(build_source(index.profile,model,Assets(root,archives),Path(folder)/("source_foliage_"+name),name))
+            status.set("Source-textured vegetation candidate exported; runtime verification pending.")
+        except (ValueError,OSError,TypeError,KeyError) as exc:messagebox.showerror("Source foliage",str(exc),parent=parent)
+    ttk.Button(nav,text="Bake source foliage",command=source_vegetation).pack(side="left")
     def tree_tiles():
         index=state["index"];world=state["world"]
         if index is None or world is None:return
         if index.profile not in ("skyrim","skyrim-se"):
             messagebox.showinfo("Tree LOD","New Vegas and Fallout 3 use the object LOD builder for supported vegetation assets.",parent=parent);return
-        specfile=filedialog.askopenfilename(title="Select tree billboard specification JSON",filetypes=[("JSON","*.json")])
-        if not specfile:return
+        automatic=messagebox.askyesno("Tree LOD","Automatically bake supported TREE models? Choose No to supply a billboard catalog.",parent=parent)
+        specfile=None;spec=None
+        if automatic:
+            origin=simpledialog.askstring("Tree LOD","Southwest X,Y from the world LODSettings (cell coordinates)",parent=parent)
+            if not origin:return
+            try:
+                coords=tuple(int(v.strip()) for v in origin.split(","))
+                if len(coords)!=2:raise ValueError("Expected X,Y")
+                spec={"southwest":coords,"auto_bake":True}
+            except ValueError as exc:messagebox.showerror("Tree LOD",str(exc),parent=parent);return
+        else:
+            specfile=filedialog.askopenfilename(title="Select tree billboard specification JSON",filetypes=[("JSON","*.json")])
+            if not specfile:return
         folder=filedialog.askdirectory(title="Choose parent directory for tree LOD package")
         if not folder:return
         try:
@@ -729,7 +762,7 @@ def mount(parent, game, open_preview=None, viewport_drop=None):
             if root is None and not archives:
                 root=filedialog.askdirectory(title="Select game Data for tree textures") or None
                 if root is None:return
-            spec=json.loads(Path(specfile).read_text(encoding="utf-8"))
+            if specfile:spec=json.loads(Path(specfile).read_text(encoding="utf-8"))
             out=Path(folder)/("tree_lod_"+world.origin.replace(".","_")+"_"+format(world.local,"06x"))
             show(export(index,world,out,spec,Assets(root,archives)))
             status.set("Built-in Skyrim tree LOD candidates exported; runtime validation pending.")
