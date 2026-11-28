@@ -51,8 +51,9 @@ def insert(profile,data,signature,parts,revision,*,header=None):
     return result
 
 def duplicate(profile,data,path,new_id,revision):
-    if len(path)!=2:raise ValueError("Only top-level objects supported")
+    if len(path)!=2 or any(type(i)!=int or i<0 for i in path):raise ValueError("Only top-level objects supported")
     nodes=parse(profile,data)
+    if path[0]>=len(nodes) or path[1]>=len(nodes[path[0]].children):raise ValueError("Missing source record")
     g=nodes[path[0]];n=g.children[path[1]]
     if g.signature!=b"GRUP" or g.header[8:12]!=n.signature or struct.unpack_from("<i",g.header,12)[0]!=0:raise ValueError("Invalid source group")
     if not isinstance(new_id,str) or not new_id.strip() or "\0" in new_id:raise ValueError("Invalid editor ID")
