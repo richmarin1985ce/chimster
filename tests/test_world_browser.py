@@ -248,5 +248,43 @@ class WorldBrowserTests(unittest.TestCase):
 
 
 
+    def test_new_world_native_roundtrip(self):
+        from chimster.world_draft import Draft
+        from chimster.world_draft_native import export_esp
+        from chimster.max_height import decode_land
+        draft=Draft(Browser.open([]))
+        world=draft.create_world("NewWorld","New World",(-2,3),(2,2),
+                                 {"heights":(14400,11000),"flags":(0x12,)})
+        index=draft.index()
+        self.assertEqual(len(index.cells[world]),5)
+        self.assertEqual(sum(bool(r.get("persistent_cell")) for r in index.cells[world]),1)
+        self.assertEqual(len(index.coordinates),4)
+        self.assertEqual(sum(r["signature"]=="LAND" for r in index.active.values()),4)
+        draft.set_environment(world,{"lod_height":(11000,),"map_offset":(2,1,1)})
+        out=Path(self.tmp.name)/draft.name
+        export_esp(draft,out)
+        reopened=Browser.open([out])
+        self.assertEqual(reopened.worlds[world]["environment"]["heights"],(14400,11000))
+        self.assertEqual(reopened.worlds[world]["environment"]["lod_height"],(11000,))
+        self.assertEqual(len(reopened.cells[world]),5)
+        land=next(r for r in reopened.active.values() if r["signature"]=="LAND")
+        self.assertEqual(decode_land(land["height_raw"])[0][0],14400)
+        draft.undo()
+        self.assertEqual(draft.index().worlds[world]["environment"]["lod_height"],(10500,))
+        draft.undo()
+        self.assertNotIn(world,draft.index().worlds)
+
+    def test_environment_typed_links_and_bounds(self):
+        from chimster.world_draft import Draft
+        draft=Draft(Browser.open([self.base]))
+        with self.assertRaises(ValueError):draft.set_environment(self.world,{"water":("base.esm",0x803)})
+        with self.assertRaises(ValueError):draft.create_world("Huge","Huge",(0,0),(257,1))
+        with self.assertRaises(ValueError):draft.set_environment(self.world,{"map_offset":(0,0,0)})
+        self.assertEqual(draft.operations,[])
+        draft.set_environment(self.world,{"map_size_bounds":(512,512,-2,4,2,-4)})
+        self.assertEqual(draft.index().worlds[self.world]["environment"]["map_size_bounds"],(512,512,-2,4,2,-4))
+
+
+
 if __name__ == "__main__":
     unittest.main()
