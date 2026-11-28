@@ -7,7 +7,7 @@ from math import sqrt
 from hashlib import sha256
 import json,shutil
 from .world_browser import label
-from .world_lod_metadata import world_bounds,dirty_tiles,fnv_settings,read_fnv_settings
+from .world_lod_metadata import world_bounds,dirty_tiles,fnv_settings,read_fnv_settings,skyrim_settings,read_skyrim_settings
 from .max_height import decode_land
 from .flora import Mesh
 from .textures import mip_dds
@@ -109,7 +109,8 @@ def textures(grids,x,y,level,size=128,baker=None,materials=None):
     return diffuse,normal
 
 def export(browser,world,output,levels=LEVELS,size=128,assets=None,previous=None,skirts=256,stitch=True):
-    if browser.profile not in ("new-vegas","fallout3"):raise ValueError("Built-in native candidate writer currently FO3/FNV only")
+    if browser.profile not in ("new-vegas","fallout3","skyrim","skyrim-se"):raise ValueError("Native world LAND decoder not supported for this profile")
+    modern=browser.profile in ("skyrim","skyrim-se")
     if not levels or len(set(levels))!=len(levels) or any(n not in LEVELS for n in levels):raise ValueError("Unsupported LOD tier")
     if size not in (64,128,256):raise ValueError("Unsupported texture size")
     name=world_name(browser,world);grids=collect(browser,world)
@@ -126,6 +127,7 @@ def export(browser,world,output,levels=LEVELS,size=128,assets=None,previous=None
             for q in quadrants:
                 for key in [q["base"]]+[a["texture"] for a in q["layers"]]:
                     if key:baker.material(key)
+    origin=tuple(v//max(levels)*max(levels) for v in world_bounds(grids)["min_cell"])
     plan=dirty_tiles(grids,levels)
     tile_cells=defaultdict(list)
     for level in levels:
@@ -141,7 +143,7 @@ def export(browser,world,output,levels=LEVELS,size=128,assets=None,previous=None
         old={(t["level"],*t["grid"]):t for t in prior["tiles"]}
     if sum(map(len,plan.values()))>4096:raise ValueError("LOD tile budget")
     out=Path(output);out.mkdir(exist_ok=False)
-    manifest={"world":name,"bounds":world_bounds(grids),"tiles":[],"native_runtime_assets":False,
+    manifest={"world":name,"profile":browser.profile,"bounds":world_bounds(grids),"tiles":[],"native_runtime_assets":False,
               "external_tools":False,"texture_mode":"LAND source material blend with reported fallback" if baker else "procedural fallback; no source assets selected",
               "material_issues":material_errors,"seam_skirt_depth":skirts,"shared_fine_perimeter":stitch,"reused_tiles":0,"rebuilt_tiles":0,
               "settings_status":"Generated candidate; bounds and level semantics require game validation",
@@ -154,9 +156,14 @@ def export(browser,world,output,levels=LEVELS,size=128,assets=None,previous=None
                 mesh_path=f"meshes/{base}/{stem}.nif"
                 diffuse=f"textures/{base}/diffuse/{stem}.dds"
                 normal=f"textures/{base}/normal/{name}.n.level{level}.x{x}.y{y}.dds"
+                if modern:
+                    stem=f"{name}.{level}.{x}.{y}"
+                    mesh_path=f"meshes/terrain/{name}/{stem}.btr"
+                    diffuse=f"textures/terrain/{name}/{stem}.dds"
+                    normal=f"textures/terrain/{name}/{stem}_n.dds"
                 # Include neighbor cells for edge normal/transition changes; input hashes are canonical.
                 area=[((cx,cy),cell_hashes[cx,cy]) for cx in range(x-1,x+level+1) for cy in range(y-1,y+level+1) if (cx,cy) in cell_hashes]
-                digest=sha256(json.dumps(["lod-v5",level,x,y,size,skirts,stitch,area,texture_dependencies],sort_keys=True,separators=(",",":"),allow_nan=False).encode()).hexdigest()
+                digest=sha256(json.dumps(["lod-v6",browser.profile,name,level,x,y,size,skirts,stitch,area,texture_dependencies],sort_keys=True,separators=(",",":"),allow_nan=False).encode()).hexdigest()
                 cached=old.get((level,x,y),{})
                 paths=(mesh_path,diffuse,normal)
                 if cached.get("input_sha256")==digest and set(cached.get("files",{}))==set(paths):
@@ -165,8 +172,14 @@ def export(browser,world,output,levels=LEVELS,size=128,assets=None,previous=None
                             (out/p).parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(old_root/p,out/p)
                         manifest["tiles"].append(cached);manifest["reused_tiles"]+=1;continue
                 mesh=macro_mesh({k:grids[k] for k in tile_cells[(level,x,y)]},x,y,level,skirts,stitch)
-                raw=encode(mesh,diffuse,normal,"terrain")
-                report=check(raw,len(mesh.faces))
+                if modern:
+                    from .modern_lod_codec import encode_groups,inspect
+                    raw=encode_groups([(mesh,diffuse,normal)],browser.profile,"terrain")
+                    report=inspect(raw,browser.profile)
+                    if report["triangles"]!=len(mesh.faces):raise ValueError("Modern LOD geometry mismatch")
+                else:
+                    raw=encode(mesh,diffuse,normal,"terrain")
+                    report=check(raw,len(mesh.faces))
                 for path in (mesh_path,diffuse,normal):(out/path).parent.mkdir(parents=True,exist_ok=True)
                 (out/mesh_path).write_bytes(raw)
                 a,b=textures(grids,x,y,level,size,baker,materials)
@@ -177,11 +190,11 @@ def export(browser,world,output,levels=LEVELS,size=128,assets=None,previous=None
         if baker:
             manifest["material_issues"].extend(sorted(baker.issues))
             manifest["source_texture_hashes"]=baker.hashes
-        settings=fnv_settings(grids,levels)
-        settings_path="LODSettings/"+name+".dlodsettings"
+        settings=skyrim_settings(grids,levels,origin) if modern else fnv_settings(grids,levels)
+        settings_path="LODSettings/"+name+(".lod" if modern else ".dlodsettings")
         (out/settings_path).parent.mkdir(exist_ok=True)
         (out/settings_path).write_bytes(settings)
-        manifest["settings"]={"path":settings_path,**read_fnv_settings(settings),"sha256":sha256(settings).hexdigest()}
+        manifest["settings"]={"path":settings_path,**(read_skyrim_settings(settings) if modern else read_fnv_settings(settings)),"sha256":sha256(settings).hexdigest()}
         (out/"manifest.json").write_text(json.dumps(manifest,indent=2),encoding="utf-8")
     except Exception:shutil.rmtree(out);raise
     return manifest
