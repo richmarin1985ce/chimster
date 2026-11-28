@@ -96,11 +96,18 @@ def launch(parent):
         p=filedialog.asksaveasfilename(parent=win,title="New calibration directory")
         if p and messagebox.askyesno("Experimental probes","Generate 33 Skyrim test LIPs with local OpenFaceFX?",parent=win):
             start("probes",lambda:mc.probes(p))
+    def choose_profile(force=False):
+        if not force and state.get("profile") is not None:return state["profile"]
+        p=filedialog.askopenfilename(parent=win,title="Observed morph profile",filetypes=[("JSON","*.json")])
+        if not p:return None
+        cal=mc.profile(json.loads(Path(p).read_text(encoding="utf-8")))
+        state["profile"]=cal;status.set("Loaded morph profile: "+Path(p).name)
+        return cal
     def preview():
         duration=require()
-        p=filedialog.askopenfilename(parent=win,title="Observed morph profile",filetypes=[("JSON","*.json")])
-        if not p:return
-        data=mc.preview(state["rows"],duration,json.loads(Path(p).read_text(encoding="utf-8")))
+        cal=choose_profile()
+        if cal is None:return
+        data=mc.preview(state["rows"],duration,cal)
         out=filedialog.asksaveasfilename(parent=win,defaultextension=".json")
         if out:audio.publish(Path(out),json.dumps(data,indent=2,ensure_ascii=False).encode())
     from . import drop_import as di
@@ -122,11 +129,8 @@ def launch(parent):
         ttk.Label(win,text="File drop unavailable; use Browse or install the dragdrop extra.").pack(anchor="w")
     def character_preview():
         duration=require()
-        cal=state.get("profile")
-        if cal is None:
-            p=filedialog.askopenfilename(parent=win,title="Observed morph profile",filetypes=[("JSON","*.json")])
-            if not p:return
-            cal=mc.profile(json.loads(Path(p).read_text(encoding="utf-8")))
+        cal=choose_profile()
+        if cal is None:return
         from .face_preview_ui import launch as launch_face
         launch_face(win,list(state["rows"]),duration,cal,state["wav"])
     def profile_editor():
@@ -134,9 +138,8 @@ def launch(parent):
         launch_profile(win)
     def native_export():
         require()
-        p=filedialog.askopenfilename(parent=win,title="Observed morph profile",filetypes=[("JSON","*.json")])
-        if not p:return
-        cal=json.loads(Path(p).read_text(encoding="utf-8"))
+        cal=choose_profile()
+        if cal is None:return
         out=filedialog.asksaveasfilename(parent=win,title="Choose NEW output directory name")
         if not out:return
         if not messagebox.askyesno("Experimental native export","Generate a Skyrim LIP from the observed slot mapping? In-game verification is required.",parent=win):return
@@ -144,7 +147,7 @@ def launch(parent):
         rows=list(state["rows"]);source=state["wav"]
         start("native",lambda:build(source,rows,cal,out,experimental=True))
     tools=ttk.Frame(win);tools.pack(fill="x")
-    for label,fn in (("Edit morph profile",profile_editor),("Export native Skyrim LIP",native_export),("Character preview",character_preview)):
+    for label,fn in (("Load profile",lambda:choose_profile(True)),("Edit morph profile",profile_editor),("Export native Skyrim LIP",native_export),("Character preview",character_preview)):
         b=ttk.Button(tools,text=label,command=guard(fn));b.pack(side="left");buttons.append(b)
     for label,fn in (("Open WAV",wav),("Import phonemes",imported),("Save timeline",save),("MFA align",align),("Generate probes",probes),("Mapped preview",preview)):
         b=ttk.Button(bar,text=label,command=guard(fn));b.pack(side="left");buttons.append(b)
