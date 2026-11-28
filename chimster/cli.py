@@ -96,6 +96,8 @@ def build_parser():
  a=s.add_parser('chunk-load'); a.add_argument('folder'); a.add_argument('x',type=float); a.add_argument('y',type=float); a.add_argument('--radius',type=int,default=1)
  a=s.add_parser('quest-check'); a.add_argument('project')
  a=s.add_parser('script-check'); a.add_argument('path')
+ a=s.add_parser('papyrus-build'); a.add_argument('game'); a.add_argument('backend',choices=['ck','caprica']); a.add_argument('compiler'); a.add_argument('source'); a.add_argument('flags'); a.add_argument('output'); a.add_argument('--import',dest='imports',action='append',default=[]); a.add_argument('--execute',action='store_true'); a.add_argument('--timeout',type=int,default=120)
+ a=s.add_parser('pex-inspect'); a.add_argument('game'); a.add_argument('path')
  a=s.add_parser('quest-states'); a.add_argument('project'); a.add_argument('--max-states',type=int,default=100000)
  a=s.add_parser('quest-native'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--master',action='append',default=[]); a.add_argument('--ledger-in'); a.add_argument('--ledger-out'); a.add_argument('--script-draft',action='store_true')
  a=s.add_parser('quest-attach-scripts'); a.add_argument('draft'); a.add_argument('compiled'); a.add_argument('output')
@@ -277,6 +279,14 @@ def main(argv=None):
    print(json.dumps(result,indent=2))
    if not result['valid']:raise SystemExit(1)
    return
+  elif n.cmd=='papyrus-build':
+   from .papyrus_build import build
+   result=build(n.game,n.backend,n.compiler,n.source,n.flags,n.imports,n.output,execute=n.execute,timeout=n.timeout)
+   if n.execute and result['status']!='header-checked':
+    print(json.dumps(result,indent=2)); raise SystemExit(1)
+  elif n.cmd=='pex-inspect':
+   from .papyrus_build import inspect_pex
+   result=inspect_pex(n.path,n.game)
   elif n.cmd=='script-check':
    from .script_lint import check_file
    result=check_file(n.path)
