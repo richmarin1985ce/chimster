@@ -63,3 +63,38 @@ class VMADTests(unittest.TestCase):
             self.assertEqual(p.read_bytes(),original)
             self.assertTrue(q.read_bytes().endswith(sibling))
             self.assertIn(sub(b"FULL",b"Unchanged\0"),q.read_bytes())
+
+
+    def test_typed_mutations(self):
+        from chimster.vmad import mutate
+        raw=fixture()
+        def change(action,script,**kw):
+            nonlocal raw
+            raw=mutate(raw,"skyrimse",action,script,parse(raw,"skyrimse")["sha256"],**kw)
+        change("attach","Second")
+        change("add-property","Second",property_name="Values",type_id=13,value=[7,9])
+        change("add-property","Second",property_name="Target",type_id=1,value=0x800,validate_form=lambda fid:fid==0x800)
+        props=parse(raw,"skyrimse")["scripts"][1]["properties"]
+        self.assertEqual(props[0]["value"],[7,9])
+        self.assertEqual(props[1]["value"]["disk_form_id"],0x800)
+        with self.assertRaises(ValueError):change("set-property","Second",property_name="Target",value=0x999)
+        change("remove-property","Second",property_name="Values")
+        change("detach","Second")
+        self.assertEqual(raw,fixture())
+    def test_new_vmad_plugin_attachment(self):
+        from chimster.vmad_plugin import stage_mutation
+        with TemporaryDirectory() as d:
+            root=Path(d);out=root/"out";out.mkdir()
+            p=root/"Test.esp";q=out/p.name
+            hdr=record(b"TES4",sub(b"HEDR",struct.pack("<fII",1.7,2,0x801)))
+            body=sub(b"EDID",b"Fixture\0")+sub(b"FULL",b"Unchanged\0")
+            original=hdr+group(record(b"ACTI",body,0x800))
+            p.write_bytes(original)
+            pex=root/"Example.pex"
+            pex.write_bytes(struct.pack(">IBBHQ",0xFA57C0DE,3,2,1,0)+b"\0\0"*4)
+            r=inspect(p,"skyrimse",0x800)
+            self.assertFalse(r["vmad_present"])
+            result=stage_mutation(p,q,"skyrimse",0x800,"attach","Example",r["plugin_sha256"],r["sha256"],pex=pex)
+            self.assertEqual(result["scripts"][0]["name"],"Example")
+            self.assertIn(sub(b"FULL",b"Unchanged\0"),q.read_bytes())
+            self.assertEqual(p.read_bytes(),original)
