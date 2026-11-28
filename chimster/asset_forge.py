@@ -51,6 +51,55 @@ class Session:
         if set(m for _,m in mesh.faces)!=set(self.groups()):
             raise ValueError("Simplification would remove a material group")
         self.commit(mesh,deepcopy(self.materials))
+    def edges(self):
+        return sorted({tuple(sorted((t[i],t[(i+1)%3]))) for t,_ in self.mesh.faces for i in range(3)})
+    def selection_vertices(self,mode,indices):
+        ids=set(indices)
+        if not ids or any(type(i) is not int or i<0 for i in ids):raise ValueError("Select valid indices")
+        if mode=="vertex":
+            if max(ids)>=len(self.mesh.vertices):raise ValueError("Vertex index out of range")
+            return ids
+        items=self.edges() if mode=="edge" else [t for t,_ in self.mesh.faces] if mode=="face" else None
+        if items is None or max(ids)>=len(items):raise ValueError("Selection out of range")
+        return {v for i in ids for v in items[i]}
+    def move_selection(self,mode,indices,delta):
+        if len(delta)!=3 or not all(isfinite(x) for x in delta):raise ValueError("Invalid movement")
+        ids=self.selection_vertices(mode,indices);m=deepcopy(self.mesh)
+        for i in ids:m.vertices[i]=tuple(x+y for x,y in zip(m.vertices[i],delta))
+        from .flora import cross
+        for t,_ in m.faces:
+            if ids.intersection(t):
+                a,b,c=[m.vertices[i] for i in t]
+                n=cross(tuple(y-x for x,y in zip(a,b)),tuple(y-x for x,y in zip(a,c)))
+                if not any(n):raise ValueError("Movement collapses a triangle")
+        self.commit(m,deepcopy(self.materials))
+    def split_edge(self,index):
+        a,b=self.edges()[index] if type(index) is int and 0<=index<len(self.edges()) else (None,None)
+        if a is None:raise ValueError("Invalid edge")
+        m=deepcopy(self.mesh);mid=len(m.vertices)
+        m.vertices.append(tuple((x+y)/2 for x,y in zip(m.vertices[a],m.vertices[b])))
+        m.uv.append(tuple((x+y)/2 for x,y in zip(m.uv[a],m.uv[b])))
+        faces=[]
+        for t,mat in m.faces:
+            if a in t and b in t:
+                for i in range(3):
+                    x,y,z=t[i],t[(i+1)%3],t[(i+2)%3]
+                    if {x,y}=={a,b}:
+                        faces.extend([((x,mid,z),mat),((mid,y,z),mat)]);break
+            else:faces.append((t,mat))
+        m.faces=faces;self.commit(m,deepcopy(self.materials))
+    def delete_faces(self,indices):
+        ids=set(indices);self.selection_vertices("face",ids)
+        m=deepcopy(self.mesh);m.faces=[f for i,f in enumerate(m.faces) if i not in ids]
+        used=sorted({v for t,_ in m.faces for v in t});remap={v:i for i,v in enumerate(used)}
+        m=Mesh([m.vertices[i] for i in used],[m.uv[i] for i in used],
+               [(tuple(remap[v] for v in t),mat) for t,mat in m.faces])
+        self.commit(m,{k:v for k,v in self.materials.items() if k in {mat for _,mat in m.faces}})
+    def assign_faces(self,indices,group):
+        ids=set(indices);self.selection_vertices("face",ids)
+        if group not in self.groups():raise ValueError("Unknown material group")
+        m=deepcopy(self.mesh);m.faces=[(t,group if i in ids else mat) for i,(t,mat) in enumerate(m.faces)]
+        self.commit(m,{k:v for k,v in self.materials.items() if k in {mat for _,mat in m.faces}})
     def report(self):
         return {**self.mesh.stats(),"bounds":bounds(self.mesh),"materials":self.groups(),
                 "bindings":deepcopy(self.materials)}
