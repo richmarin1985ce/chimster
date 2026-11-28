@@ -32,6 +32,9 @@ def inspect(profile,data):
                         value={"text":v[:-1].decode("cp1252",errors="replace")}
                     else:value={"opaque":v.hex()}
                     row["fields"].setdefault(k,[]).append(value)
+                if profile=="oblivion" and (node.signature,tag) in OBLIVION_FIELDS:
+                    try:row["properties"]=oblivion_properties(node.signature,tag,v)
+                    except ValueError as e:row["issues"].append(str(e))
                 if tag==b"DATA" and node.signature==b"BOOK" and profile in ("fallout3","new-vegas") and len(v)==10:
                     f,s,val,w=struct.unpack("<Bbif",v)
                     if isfinite(w):row["book_data"]={"flags":f,"skill_raw":s,"value":val,"weight":w}
@@ -53,3 +56,27 @@ def edit_fallout_book_data(profile,raw,**changes):
         if type(changes["untakeable"])!=bool:raise ValueError("Expected boolean")
         flags=(flags&~2)|(2 if changes["untakeable"] else 0)
     return struct.pack("<Bbif",flags,skill,value,weight)
+
+# Classic Oblivion only; no inheritance into the Remastered profile.
+OBLIVION_FIELDS={
+ (b"BOOK",b"DATA"):("<BbIf",("flags","skill","value","weight")),
+ (b"ARMO",b"DATA"):("<HIIf",("armor_rating_hundredths","value","health","weight")),
+}
+def oblivion_properties(signature,tag,raw):
+    fmt,keys=OBLIVION_FIELDS[signature,tag]
+    if len(raw)!=struct.calcsize(fmt):raise ValueError("Unexpected Oblivion field size")
+    d=dict(zip(keys,struct.unpack(fmt,raw)))
+    if not isfinite(d["weight"]):raise ValueError("Nonfinite weight")
+    return d
+
+def edit_oblivion_properties(signature,tag,raw,**changes):
+    d=oblivion_properties(signature,tag,raw)
+    if set(changes)-set(d):raise ValueError("Unknown property")
+    d.update(changes)
+    for k,v in d.items():
+        if k=="weight":
+            if not isfinite(v) or not 0<=v<=1e6:raise ValueError("Invalid weight")
+        elif type(v)!=int or (k=="skill" and not -1<=v<=20) or (k!="skill" and v<0):raise ValueError("Invalid "+k)
+    fmt,keys=OBLIVION_FIELDS[signature,tag]
+    try:return struct.pack(fmt,*(d[k] for k in keys))
+    except (struct.error,OverflowError) as e:raise ValueError("Outside native range") from e
