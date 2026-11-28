@@ -105,5 +105,50 @@ class WorldBrowserTests(unittest.TestCase):
 
 
 
+    def test_draft_cell_and_placement(self):
+        from chimster.world_draft import Draft
+        browser=Browser.open([self.base])
+        draft=Draft(browser)
+        key=draft.create("NewCell",self.world,(-1,3))
+        ref=draft.place(key,self.static,(-2048,14000,128))
+        self.assertIn(ref,draft.index().active)
+        self.assertNotIn(key,browser.active)
+        with self.assertRaises(ValueError):
+            draft.create("Duplicate",self.world,(-1,3))
+        with self.assertRaises(ValueError):
+            draft.place(key,self.static,(0,0,0))
+        draft.rename(key,"RenamedCell")
+        self.assertEqual(draft.index().active[key]["editor_id"],"RenamedCell")
+        draft.undo()
+        self.assertEqual(draft.index().active[key]["editor_id"],"NewCell")
+        draft.redo()
+        out=Path(self.tmp.name)/"draft.json"
+        draft.export(out)
+        import json
+        self.assertFalse(json.loads(out.read_text())["native_plugin_written"])
+
+    def test_loose_model_path_and_proxy_fallback(self):
+        from chimster.world_models import resolve_model
+        from chimster.world_preview import preview
+        data=Path(self.tmp.name)/"Data"
+        (data/"Meshes").mkdir(parents=True)
+        model=data/"Meshes"/"SIGN.NIF"
+        model.write_bytes(b"test")
+        self.assertEqual(resolve_model(data,"sign.nif"),model)
+        with self.assertRaises(ValueError):
+            resolve_model(data,"../outside.nif")
+        browser=Browser.open([self.base])
+        browser.active[self.static]["model"]="sign.nif"
+        from chimster.architecture import box_mesh
+        scene, report=preview(browser,self.cell,models=lambda _:box_mesh((0,0,0),(1,1,1),"native"))
+        self.assertEqual(report["model_references"],1)
+        self.assertEqual(report["proxy_references"],0)
+        def bad(_):raise ValueError("unsupported")
+        scene,report=preview(browser,self.cell,models=bad)
+        self.assertEqual(report["proxy_references"],1)
+        self.assertEqual(len(report["issues"]),1)
+
+
+
 if __name__ == "__main__":
     unittest.main()
