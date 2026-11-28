@@ -57,3 +57,31 @@ def decode(parts,slots):
     return {"weather":entries,"timing":tuple(timing),
             "sun":fields.get(b"FNAM",b"").rstrip(b"\0").decode("cp1252",errors="replace"),
             "glare":fields.get(b"GNAM",b"").rstrip(b"\0").decode("cp1252",errors="replace")}
+
+
+def weather_preview(parts):
+    """Decode documented FNV color/fog fields; no shader equivalence claimed."""
+    from math import isfinite
+    fields=dict(parts)
+    colors=fields.get(b"NAM0",b"")
+    fog=fields.get(b"FNAM",b"")
+    if len(colors)!=240 or len(fog)!=24:return None
+    distances=struct.unpack("<6f",fog)
+    if not all(isfinite(v) for v in distances):return None
+    def rgb(group,time):
+        offset=(group*6+time)*4
+        return tuple(v/255 for v in colors[offset:offset+3])
+    return {"day":{"fog_color":rgb(1,1),"sun_color":rgb(4,1),"ambient_color":rgb(3,1),"near":distances[0],"far":distances[1]},
+            "night":{"fog_color":rgb(1,3),"sun_color":rgb(4,3),"ambient_color":rgb(3,3),"near":distances[2],"far":distances[3]}}
+
+def representative_weather(index,climate):
+    """Pick highest base chance for preview; do not simulate global conditions."""
+    if not climate:return None
+    row=index.active.get(Identity(*climate),{})
+    entries=row.get("climate_spec",{}).get("weather",[])
+    for key,chance,_ in sorted(entries,key=lambda entry:-entry[1]):
+        if chance<=0:continue
+        w=index.active.get(Identity(*key),{})
+        if w.get("weather_preview"):
+            return {"weather":key,**w["weather_preview"]}
+    return None
