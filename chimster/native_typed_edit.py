@@ -2,7 +2,7 @@
 from .native_parser import parse, subrecords
 from .native_payload_edit import replace
 from .native_profiles import PROFILES
-from . import native_items, tes3_items, tes3_actor_data
+from . import native_items, tes3_items, tes3_actor_data, tes3_ai_packages
 
 def edit(profile,data,path,tag,occurrence,changes,revision):
     if not path or any(type(i)!=int or i<0 for i in path):raise ValueError("Invalid path")
@@ -41,6 +41,8 @@ def edit(profile,data,path,tag,occurrence,changes,revision):
             updated=tes3_items.edit_chance_none(raw,**changes)
         elif sig in (b"NPC_",b"CREA") and tag==b"NPDT":
             updated=tes3_actor_data.edit(sig,raw,**changes)
+        elif sig in (b"NPC_",b"CREA") and tag in tes3_ai_packages.FORMATS:
+            updated=tes3_ai_packages.edit(tag,raw,**changes)
         elif sig in (b"NPC_",b"CREA") and tag==b"FLAG":
             updated=tes3_actor_data.flags_edit(sig,raw,**changes)
         else:raise ValueError("No registered typed editor for field")
