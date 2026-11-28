@@ -14,3 +14,9 @@ class WriterTests(unittest.TestCase):
     def test_budget(self):
         with self.assertRaises(ValueError):
             build([("a.nif",b"a",1,2)],limit=24)
+    def test_compressed(self):
+        data=b"A"*4096
+        stream=io.BytesIO(build([("a.nif",data,1,2)],compress=True))
+        entry=directory(stream)["a.nif"]
+        self.assertGreater(entry[1],0)
+        self.assertEqual(read(stream,entry),data)
