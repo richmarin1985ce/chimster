@@ -31,6 +31,7 @@ LINKS={b"LAND":{b"BTXT":("LTEX",),b"ATXT":("LTEX",)},
 STRINGS={b"EDID",b"FULL",b"MODL",b"DESC",b"TX00",b"TX01",b"ICON",b"MICO",b"TNAM"}
 
 def rewrite_world(signature,parts,remap):
+    parts=list(parts)
     tags="".join(tag.decode("ascii") for tag,_ in parts)
     if not re.fullmatch(PATTERNS[signature],tags):
         raise ValueError("unknown generated world layout")
@@ -38,7 +39,6 @@ def rewrite_world(signature,parts,remap):
         values=dict(parts)
         if values[b"DATA"]!=(b"\x01" if tags=="EDIDFULLDATA" else b"\0"):
             raise ValueError("unsupported cell flags")
-    parts=list(parts)
     changed=0
     if signature==b"REFR":parts,changed=rewrite_markers(parts,remap)
     output=[]
