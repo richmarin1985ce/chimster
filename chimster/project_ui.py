@@ -5,6 +5,15 @@ from pathlib import Path
 from .project import Project,KINDS
 def mount(parent,game):
     current=None;revision=None
+    from .editor_presence import Presence
+    presence=None
+    try:presence=Presence()
+    except (OSError,ValueError):pass
+    def close_presence(event):
+        if event.widget is parent and presence:
+            try:presence.close()
+            except OSError:pass
+    parent.bind("<Destroy>",close_presence,add="+")
     label=tk.StringVar(value="Create or open a local project.")
     ttk.Label(parent,textvariable=label,wraplength=900).pack(fill="x")
     table=ttk.Treeview(parent,columns=("kind","filename","size"),show="tree headings",selectmode="browse")
@@ -18,8 +27,19 @@ def mount(parent,game):
         if not current:return
         m=current.read();revision=m["revision"];game.set(m["game"])
         label.set(f'{m["name"]} | {m["game"]} | revision {revision} | {current.root}')
+        previous=table.selection()
         table.delete(*table.get_children())
         for k,a in sorted(m["artifacts"].items()):table.insert("","end",iid=k,text=k,values=(a["kind"],a["filename"],a["size"]))
+        if previous and table.exists(previous[0]):table.selection_set(previous[0])
+    def heartbeat():
+        if current:
+            try:
+                if current.read()["revision"]!=revision:refresh()
+                selection=table.selection()
+                if presence:presence.publish(current,selection[0] if selection else None)
+            except (OSError,ValueError,KeyError,TypeError):pass
+        parent.after(3000,heartbeat)
+    parent.after(0,heartbeat)
     def guard(fn):
         def wrapped():
             try:fn()
