@@ -1,4 +1,4 @@
-# Fallout 66: Courier's Road — Flagstaff
+# Fallout: Flagstaff
 Chimster showcase and New Vegas integration testbed. This demo rebuilds from a text recipe and public USGS 3DEP elevations; no original ESM/ESP or game assets required. Original geographic extent and scale were not recovered. The current 8 km square centered at 35.1983 N, 111.6513 W is a provisional sample, not canon. Candidate region classification uses elevation and slope alone; it does not represent measured vegetation, volcanic deposits, roads or land use. No existing Fallout assets are redistributed.
 
 ## Rebuild
