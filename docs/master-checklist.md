@@ -57,6 +57,9 @@ Section 3 implemented milestones: structural read/raw preservation, staged refer
 
 Follow-up code: VR catalog entries explicitly empty rather than crashing or inheriting desktop field offsets; deferred manifest aligns with release policy; remap previews fingerprint all source fields and reject stale payloads or absent disk slots; typed nullable FNV slots available to the edit path without adding null graph edges. New regression fixtures added; execution remains deferred.
 
+### Follow-up: bounded master-set changes
+Section 3 now supports explicitly opted-in master addition/removal for the same generated flat New Vegas layouts as the existing reorder operation. Removed live references, incompatible override origins, duplicate/deleted identities and known wrong-type targets are rejected. Same-name staging and dependency checks retained. Synthetic tests cover insertion, removal, live-reference rejection and removing the last unused master; execution deferred. Nested groups, opaque schemas, general cross-game remapping and runtime equivalence remain pending. The equal-weight estimates remain 65% / 60%: remapping has advanced within the partial milestone, not completed it.
+
 ## Critical path
 1. Stable project FormID allocation, typed native record schema and dependency-safe edits.
 2. Integrated native interior cells, architectural assets, room/portal/trigger volumes, placed references and collision.
