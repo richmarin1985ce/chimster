@@ -136,6 +136,9 @@ def export(browser,world,output,assets,limit=512,previous=None,atlas=True):
                     report["skipped"].append({"reference":label(ref["key"]),"reason":"16-bit group budget","material":d});continue
                 offset=len(combined.vertices);c,s=cos(yaw),sin(yaw)
                 combined.vertices.extend((px-x*4096+scale*(c*a-s*b),py-y*4096+scale*(s*a+c*b),pz+scale*z) for a,b,z in mesh.vertices)
+                if mesh.colors or combined.colors:
+                    if not combined.colors:combined.colors=[(1.,)*4]*offset
+                    combined.colors.extend(mesh.colors or [(1.,)*4]*len(mesh.vertices))
                 combined.uv.extend(mesh.uv)
                 combined.faces.extend((tuple(i+offset for i in f),"lod") for f,_ in mesh.faces)
         for (x,y),groups in sorted(tiles.items()):
@@ -161,7 +164,7 @@ def export(browser,world,output,assets,limit=512,previous=None,atlas=True):
                 for p in sorted({p for _,d,n,cut in active if not cut for p in (d,n)}):
                     try:source.get(p)
                     except (ValueError,OSError):source.hashes[p]="unavailable"
-            digest=sha256(json.dumps(["object-lod-v5",browser.profile,name,x,y,atlas,[(m.vertices,m.uv,m.faces,d,n,cut) for m,d,n,cut in active],sorted(source.hashes.items())],separators=(",",":"),allow_nan=False).encode()).hexdigest()
+            digest=sha256(json.dumps(["object-lod-v6",browser.profile,name,x,y,atlas,[(m.vertices,m.uv,m.faces,m.colors,d,n,cut) for m,d,n,cut in active],sorted(source.hashes.items())],separators=(",",":"),allow_nan=False).encode()).hexdigest()
             cached=prior.get((x,y),{})
             files=cached.get("files",{})
             if (cached.get("input_sha256")==digest and set(files) in ({path},{path,*texpaths})
