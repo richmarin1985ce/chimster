@@ -89,11 +89,15 @@ def preview(browser, key, radius=0, models=None):
                 model_failures.add(model)
                 issues.append(f"Model {model}: {str(exc)[:200]}")
         instances.append(Instance(label(ref["key"]),asset,x,y,z,yaw,scale))
+    environment={}
+    if world in browser.worlds and browser.profile=="new-vegas":
+        from .world_environment import effective
+        environment=effective(browser,world)
     return Scene(assets,instances), {
         "cell":label(key),"cells":len(cells),"grid":grid,"land_tiles":land_count,
         "proxy_references":len(instances)-land_count-model_count,"model_references":model_count,"skipped_references":skipped,
         "origin_game_units":(ox,oy,0),"units_per_preview_unit":UNITS,
-        "issues":issues,"mode":"Read-only LAND and optional static loose NIF geometry; unsupported assets use markers"
+        "issues":issues,"environment":environment,"mode":"Read-only LAND and optional static loose NIF geometry; unsupported assets use markers"
     }
 
 
