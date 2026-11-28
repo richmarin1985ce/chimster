@@ -172,3 +172,25 @@ class StarfieldPreviewTests(unittest.TestCase):
             self.assertEqual(result.diffuse.rgba,bytes((10,20,30,128,40,50,60,64)))
             self.assertAlmostEqual(result.roughness,64/255)
             self.assertAlmostEqual(result.metallic,192/255)
+
+    def test_planet_catalog_and_terrain(self):
+        from chimster.starfield_planets import Planets,globe,terrain,direction_at
+        from math import pi
+        with tempfile.TemporaryDirectory() as directory:
+            p=Path(directory)/"test.esm"
+            header=rec(b"TES4",0,sub(b"HEDR",struct.pack("<fII",.96,3,0x900)))
+            body=sub(b"EDID",b"TestPlanet\0")+sub(b"CNAM",struct.pack("<ddI",.2,.3,0x802))+sub(b"PPBD",struct.pack("<IfII",0x801,100.,0,0))+sub(b"BDST",b"")+sub(b"ANAM",b"Test planet\0")+sub(b"CNAM",b"\x02")+sub(b"FNAM",struct.pack("<d3fi",0.,5e24,6000.,1.,0))+sub(b"INAM",struct.pack("<I3f",0,.5,.2,.4))+sub(b"BDED",b"")+sub(b"RSCS",struct.pack("<i",42))
+            biome=rec(b"BIOM",0x801,sub(b"EDID",b"Rock\0")+sub(b"BMC1",bytes((120,80,60,255))))
+            world=rec(b"WRLD",0x802,sub(b"EDID",b"Landing\0"))
+            p.write_bytes(header+rec(b"PNDT",0x800,body)+biome+world)
+            catalog=Planets([p]);key=Identity("test.esm",0x800)
+            self.assertEqual(catalog.planets[key]["radius_km"],6000.)
+            self.assertEqual(catalog.sites(key)[0][3],"Landing")
+            g,r=globe(catalog,key);self.assertEqual(len(g.instances),6)
+            s,r=terrain(catalog,key,0,179.99,8,16)
+            self.assertEqual(len(s.instances),9)
+            self.assertEqual(len(s.assets),27)
+            self.assertEqual(s.assets["planet-tile-0-0"].vertices[16],s.assets["planet-tile-1-0"].vertices[0])
+            self.assertEqual(s.assets["planet-tile-0-0"].vertices[0],s.assets["planet-tile-0-0@lod1"].vertices[0])
+            self.assertAlmostEqual(sum(x*x for x in direction_at(90,180,1,1,6000)),1.)
+            self.assertEqual(r["planet_mode"],"landing")

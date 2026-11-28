@@ -481,6 +481,53 @@ def mount(parent):
             ttk.Button(win,text="Open read-only preview",command=choose).pack()
         except Exception as exc:messagebox.showerror("Starfield preview",str(exc),parent=parent)
     ttk.Button(toolbar,text="Starfield cell preview",command=open_starfield).pack(side="left")
+    def open_planets():
+        from .starfield_planets import Planets,globe,terrain
+        from .starfield_preview import label
+        paths=filedialog.askopenfilenames(parent=parent,title="Select Starfield full masters in load order",filetypes=[("Starfield plugins","*.esm *.esp")])
+        if not paths:return
+        try:
+            catalog=Planets(paths)
+            query=simpledialog.askstring("Planet browser","Filter by planet name or FormID",parent=parent)
+            if query is None:return
+            choices=catalog.choices(query)
+            if not choices:raise ValueError("No matching planets")
+            win=tk.Toplevel(parent);win.title("Starfield planets — experimental")
+            rows=tk.Listbox(win,width=72,height=18,exportselection=False);rows.pack(fill="both",expand=True)
+            for k,p in choices:rows.insert("end",p["name"]+" | "+label(k)+" | radius "+str(p.get("radius_km","unknown"))+" km")
+            info=tk.StringVar(value="Select a body. Geography is illustrative.");ttk.Label(win,textvariable=info,wraplength=550).pack()
+            def chosen():
+                ids=rows.curselection()
+                return choices[ids[0]] if ids else (None,None)
+            def update(e=None):
+                k,p=chosen()
+                if p:info.set(f"{p['name']} | {len(p['biomes'])} biome links | {len(p['worldspaces'])} worldspaces | gravity {p.get('gravity','unknown')} | temperature {p.get('temperature','unknown')} C")
+            rows.bind("<<ListboxSelect>>",update)
+            def preview(local):
+                k,p=chosen()
+                if k is None:return
+                try:
+                    if local:
+                        lat=simpledialog.askfloat("Landing latitude","Latitude in degrees",initialvalue=0,minvalue=-90,maxvalue=90,parent=win)
+                        if lat is None:return
+                        lon=simpledialog.askfloat("Landing longitude","Longitude in degrees",initialvalue=0,minvalue=-180,maxvalue=180,parent=win)
+                        if lon is None:return
+                        span=simpledialog.askfloat("Landing width","Area width in kilometers",initialvalue=8,minvalue=.1,maxvalue=100,parent=win)
+                        if span is None:return
+                        candidate,report=terrain(catalog,k,lat,lon,span)
+                    else:candidate,report=globe(catalog,k)
+                    if load_cell_preview(candidate,report):source.set("Starfield "+p["name"]+" | illustrative "+report["planet_mode"]+" preview")
+                except (ValueError,OSError,KeyError) as exc:messagebox.showerror("Planet preview",str(exc),parent=win)
+            def inspect():
+                k,p=chosen()
+                if k is None:return
+                lines=[f"{name or label(world)}: {lat:.5f}, {lon:.5f}" for world,lat,lon,name in catalog.sites(k) if world is not None]
+                messagebox.showinfo("Worldspace landing sites (xEdit coordinate order; unverified)", "\\n".join(lines[:100]) or "No decoded sites",parent=win)
+            ttk.Button(win,text="Globe preview",command=lambda:preview(False)).pack(fill="x")
+            ttk.Button(win,text="Landing terrain preview",command=lambda:preview(True)).pack(fill="x")
+            ttk.Button(win,text="Inspect native landing sites",command=inspect).pack(fill="x")
+        except (ValueError,OSError,KeyError) as exc:messagebox.showerror("Planet browser",str(exc),parent=parent)
+    ttk.Button(toolbar,text="Starfield planets",command=open_planets).pack(side="left")
     load_cell_preview.drop_position=drop_position
     def drop_json(path):
         from tkinter import messagebox
