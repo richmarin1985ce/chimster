@@ -6,7 +6,7 @@ No plugin writes, asset loading, or claims of engine verification.
 from collections import defaultdict
 from pathlib import Path
 import struct
-from math import isfinite
+from math import isfinite, floor
 from .native_parser import parse, subrecords
 from .record_graph import Slots
 from .loadorder import plugin_name
@@ -30,7 +30,6 @@ def read_plugin(path):
     nodes = parse("new-vegas", path.read_bytes())
     if not nodes or nodes[0].signature != b"TES4":
         raise ValueError(f"{path.name}: expected TES4 header")
-    header = dict(subrecords("new-vegas", nodes[0]))
     # MAST is repeatable; do not derive it from the dict.
     masters = [text_field(raw) for tag, raw in subrecords("new-vegas", nodes[0]) if tag == b"MAST"]
     if any(not name for name in masters):
@@ -76,7 +75,14 @@ def read_plugin(path):
                         row["grid"] = struct.unpack_from("<2i", grid)
                     data = fields.get(b"DATA", b"")
                     row["interior"] = bool(data and data[0] & 1)
+                if sig == "LAND" and b"VHGT" in fields:
+                    row["height_raw"] = fields[b"VHGT"]
                 if sig in PLACED:
+                    scale = fields.get(b"XSCL", b"")
+                    if len(scale) == 4:
+                        value = struct.unpack("<f", scale)[0]
+                        if isfinite(value) and value > 0:
+                            row["scale"] = value
                     base = fields.get(b"NAME", b"")
                     if len(base) == 4:
                         row["base"] = slots.decode(struct.unpack("<I", base)[0])
@@ -114,6 +120,7 @@ class Browser:
         self.cells = defaultdict(list)
         self.children = defaultdict(list)
         self.coordinates = defaultdict(list)
+        self.persistent_by_grid = defaultdict(list)
         for key, row in self.active.items():
             sig = row["signature"]
             if sig == "CELL":
@@ -129,6 +136,10 @@ class Browser:
                     self.issues.append(f"Missing cell: {label(key)}")
                 else:
                     self.children[owner].append(row)
+                    parent = self.active[owner]
+                    if sig in PLACED and row.get("persistent") and row.get("position") and parent.get("world") is not None:
+                        x, y, _ = row["position"]
+                        self.persistent_by_grid[parent["world"], (floor(x/4096), floor(y/4096))].append(row)
         for (world, grid), rows in self.coordinates.items():
             if len(rows) > 1:
                 self.issues.append(f"Duplicate coordinates {label(world)} {grid}")
@@ -157,7 +168,9 @@ class Browser:
         return self.matching(self.children.get(cell, ()), query)
 
     def details(self, row):
-        result = dict(row)
+        result = {k:v for k,v in row.items() if k != "height_raw"}
+        if "height_raw" in row:
+            result["height_bytes"] = len(row["height_raw"])
         for field in ("key", "world", "cell", "base"):
             if field in result:
                 result[field] = label(result[field])
