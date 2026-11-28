@@ -7,7 +7,7 @@ Skyrim's expansion is The Pits (Peryite), replacing Realm of Order/Jyggalag in e
 | Oblivion The Hunting Grounds | Island-like highlands, forest valleys, river corridors | Original procedural |
 | Skyrim The Pits | Mineral terraces, deep intersecting ravines, toxic channels | Original procedural |
 | Fallout Baltimore | Harbor, urban lowlands and inland hills | USGS 3DEP |
-| Fallout Route 66 Flagstaff | Existing DEM testbed | Existing recipe |
+| Fallout: Flagstaff | Existing DEM testbed | Existing recipe |
 | Fallout: Nautica | Nantucket dunes, moors, wetlands and coastline | USGS 3DEP |
 
 Initial procedural drafts use 513x513 float elevations, 16 m sample spacing, seeds 81, 93, 117 respectively. These are independent source maps, not native plugins. Tune playable scale after traversal testing.
