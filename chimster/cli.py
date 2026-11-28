@@ -106,6 +106,7 @@ def build_parser():
  a=s.add_parser('script-syntax-export'); a.add_argument('language',choices=['papyrus','geck','oblivion','morrowind','lua']); a.add_argument('output')
  a=s.add_parser('legacy-script-check'); a.add_argument('game'); a.add_argument('path'); a.add_argument('--result-script',action='store_true')
  a=s.add_parser('legacy-script-inspect'); a.add_argument('game'); a.add_argument('plugin')
+ a=s.add_parser('legacy-script-prepare'); a.add_argument('game'); a.add_argument('plugin'); a.add_argument('output'); a.add_argument('identity'); a.add_argument('source')
  a=s.add_parser('legacy-script-attach'); a.add_argument('game'); a.add_argument('draft'); a.add_argument('donor'); a.add_argument('output')
  a=s.add_parser('lua-check'); a.add_argument('compiler'); a.add_argument('source'); a.add_argument('--execute',action='store_true'); a.add_argument('--timeout',type=int,default=30)
  a=s.add_parser('papyrus-build'); a.add_argument('game'); a.add_argument('backend',choices=['ck','caprica']); a.add_argument('compiler'); a.add_argument('source'); a.add_argument('flags'); a.add_argument('output'); a.add_argument('--import',dest='imports',action='append',default=[]); a.add_argument('--execute',action='store_true'); a.add_argument('--timeout',type=int,default=120)
@@ -301,6 +302,9 @@ def main(argv=None):
   elif n.cmd=='legacy-script-inspect':
    from .legacy_compile import inspect
    result=inspect(n.plugin,n.game)
+  elif n.cmd=='legacy-script-prepare':
+   from .legacy_compile import prepare
+   result=prepare(n.plugin,n.output,n.game,n.identity,n.source)
   elif n.cmd=='legacy-script-attach':
    from .legacy_compile import attach
    result=attach(n.draft,n.donor,n.output,n.game)
