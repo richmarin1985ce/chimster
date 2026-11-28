@@ -25,6 +25,8 @@ def mount(parent):
         row=ttk.Frame(side);row.pack(fill="x")
         ttk.Label(row,text=k,width=7).pack(side="left");ttk.Entry(row,textvariable=v,width=10).pack(side="right")
     status=tk.StringVar();ttk.Label(parent,textvariable=status).pack(fill="x")
+    source=tk.StringVar(value="Portable scene");ttk.Label(parent,textvariable=source).pack(fill="x")
+    native_preview=False
     def draw():
         nonlocal renderer,panda,photo,render_size,failure
         canvas.delete("mesh");canvas.delete("gl")
@@ -104,32 +106,36 @@ def mount(parent):
             tag=next((t for t in tags if t.startswith("obj:")),None)
             if tag:selected=tag[4:];sync();return
     def apply():
-        if not selected:return
+        if native_preview or not selected:return
         try:scene.update(selected,**{k:float(v.get()) for k,v in values.items()});sync()
         except ValueError as e:messagebox.showerror("Transform",str(e))
     def add():
         nonlocal selected
+        if native_preview:return
         n=1
         while any(i.id==f"tree-new-{n}" for i in scene.instances):n+=1
         if "tree" not in scene.assets:return
         selected=f"tree-new-{n}";scene.add(Instance(selected,"tree"));sync()
     def delete():
         nonlocal selected
+        if native_preview:return
         if selected and any(i.id==selected for i in scene.instances):
             scene.remove(selected);selected=None;sync()
     def open_scene():
-        nonlocal scene,selected
+        nonlocal scene,selected,native_preview
         p=filedialog.askopenfilename(filetypes=[("Chimster scene","*.json")])
         if p:
-            try:scene=Scene.load(p);selected=None;sync()
+            try:scene=Scene.load(p);selected=None;native_preview=False;source.set("Portable scene");sync()
             except (OSError,ValueError,KeyError,TypeError) as e:messagebox.showerror("Scene",str(e))
     def save_scene():
+        if native_preview:return
         p=filedialog.asksaveasfilename(defaultextension=".json")
         if p:
             try:scene.save(p)
             except (OSError,ValueError) as e:messagebox.showerror("Scene",str(e))
     def import_mesh():
         nonlocal selected
+        if native_preview:return
         p=filedialog.askopenfilename(filetypes=[("Triangulated OBJ","*.obj")])
         if p:
             try:
@@ -266,3 +272,14 @@ def mount(parent):
     objects.bind("<<ListboxSelect>>",select);canvas.bind("<Button-1>",pick);canvas.bind("<Button-3>",start);canvas.bind("<B3-Motion>",orbit)
     canvas.bind("<MouseWheel>",lambda e:zoom(e.delta));canvas.bind("<Button-4>",lambda e:zoom(1));canvas.bind("<Button-5>",lambda e:zoom(-1))
     canvas.bind("<Configure>",lambda e:draw());sync()
+    def load_cell_preview(candidate, report, focus=None):
+        nonlocal scene,materials,camera,selected,native_preview
+        if not native_preview and not messagebox.askyesno("Cell preview", "Replace the current portable viewport scene? Save any edits first.",parent=parent):
+            return False
+        scene=candidate;materials={};native_preview=True
+        selected=focus if any(i.id==focus for i in scene.instances) else None
+        camera=Camera()
+        source.set(f"Read-only cell {report['cell']} | {report['cells']} cells | {report['land_tiles']} LAND tiles | {report['proxy_references']} reference markers | {report['skipped_references']} skipped")
+        sync();parent.after_idle(fit)
+        return True
+    return load_cell_preview
