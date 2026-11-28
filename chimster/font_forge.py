@@ -1,6 +1,7 @@
 """Portable TrueType authoring; game registration is a separate step."""
 from pathlib import Path
-import re,json
+import json
+from .font_project import validate, draw_outline
 from io import BytesIO
 
 def inspect(path):
@@ -13,22 +14,16 @@ def inspect(path):
                 "embedding_flags":f["OS/2"].fsType,"license":f["name"].getDebugName(13)}
 
 def create(family,glyphs,path):
-    """glyphs: Unicode integer -> list of closed polygon contours in em units."""
+    """Create TrueType outlines from polygon or quadratic control points in em units."""
     from fontTools.fontBuilder import FontBuilder
     from fontTools.pens.ttGlyphPen import TTGlyphPen
-    if not re.fullmatch(r"[A-Za-z][A-Za-z0-9 ]{0,63}",family):raise ValueError("Invalid family")
-    if not 1<=len(glyphs)<=4096:raise ValueError("Invalid glyph count")
+    glyphs=validate(family,glyphs)
     outlines={".notdef":TTGlyphPen(None).glyph(),"space":TTGlyphPen(None).glyph()}
     cmap={32:"space"}
     for cp,contours in glyphs.items():
-        if not isinstance(cp,int) or not 33<=cp<=0x10ffff or 0xd800<=cp<=0xdfff:raise ValueError("Invalid codepoint")
-        if len(contours)>128:raise ValueError("Too many contours")
         pen=TTGlyphPen(None)
         for contour in contours:
-            if not 3<=len(contour)<=2048 or any(len(p)!=2 or any(not isinstance(v,int) or not -1000<=v<=2000 for v in p) for p in contour):raise ValueError("Invalid outline")
-            pen.moveTo(tuple(contour[0]))
-            for point in contour[1:]:pen.lineTo(tuple(point))
-            pen.closePath()
+            draw_outline(pen,contour)
         name=f"uni{cp:04X}";outlines[name]=pen.glyph();cmap[cp]=name
     fb=FontBuilder(1000,isTTF=True)
     fb.setupGlyphOrder(list(outlines));fb.setupCharacterMap(cmap);fb.setupGlyf(outlines)

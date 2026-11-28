@@ -4,6 +4,7 @@ from tkinter import ttk, filedialog, messagebox
 from pathlib import Path
 from .font_library import FontLibrary, drop_paths
 from .font_forge import create
+from .font_project import nodes, segments, save_project, load_project
 
 def mount(parent):
     library = FontLibrary()
@@ -103,17 +104,24 @@ def mount(parent):
 
     family = tk.StringVar(value="My Font")
     character = tk.StringVar(value="A")
+    mode = tk.StringVar(value="On-curve")
     fields = ttk.Frame(author)
     fields.pack(fill="x")
     ttk.Label(fields,text="Family").pack(side="left")
     ttk.Entry(fields,textvariable=family,width=22).pack(side="left")
     ttk.Label(fields,text="Character").pack(side="left")
     ttk.Entry(fields,textvariable=character,width=8).pack(side="left")
-    ttk.Label(author,text="Click outline vertices, close each contour, then save the glyph. Reverse winding for holes.").pack(anchor="w")
+    ttk.Combobox(fields,textvariable=mode,values=("On-curve","Control point","Move point"),state="readonly",width=15).pack(side="left")
+    ttk.Label(author,text="Click to add points; control points form curves. Move point mode drags nodes. Reverse winding for holes.").pack(anchor="w")
     canvas = tk.Canvas(author,width=400,height=300,bg="white",highlightthickness=1)
     canvas.pack(anchor="w")
     contours, active, glyphs = [], [], {}
+    dragging = []
     note = tk.StringVar(value="0 glyphs saved")
+    def screen(p):
+        return (20+p[0]/2.5,250-p[1]/2.5)
+    def em(x,y,on):
+        return (round((x-20)*2.5),round((250-y)*2.5),on)
     def redraw():
         canvas.delete("all")
         for x in range(20,381,40):
@@ -122,20 +130,49 @@ def mount(parent):
             canvas.create_line(20,y,380,y,fill="#eeeeee")
         canvas.create_line(20,250,380,250,fill="#888888",dash=(3,3))
         for points in contours:
-            canvas.create_polygon(*[v for p in points for v in p],fill="",outline="black",width=2)
+            for a,c,b in segments(points):
+                if c is None:
+                    path=[screen(a),screen(b)]
+                else:
+                    path=[screen(tuple((1-t)**2*a[i]+2*t*(1-t)*c[i]+t*t*b[i] for i in (0,1))) for t in (n/24 for n in range(25))]
+                canvas.create_line(*[v for p in path for v in p],fill="black",width=2)
         if len(active)>1:
-            canvas.create_line(*[v for p in active for v in p],fill="#3366aa",width=2)
-        for x,y in active:
-            canvas.create_oval(x-2,y-2,x+2,y+2,fill="#3366aa",outline="")
+            canvas.create_line(*[v for p in active for v in screen(p)],fill="#3366aa",dash=(3,3),width=2)
+        for points in contours+[active]:
+            for p in points:
+                x,y=screen(p)
+                if p[2]:
+                    canvas.create_oval(x-3,y-3,x+3,y+3,fill="#3366aa",outline="")
+                else:
+                    canvas.create_rectangle(x-3,y-3,x+3,y+3,fill="#b56b21",outline="")
     def click(event):
+        dragging.clear()
+        if mode.get()=="Move point":
+            candidates=[]
+            for points in contours+[active]:
+                for i,p in enumerate(points):
+                    x,y=screen(p)
+                    candidates.append(((x-event.x)**2+(y-event.y)**2,points,i))
+            if candidates:
+                d,points,i=min(candidates,key=lambda a:a[0])
+                if d<=100:dragging.extend((points,i))
+            return
         if 20<=event.x<=380 and 10<=event.y<=290:
-            active.append((event.x,event.y))
+            if len(active)>=2048:return
+            active.append(em(event.x,event.y,not active or mode.get()!="Control point"))
+            redraw()
+    def move(event):
+        if dragging:
+            points,i=dragging
+            points[i]=em(max(20,min(380,event.x)),max(10,min(290,event.y)),points[i][2])
             redraw()
     def close():
-        if len(active)>=3:
-            contours.append(active.copy())
+        try:
+            if len(contours)>=128:raise ValueError("Too many contours")
+            contours.append(nodes(active))
             active.clear()
             redraw()
+        except ValueError as exc:messagebox.showerror("Contour",str(exc),parent=parent)
     def undo():
         if active:
             active.pop()
@@ -143,17 +180,63 @@ def mount(parent):
             active.extend(contours.pop())
         redraw()
     def clear():
+        dragging.clear()
         active.clear()
         contours.clear()
         redraw()
+    def codepoint():
+        value=character.get()
+        if len(value)!=1 or ord(value)<33 or 0xd800<=ord(value)<=0xdfff:
+            raise ValueError("Use one non-space Unicode character")
+        return ord(value)
+    def update_note():
+        note.set(f"{len(glyphs)} glyphs saved: "+", ".join(f"U+{cp:04X}" for cp in sorted(glyphs)[:18]))
     def save_glyph():
-        value = character.get()
-        if len(value)!=1 or ord(value)<33 or 0xd800<=ord(value)<=0xdfff or active or not contours:
-            messagebox.showerror("Glyph","Use one non-space Unicode character and close all contours.",parent=parent)
+        try:
+            cp=codepoint()
+            if active or not contours:raise ValueError("Close all contours before saving")
+            if cp not in glyphs and len(glyphs)>=4096:raise ValueError("Too many glyphs")
+            if cp in glyphs and not messagebox.askyesno("Glyph","Replace saved glyph?",parent=parent):return
+            glyphs[cp]=[nodes(c) for c in contours]
+            update_note()
+            clear()
+        except ValueError as exc:messagebox.showerror("Glyph",str(exc),parent=parent)
+    def edit_glyph():
+        try:
+            cp=codepoint()
+            if cp not in glyphs:raise ValueError("No saved glyph for this character")
+            if (active or contours) and not messagebox.askyesno("Glyph","Discard the unsaved drawing?",parent=parent):return
+            clear()
+            contours.extend([list(c) for c in glyphs[cp]])
+            redraw()
+        except ValueError as exc:messagebox.showerror("Glyph",str(exc),parent=parent)
+    def delete_glyph():
+        try:
+            cp=codepoint()
+            if cp in glyphs and messagebox.askyesno("Glyph","Delete saved glyph?",parent=parent):
+                del glyphs[cp]
+                update_note()
+        except ValueError as exc:messagebox.showerror("Glyph",str(exc),parent=parent)
+    def save():
+        if active or contours:
+            messagebox.showerror("Font project","Save or clear the current drawing first.",parent=parent)
             return
-        glyphs[ord(value)] = [[(round((x-20)*2.5),round((250-y)*2.5)) for x,y in contour] for contour in contours]
-        note.set(f"{len(glyphs)} glyphs saved; last: U+{ord(value):04X}")
-        clear()
+        path=filedialog.asksaveasfilename(parent=parent,defaultextension=".json",filetypes=[("Font project","*.json")])
+        if path:
+            try:save_project(path,family.get(),glyphs)
+            except (OSError,ValueError) as exc:messagebox.showerror("Font project",str(exc),parent=parent)
+    def load():
+        path=filedialog.askopenfilename(parent=parent,filetypes=[("Font project","*.json")])
+        if not path:return
+        try:
+            name,new=load_project(path)
+            if (glyphs or active or contours) and not messagebox.askyesno("Font project","Replace the current font project?",parent=parent):return
+            clear()
+            glyphs.clear()
+            glyphs.update(new)
+            family.set(name)
+            update_note()
+        except (OSError,ValueError) as exc:messagebox.showerror("Font project",str(exc),parent=parent)
     def export():
         if active or contours:
             messagebox.showerror("Font","Save or clear the current glyph before export.",parent=parent)
@@ -167,9 +250,15 @@ def mount(parent):
             except (OSError,ValueError,ImportError) as exc:
                 messagebox.showerror("Font",str(exc),parent=parent)
     canvas.bind("<Button-1>",click)
+    canvas.bind("<B1-Motion>",move)
+    canvas.bind("<ButtonRelease-1>",lambda e:dragging.clear())
     actions = ttk.Frame(author)
     actions.pack(fill="x")
-    for label,command in (("Close contour",close),("Undo",undo),("Clear drawing",clear),("Save glyph",save_glyph),("Export TTF",export)):
+    for label,command in (("Close contour",close),("Undo point",undo),("Clear drawing",clear),("Save glyph",save_glyph),("Edit glyph",edit_glyph),("Delete glyph",delete_glyph)):
         ttk.Button(actions,text=label,command=command).pack(side="left")
+    projectbar=ttk.Frame(author)
+    projectbar.pack(fill="x")
+    for label,command in (("Open project",load),("Save project",save),("Export TTF",export)):
+        ttk.Button(projectbar,text=label,command=command).pack(side="left")
     ttk.Label(author,textvariable=note).pack(anchor="w")
     redraw()

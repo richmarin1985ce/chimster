@@ -8,3 +8,6 @@ Include ordinary phone and tablet touch input, finger drawing and optional mobil
 ## Font Forge desktop implementation
 
 The Assets > Font Forge tab imports multiple local TTF/OTF files via native TkDND file drops or a file picker. The persistent library stores content-addressed copies under ~/.chimster/fonts and does not install system fonts or alter game files. Preview uses Pillow and shows family, style, character count, outline format, license metadata and embedding flags. The Create TTF tab authors basic polygon contours with mouse input, Unicode mapping, undo, and export via fontTools. This supersedes the earlier pause for this scope. Pressure, touch, editable Bezier curves, project-level packaging and game-specific font registration remain unverified or pending. Imported fonts are not automatically redistributed; verify their license separately.
+
+### Editable curves and projects
+Font Forge now supports explicit on-curve and quadratic control points, TrueType implied midpoints, moving existing points, editing and deleting saved glyphs, and local versioned JSON projects. Save the active glyph before exporting or saving the project. Project files contain authored outlines only, not imported fonts. Existing polygon outlines remain supported. Mouse editing does not certify pen pressure or native touch support. Game registration is still separate.

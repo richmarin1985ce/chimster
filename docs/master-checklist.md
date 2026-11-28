@@ -27,7 +27,7 @@ Current baseline: PR23 merged at 7c356fbde0c879c0de46c47290e0bd7cb812635e; eight
 | 13 Version control | Immutable revisions, rollback and record comparison | Semantic 3-way merge, rollback UI, LFS |
 | 14 Quest/dialogue | Portable graph, state analysis, native QUST/DIAL/INFO, actor/faction/stage conditions, objective refs, GECK script source | Compile/attach scripts, runtime stage progression, reputation, NPC integration, scenes/aliases on applicable games |
 | 15 Scripting | Fragment inventory, Papyrus lexical checks, GECK result sources, external compiler plans | Verified compile/decompile, script IDE, VMAD, GECK/OpenMW, debugging |
-| 16 Books/notes | Illustrated portable previews, native FNV text books and notes; Font Forge local TTF/OTF import, drag-and-drop and polygon TTF authoring (CI pending) | Native markup, illustrated books, fonts, inventory/quest links, cross-game formats |
+| 16 Books/notes | Illustrated portable previews, native FNV text books and notes; Font Forge local TTF/OTF import, drag-and-drop and quadratic TTF authoring and editable project files (CI pending) | Native markup, illustrated books, fonts, inventory/quest links, cross-game formats |
 | 17 Characters | Template-based actor authoring, speaker references, stats and schedules | Native NPC records, FaceGen, appearances, stats, factions, AI packages, companions and creatures |
 | 18 Gameplay | GMST patches, skill books, typed inventory, faction, perk and leveled-list records | Items, inventory, weapons, armor, perks, leveled lists, combat, vendors/economy |
 | 19 Audio/voice | Basic FUZ | Audio codecs, lip sync, voice profiles, local casting, batch generation, consent/license metadata |
