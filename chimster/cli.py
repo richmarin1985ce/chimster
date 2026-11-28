@@ -35,6 +35,7 @@ def build_parser():
  a=s.add_parser('git-branches'); a.add_argument('root'); a.add_argument('--create')
  a=s.add_parser('lod'); l=a.add_subparsers(dest='lop',required=True)
  b=l.add_parser('tree'); b.add_argument('output'); b.add_argument('--seed',type=int,default=42); b.add_argument('--size',type=int,default=128); b.add_argument('--views',type=int,choices=[1,2,4],default=2)
+ b=l.add_parser('vegetation-native'); b.add_argument('output'); b.add_argument('--name',default='Vegetation'); b.add_argument('--seed',type=int,default=42); b.add_argument('--species',choices=['tree','shrub','grass'],default='tree'); b.add_argument('--size',type=int,choices=[64,128,256],default=128); b.add_argument('--views',type=int,choices=[1,2,4],default=2); b.add_argument('--scale',type=float,default=128)
  b=l.add_parser('nif'); b.add_argument('output'); b.add_argument('--seed',type=int,default=42); b.add_argument('--level',type=int,choices=[0,1,2],default=2); b.add_argument('--scale',type=float,default=1)
  b=l.add_parser('legacy-billboard'); b.add_argument('output'); b.add_argument('--seed',type=int,default=42); b.add_argument('--size',type=int,default=128); b.add_argument('--views',type=int,choices=[1,2,4],default=2); b.add_argument('--scale',type=float,default=1)
  b=l.add_parser('terrain'); b.add_argument('heightmap'); b.add_argument('output'); b.add_argument('--step',type=int,default=2)
@@ -42,7 +43,7 @@ def build_parser():
  b=l.add_parser('compare-traces'); b.add_argument('baseline'); b.add_argument('changed')
  b=l.add_parser('workflow'); b.add_argument('game')
  b=l.add_parser('world-native'); b.add_argument('game'); b.add_argument('world'); b.add_argument('output'); b.add_argument('plugins',nargs='+'); b.add_argument('--size',type=int,choices=[64,128,256],default=128)
- b=l.add_parser('world-objects'); b.add_argument('game'); b.add_argument('world'); b.add_argument('output'); b.add_argument('plugins',nargs='+'); b.add_argument('--data'); b.add_argument('--archive',action='append',default=[]); b.add_argument('--limit',type=int,default=512)
+ b=l.add_parser('world-objects'); b.add_argument('game'); b.add_argument('world'); b.add_argument('output'); b.add_argument('plugins',nargs='+'); b.add_argument('--data'); b.add_argument('--archive',action='append',default=[]); b.add_argument('--limit',type=int,default=512); b.add_argument('--previous'); b.add_argument('--no-atlas',action='store_true')
  b=l.add_parser('openmw-settings'); b.add_argument('--distance',type=float,default=32768); b.add_argument('--min-size',type=float,default=.023)
  a=s.add_parser('localization-audit'); a.add_argument('source'); a.add_argument('target')
  a=s.add_parser('flagstaff'); f=a.add_subparsers(dest='fop',required=True)
@@ -706,6 +707,9 @@ def main(argv=None):
    from .lod_tools import workflow,openmw_settings
    from pathlib import Path
    if n.lop=='tree':result=build_tree(Recipe(seed=n.seed),n.output,n.size,n.views)
+   elif n.lop=='vegetation-native':
+    from .world_lod_vegetation import build
+    result=build(Recipe(seed=n.seed,species=n.species),n.output,n.name,n.scale,n.views,n.size)
    elif n.lop=='nif':
     from .nif_export import export_legacy
     result=export_legacy(generate(Recipe(seed=n.seed),n.level),n.output,scale=n.scale)
@@ -731,7 +735,7 @@ def main(argv=None):
      result=export(browser,matches[0],n.output,size=n.size)
     else:
      from .world_lod_object_builtin import Assets,export
-     result=export(browser,matches[0],n.output,Assets(n.data,n.archive),limit=n.limit)
+     result=export(browser,matches[0],n.output,Assets(n.data,n.archive),limit=n.limit,previous=n.previous,atlas=not n.no_atlas)
   elif n.cmd=='discover-tools':
    from .tooling import discover_tools
    result=discover_tools()
