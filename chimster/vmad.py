@@ -129,8 +129,9 @@ def encode_value(typ,value,fmt,validate_form=None):
     if typ==1:
         if type(value) is not int or not 0<=value<=0xffffffff:raise ValueError("expected disk FormID integer")
         if value and (validate_form is None or not validate_form(value)):raise ValueError("object FormID not verified in source plugin")
-        # Non-alias object: unused field zero, alias sentinel 0xffff.
-        return struct.pack("<IHH",value,0xffff,0) if fmt==1 else struct.pack("<HHI",0,0xffff,value)
+        # Enable only format 2 for object writes until format 1 is independently verified.
+        if fmt!=2:raise ValueError("object writes require VMAD object format 2")
+        return struct.pack("<HHI",0,0xffff,value)
     if typ in range(11,16):
         if not isinstance(value,list) or len(value)>65536:raise ValueError("invalid property array")
         return struct.pack("<I",len(value))+b"".join(encode_value(typ-10,v,fmt,validate_form) for v in value)
@@ -166,6 +167,11 @@ def mutate(data,game,action,script,expected_sha256,*,property_name=None,type_id=
             if len(props)!=1:raise ValueError("property not found")
             p=props[0]
             if action=="set-property":
+                if p["type_id"] in (1,11):
+                    if fmt!=2:raise ValueError("object writes require VMAD object format 2")
+                    existing=[p["value"]] if p["type_id"]==1 else p["value"]
+                    if any(bytes.fromhex(v["raw_hex"])[:4]!=b"\0\0\xff\xff" for v in existing):
+                        raise ValueError("alias or noncanonical object metadata is not editable")
                 raw=encode_value(p["type_id"],value,fmt,validate_form)
                 result=data[:p["start"]]+raw+data[p["end"]:]
             else:
