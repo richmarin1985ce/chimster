@@ -112,6 +112,9 @@ def build_parser():
  a=s.add_parser('papyrus-build'); a.add_argument('game'); a.add_argument('backend',choices=['ck','caprica']); a.add_argument('compiler'); a.add_argument('source'); a.add_argument('flags'); a.add_argument('output'); a.add_argument('--import',dest='imports',action='append',default=[]); a.add_argument('--execute',action='store_true'); a.add_argument('--timeout',type=int,default=120)
  for opt in ('optimize','release','final','warnings-as-errors'): a.add_argument('--'+opt,action='store_true')
  a=s.add_parser('papyrus-batch'); a.add_argument('game'); a.add_argument('backend',choices=['ck','caprica']); a.add_argument('compiler'); a.add_argument('source_root'); a.add_argument('flags'); a.add_argument('output'); a.add_argument('--import',dest='imports',action='append',default=[]); a.add_argument('--execute',action='store_true'); a.add_argument('--timeout',type=int,default=120)
+ a.add_argument('--reuse',help='Previously completed build directory')
+ for opt in ('optimize','release','final','warnings-as-errors'): a.add_argument('--'+opt,action='store_true')
+ a=s.add_parser('pex-decompile'); a.add_argument('game'); a.add_argument('compiler'); a.add_argument('source'); a.add_argument('output'); a.add_argument('--execute',action='store_true'); a.add_argument('--timeout',type=int,default=120)
  a=s.add_parser('vmad-inspect'); a.add_argument('game'); a.add_argument('plugin'); a.add_argument('form',type=lambda v:int(v,0))
  a=s.add_parser('vmad-edit'); a.add_argument('game'); a.add_argument('plugin'); a.add_argument('output'); a.add_argument('form',type=lambda v:int(v,0)); a.add_argument('script'); a.add_argument('property'); a.add_argument('value'); a.add_argument('plugin_sha256'); a.add_argument('vmad_sha256')
  a=s.add_parser('pex-inspect'); a.add_argument('game'); a.add_argument('path')
@@ -320,8 +323,13 @@ def main(argv=None):
     print(json.dumps(result,indent=2)); raise SystemExit(1)
   elif n.cmd=='papyrus-batch':
    from .papyrus_batch import batch
-   result=batch(n.game,n.backend,n.compiler,n.source_root,n.flags,n.imports,n.output,execute=n.execute,timeout=n.timeout)
+   result=batch(n.game,n.backend,n.compiler,n.source_root,n.flags,n.imports,n.output,execute=n.execute,timeout=n.timeout,reuse=n.reuse,options={k:getattr(n,k) for k in ('optimize','release','final','warnings_as_errors')})
    if n.execute and result['status']!='header-checked':
+    print(json.dumps(result,indent=2)); raise SystemExit(1)
+  elif n.cmd=='pex-decompile':
+   from .pex_decompile import decompile
+   result=decompile(n.game,n.compiler,n.source,n.output,execute=n.execute,timeout=n.timeout)
+   if n.execute and result['status']!='source-recovered':
     print(json.dumps(result,indent=2)); raise SystemExit(1)
   elif n.cmd=='vmad-inspect':
    from .vmad_plugin import inspect
