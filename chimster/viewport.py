@@ -27,6 +27,7 @@ def mount(parent):
     status=tk.StringVar();ttk.Label(parent,textvariable=status).pack(fill="x")
     source=tk.StringVar(value="Portable scene");ttk.Label(parent,textvariable=source).pack(fill="x")
     native_preview=False
+    selection_callback=None
     def draw():
         nonlocal renderer,panda,photo,render_size,failure
         canvas.delete("mesh");canvas.delete("gl")
@@ -94,17 +95,24 @@ def mount(parent):
     def select(event=None):
         nonlocal selected
         ids=objects.curselection()
-        if ids:selected=scene.instances[ids[0]].id;sync()
+        if ids:
+            selected=scene.instances[ids[0]].id;sync()
+            if native_preview and selection_callback:selection_callback(selected)
     def pick(e):
         nonlocal selected
         if backend.get()=="ModernGL" and renderer is not None:
             rw,rh=render_size
             selected=renderer.pick(int(e.x*rw/max(1,canvas.winfo_width())),int(e.y*rh/max(1,canvas.winfo_height())))
-            sync();return
+            sync()
+            if native_preview and selection_callback:selection_callback(selected)
+            return
         for item in reversed(canvas.find_overlapping(e.x-1,e.y-1,e.x+1,e.y+1)):
             tags=canvas.gettags(item)
             tag=next((t for t in tags if t.startswith("obj:")),None)
-            if tag:selected=tag[4:];sync();return
+            if tag:
+                selected=tag[4:];sync()
+                if native_preview and selection_callback:selection_callback(selected)
+                return
     def apply():
         if native_preview or not selected:return
         try:scene.update(selected,**{k:float(v.get()) for k,v in values.items()});sync()
@@ -272,14 +280,14 @@ def mount(parent):
     objects.bind("<<ListboxSelect>>",select);canvas.bind("<Button-1>",pick);canvas.bind("<Button-3>",start);canvas.bind("<B3-Motion>",orbit)
     canvas.bind("<MouseWheel>",lambda e:zoom(e.delta));canvas.bind("<Button-4>",lambda e:zoom(1));canvas.bind("<Button-5>",lambda e:zoom(-1))
     canvas.bind("<Configure>",lambda e:draw());sync()
-    def load_cell_preview(candidate, report, focus=None):
-        nonlocal scene,materials,camera,selected,native_preview
+    def load_cell_preview(candidate, report, focus=None, on_select=None):
+        nonlocal scene,materials,camera,selected,native_preview,selection_callback
         if not native_preview and not messagebox.askyesno("Cell preview", "Replace the current portable viewport scene? Save any edits first.",parent=parent):
             return False
-        scene=candidate;materials={};native_preview=True
+        scene=candidate;materials={};native_preview=True;selection_callback=on_select
         selected=focus if any(i.id==focus for i in scene.instances) else None
         camera=Camera()
-        source.set(f"Read-only cell {report['cell']} | {report['cells']} cells | {report['land_tiles']} LAND tiles | {report['proxy_references']} reference markers | {report['skipped_references']} skipped")
+        source.set(f"Read-only cell {report['cell']} | {report['cells']} cells | {report['land_tiles']} LAND tiles | {report.get('model_references',0)} models | {report['proxy_references']} reference markers | {report['skipped_references']} skipped")
         sync();parent.after_idle(fit)
         return True
     return load_cell_preview
