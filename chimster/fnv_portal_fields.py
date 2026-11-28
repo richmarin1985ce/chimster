@@ -41,9 +41,9 @@ def inspect(parts):
             rooms.append(target);edges.append((i,0,("REFR",)))
         elif tag==b"XNDP":
             if len(raw)!=8:raise ValueError("invalid navigation door link")
-            target,unknown=struct.unpack("<I4s",raw)
+            target,triangle,tail=struct.unpack("<Ih2s",raw)
             if not target:raise ValueError("null navigation mesh link")
-            result["navigation_door"]={"raw_target":target,"unknown":unknown.hex()}
+            result["navigation_door"]={"raw_target":target,"triangle":triangle,"tail_hex":tail.hex(),"unknown":raw[4:].hex()}
             edges.append((i,0,("NAVM",)))
     if b"XRMR" in seen:
         if result["room_header"]["count"]!=len(rooms):raise ValueError("room link count mismatch")
