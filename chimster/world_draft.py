@@ -22,7 +22,7 @@ class Draft:
     def __init__(self, browser, name="ChimsterDraft.esp"):
         self.original = browser
         self.name = name.lower()
-        if not re.fullmatch(r"[a-z0-9_-]+\.esp",self.name) or any(k.origin==self.name for k in browser.winners):
+        if not re.fullmatch(r"[a-z0-9_-]+\.esp",self.name) or any(k.origin==self.name or r["plugin"]==self.name for k,r in browser.winners.items()) or any(p.name.casefold()==self.name for p in getattr(browser,"source_paths",())):
             raise ValueError("Draft identity collides with source")
         self.rows = {}
         self.operations = []
@@ -97,7 +97,7 @@ class Draft:
             raise ValueError("Select a normal live cell")
         if model is None or model["signature"]!="STAT":
             raise ValueError("Only static base objects are enabled for draft placement")
-        if len(position)!=3 or not all(isfinite(v) and abs(v)<=1e7 for v in (*position,yaw,scale)) or scale<=0:
+        if len(position)!=3 or not all(isfinite(v) and abs(v)<=1e7 for v in (*position,yaw,scale)) or not .01<=scale<=10:
             raise ValueError("Invalid placement transform")
         if "grid" in parent and tuple(floor(v/4096) for v in position[:2])!=parent["grid"]:
             raise ValueError("Placement is outside selected exterior cell")
@@ -109,6 +109,19 @@ class Draft:
         self.operations.append({"action":"place_static","key":key_json(key),"cell":key_json(cell),
             "base":key_json(base),"position":position,"yaw_radians":yaw,"scale":scale})
         return key
+
+    def transform(self,key,position,yaw=0,scale=1):
+        row=self.rows.get(key)
+        if not row or row["signature"]!="REFR" or key.origin!=self.name:
+            raise ValueError("Only newly staged static references can be transformed")
+        parent=self.index().active[row["cell"]]
+        if len(position)!=3 or not all(isfinite(v) and abs(v)<=1e7 for v in (*position,yaw,scale)) or not .01<=scale<=10:
+            raise ValueError("Invalid placement transform")
+        if "grid" in parent and tuple(floor(v/4096) for v in position[:2])!=parent["grid"]:
+            raise ValueError("Placement is outside selected exterior cell")
+        self.checkpoint()
+        self.rows[key]={**row,"position":tuple(position),"rotation":(0,0,yaw),"scale":scale}
+        self.operations.append({"action":"transform_static","key":key_json(key),"position":position,"yaw_radians":yaw,"scale":scale})
 
     def export(self,path):
         payload={"version":1,"game":"new-vegas","kind":"world-edit-draft","draft_plugin":self.name,
