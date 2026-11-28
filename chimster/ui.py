@@ -36,7 +36,10 @@ def launch():
   t.delete('1.0','end'); t.insert('1.0',json.dumps(obj,indent=2,ensure_ascii=False))
  f=tab('Project')
  from .project_ui import mount as mount_project
- mount_project(f,game)
+ def viewport_control(action):
+  tabs.select(viewport_tab)
+  load_cell_preview.camera_command(action)
+ mount_project(f,game,viewport_control)
  f=tab('Core management')
  from .core_ui import mount as mount_core
  mount_core(f)
