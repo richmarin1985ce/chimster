@@ -105,7 +105,9 @@ def build_scene(scene, materials=None, settings=None):
 
 class Preview:
     """Offscreen engine preview; owns its buffer, no separate application."""
-    def __init__(self):
+    def __init__(self,mode="native"):
+        if mode not in ("native","pbr","filters"):raise ValueError("Unknown Panda mode")
+        self.mode=mode;self.post=None;self.post_key=None;self.post_error=None
         from panda3d.core import GraphicsEngine, GraphicsPipeSelection, NodePath
         self.engine=GraphicsEngine()
         self.pipe=GraphicsPipeSelection.get_global_ptr().make_default_pipe()
@@ -116,6 +118,7 @@ class Preview:
         from panda3d.core import Camera, PerspectiveLens, AmbientLight, DirectionalLight
         self.lens=PerspectiveLens()
         self.camera=self.root.attach_new_node(Camera("camera",self.lens))
+        self.camera.node().set_scene(self.root)
         ambient=AmbientLight("ambient");ambient.set_color((.35,.35,.35,1))
         sun=DirectionalLight("sun");sun.set_color((.8,.8,.8,1))
         a=self.root.attach_new_node(ambient);s=self.root.attach_new_node(sun)
@@ -127,6 +130,7 @@ class Preview:
         from time import monotonic
         key=(effects,settings.light)
         if key!=self.effects_key:
+            self.close_post()
             for node in self.effect_nodes:
                 self.root.clear_light(node);node.remove_node()
             self.effect_nodes=[]
@@ -225,12 +229,29 @@ class Preview:
         self.camera.set_pos(*eye);self.camera.look_at(*camera.center)
         self.configure_effects(effects,settings,camera.center,eye)
         self.update_water_targets(effects,w,h,eye,camera.center,up)
+        self.update_post(effects)
         self.engine.render_frame();self.engine.sync_frame()
         raw=bytes(self.texture.get_ram_image_as("RGBA"))
         if len(raw)!=w*h*4:raise RuntimeError("Incomplete framebuffer")
         stride=w*4
         return b"".join(raw[y:y+stride] for y in range((h-1)*stride,-1,-stride))
+    def close_post(self):
+        if self.post is not None:self.post.close();self.post=None
+        self.post_key=None;self.post_error=None
+    def update_post(self,effects):
+        # Reflection buffers and post graphs have incompatible sort/ownership
+        # assumptions; retain the original water path until combined tests exist.
+        mode=self.mode if self.water is None else "native"
+        key=(mode,effects)
+        if key!=self.post_key:
+            self.close_post();self.post_key=key
+            if mode!="native" and (mode!="filters" or effects.ao_strength):
+                from .panda_post import PBR,NativeFilters
+                try:self.post=(PBR if mode=="pbr" else NativeFilters)(self,effects)
+                except Exception as exc:self.post_error=str(exc)[:160]
+        if self.post is not None:self.post.update()
     def close_buffer(self):
+        self.close_post()
         self.close_water_targets()
         if self.output is not None:
             self.engine.remove_window(self.output);self.output=None

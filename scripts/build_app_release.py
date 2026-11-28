@@ -11,7 +11,7 @@ def main():
     with TemporaryDirectory(prefix="chimster-package-") as d:
         p=Path(d);entry=p/"launcher.py";entry.write_text("from chimster.cli import main\nmain()\n",encoding="utf-8")
         stage=p/"dist"
-        subprocess.run([sys.executable,"-m","PyInstaller","--noconfirm","--onefile","--name","chimster","--distpath",str(stage),"--workpath",str(p/"work"),"--specpath",str(p),"--paths",str(root),"--collect-all","glcontext","--collect-all","panda3d","--copy-metadata","panda3d","--collect-data","chimster","--add-data",str(root/"docs")+":chimster/manual",str(entry)],check=True,cwd=root)
+        subprocess.run([sys.executable,"-m","PyInstaller","--noconfirm","--onefile","--name","chimster","--distpath",str(stage),"--workpath",str(p/"work"),"--specpath",str(p),"--paths",str(root),"--collect-all","glcontext","--collect-all","panda3d","--copy-metadata","panda3d","--collect-all","simplepbr","--copy-metadata","panda3d-simplepbr","--collect-all","gltf","--copy-metadata","panda3d-gltf","--collect-data","chimster","--add-data",str(root/"docs")+":chimster/manual",str(entry)],check=True,cwd=root)
         archive=output/f"chimster-{version}-{target_platform()}.zip"
         report=build(stage,archive,version,name)
         install=Installation(p/"installed");install.install(archive,report["sha256"],True)

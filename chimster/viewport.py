@@ -34,17 +34,17 @@ def mount(parent):
             effects=replace(preset(effect_name.get()),water_level=float(water_height.get()) if water_enabled.get() else None,lights=lights,fog_volumes=extra_volumes,**custom_fx).validate()
         except ValueError as exc:
             status.set("Effects: "+str(exc));return
-        if backend.get()=="Panda3D" and canvas.winfo_width()>4 and canvas.winfo_height()>4:
+        if backend.get().startswith("Panda3D") and canvas.winfo_width()>4 and canvas.winfo_height()>4:
             try:
                 from .panda_viewport import Preview
                 from PIL import Image,ImageTk
-                if panda is None:panda=Preview()
+                if panda is None:panda=Preview({"Panda3D":"native","Panda3D PBR":"pbr","Panda3D Filters":"filters"}[backend.get()])
                 w,h=canvas.winfo_width(),canvas.winfo_height()
                 factor=min(1,1280/w,720/h);rw,rh=max(1,int(w*factor)),max(1,int(h*factor))
                 raw=panda.render(scene,replace(camera,zoom=camera.zoom*factor),rw,rh,materials,settings,effects)
                 photo=ImageTk.PhotoImage(Image.frombytes("RGBA",(rw,rh),raw).resize((w,h)))
                 canvas.create_image(0,0,image=photo,anchor="nw",tags=("gl",))
-                status.set("Panda3D | shadows / fog / water | AO: ModernGL only"+(" | reflection fallback: "+panda.water_error if panda.water_error else ""))
+                status.set(backend.get()+(" | native water path" if water_enabled.get() else "")+(" | post fallback: "+panda.post_error if panda.post_error else "")+(" | reflection fallback: "+panda.water_error if panda.water_error else ""))
                 return
             except Exception as e:
                 failure="Panda3D: "+str(e)[:150];backend.set("ModernGL")
@@ -178,12 +178,12 @@ def mount(parent):
             finally:renderer=None
     parent.bind("<Destroy>",release,add="+")
     controls=ttk.Frame(parent);controls.pack(fill="x",before=pane)
-    choice=ttk.Combobox(controls,textvariable=backend,values=("Panda3D","ModernGL","CPU"),state="readonly",width=12)
+    choice=ttk.Combobox(controls,textvariable=backend,values=("Panda3D","Panda3D PBR","Panda3D Filters","ModernGL","CPU"),state="readonly",width=18)
     choice.pack(side="left")
     def switch_backend(event=None):
         nonlocal renderer,panda,failure
         failure=""
-        if backend.get()!="Panda3D" and panda is not None:
+        if panda is not None:
             try:panda.close()
             finally:panda=None
         if backend.get()!="ModernGL" and renderer is not None:
@@ -257,7 +257,7 @@ def mount(parent):
     ttk.Button(fxbar,text="Advanced lighting",command=advanced_lighting).pack(side="left")
     def tick_water():
         if parent.winfo_exists():
-            if water_enabled.get() and backend.get()=="Panda3D":draw()
+            if water_enabled.get() and backend.get().startswith("Panda3D"):draw()
             parent.after(150,tick_water)
     parent.after(150,tick_water)
     for label,cmd in [("Open scene",open_scene),("Save scene",save_scene),("Import OBJ",import_mesh),("Fit",fit),("Add tree",add),("Delete",delete),("Undo",lambda:(scene.undo(),sync())),("Redo",lambda:(scene.redo(),sync()))]:
