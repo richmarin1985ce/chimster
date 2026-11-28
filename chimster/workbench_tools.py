@@ -41,13 +41,21 @@ def mount(parent):
     bar=ttk.Frame(parent);bar.pack(fill="x")
     ttk.Combobox(bar,textvariable=area,values=list(GROUPS),state="readonly").pack(side="left")
     choices=ttk.Combobox(bar,textvariable=command,state="readonly");choices.pack(side="left",fill="x",expand=True)
-    form=ttk.Frame(parent);form.pack(fill="x")
+    holder=ttk.Frame(parent);holder.pack(fill="both",expand=True)
+    canvas=tk.Canvas(holder,height=240,highlightthickness=0);canvas.pack(side="left",fill="both",expand=True)
+    scroll=ttk.Scrollbar(holder,orient="vertical",command=canvas.yview);scroll.pack(side="right",fill="y")
+    canvas.configure(yscrollcommand=scroll.set)
+    form=ttk.Frame(canvas);window=canvas.create_window((0,0),window=form,anchor="nw")
+    form.bind("<Configure>",lambda e:canvas.configure(scrollregion=canvas.bbox("all")))
+    canvas.bind("<Configure>",lambda e:canvas.itemconfigure(window,width=e.width))
     out=tk.Text(parent,height=12,wrap="word");out.pack(fill="both",expand=True)
     results=queue.Queue();busy=False;fields=[];route=[]
     def render():
         for child in form.winfo_children():child.destroy()
         fields.clear();route.clear()
-        if command.get() not in commands:return
+        if command.get() not in commands:
+            ttk.Label(form,text="Use Assets → Voice containers for audio." if area.get()=="Audio" else "No available operation").pack(anchor="w")
+            return
         def populate(p,host):
             for a in p._actions:
                 if isinstance(a,argparse._HelpAction):continue
@@ -68,7 +76,7 @@ def mount(parent):
                 flag=isinstance(a,(argparse._StoreTrueAction,argparse._StoreFalseAction))
                 multi=a.nargs in ("+","*") or isinstance(a.nargs,int) or isinstance(a,argparse._AppendAction)
                 default=a.default
-                v=tk.BooleanVar(value=False) if flag else tk.StringVar(value="" if default is None or default==argparse.SUPPRESS else ("\n".join(map(str,default)) if isinstance(default,(list,tuple)) else str(default)))
+                v=tk.BooleanVar(value=False) if flag else tk.StringVar(value="" if default is None or default==argparse.SUPPRESS else ("|".join(map(str,default)) if isinstance(default,(list,tuple)) else str(default)))
                 if flag:ttk.Checkbutton(row,variable=v).pack(side="left")
                 elif a.choices and not multi:ttk.Combobox(row,textvariable=v,values=list(a.choices),state="readonly").pack(side="left",fill="x",expand=True)
                 else:
