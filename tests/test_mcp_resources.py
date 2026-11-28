@@ -28,7 +28,8 @@ class ResourceTests(unittest.TestCase):
     def test_resource_scope(self):
         self.add("sample","Sample.esp",0)
         listed=request(self.b,"resources/list")["result"]["resources"]
-        self.assertEqual(len(listed),2)
+        self.assertEqual(len(listed),3)
+        self.assertIn('chimster://editor/context',{x['uri'] for x in listed})
         uri="chimster://project/artifacts/sample"
         data=request(self.b,"resources/read",{"uri":uri})["result"]["contents"][0]
         self.assertEqual(json.loads(data["text"])["artifact"]["filename"],"Sample.esp")
