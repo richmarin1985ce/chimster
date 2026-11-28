@@ -102,8 +102,11 @@ def acquire(name, folder):
             validate_dem(p,spec) if file=="dem.tif" else validate_zip(p)
             continue
         temp=folder/(file+".partial")
+        # Claim the temporary name exclusively before cleanup responsibility begins.
+        with temp.open("xb"):
+            pass
         try:
-            with urlopen(Request(url,headers={"User-Agent":"Chimster-Expansion-Geography/0.1"}),timeout=90) as src, temp.open("xb") as out:
+            with urlopen(Request(url,headers={"User-Agent":"Chimster-Expansion-Geography/0.1"}),timeout=90) as src, temp.open("wb") as out:
                 total=0
                 while True:
                     chunk=src.read(1024*1024)
