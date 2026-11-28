@@ -12,6 +12,7 @@ from .max_height import decode_land
 from .flora import Mesh
 from .textures import mip_dds
 from .world_lod_materials import Baker
+from .record_graph import Identity
 from .fnv_lod_nif import encode,check
 from .world_lod_native import world_name
 
@@ -30,7 +31,7 @@ def collect(browser,world):
     if not grids or len(grids)>4096:raise ValueError("Expected 1–4096 landscape cells")
     return grids
 
-def macro_mesh(grids,x,y,level):
+def macro_mesh(grids,x,y,level,skirts=0):
     # All neighboring macro tiles use the same world-aligned samples at a given level.
     step=level//2
     mesh=Mesh();ids={}
@@ -51,6 +52,24 @@ def macro_mesh(grids,x,y,level):
                 a,b,c,d=(vertex(cx*32+u,cy*32+v,h[v][u]) for u,v in ((i,j),(i+step,j),(i,j+step),(i+step,j+step)))
                 mesh.faces.extend((((a,b,c),"terrain"),((b,d,c),"terrain")))
     if not mesh.faces:raise ValueError("Empty LOD tile")
+    if skirts:
+        if not 0<skirts<=8192:raise ValueError("Invalid seam skirt depth")
+        # Boundary edges only. Duplicated downward vertices hide mixed-tier cracks;
+        # original samples, internal edges and UVs remain unchanged.
+        edges={}
+        for face,_ in mesh.faces:
+            for a,b in zip(face,face[1:]+face[:1]):
+                k=tuple(sorted((a,b)));edges[k]=None if k in edges else (a,b)
+        lowered={}
+        def lower(i):
+            if i not in lowered:
+                a,b,c=mesh.vertices[i];lowered[i]=len(mesh.vertices)
+                mesh.vertices.append((a,b,c-skirts));mesh.uv.append(mesh.uv[i])
+            return lowered[i]
+        for edge in edges.values():
+            if edge is None:continue
+            a,b=edge;c,d=lower(a),lower(b)
+            mesh.faces.extend((((b,a,c),"terrain"),((b,c,d),"terrain")))
     return mesh
 
 def textures(grids,x,y,level,size=128,baker=None,materials=None):
@@ -73,7 +92,7 @@ def textures(grids,x,y,level,size=128,baker=None,materials=None):
             diffuse.extend(a);normal.extend(b)
     return diffuse,normal
 
-def export(browser,world,output,levels=LEVELS,size=128,assets=None,previous=None):
+def export(browser,world,output,levels=LEVELS,size=128,assets=None,previous=None,skirts=256):
     if browser.profile not in ("new-vegas","fallout3"):raise ValueError("Built-in native candidate writer currently FO3/FNV only")
     if not levels or len(set(levels))!=len(levels) or any(n not in LEVELS for n in levels):raise ValueError("Unsupported LOD tier")
     if size not in (64,128,256):raise ValueError("Unsupported texture size")
@@ -102,7 +121,7 @@ def export(browser,world,output,levels=LEVELS,size=128,assets=None,previous=None
     out=Path(output);out.mkdir(exist_ok=False)
     manifest={"world":name,"bounds":world_bounds(grids),"tiles":[],"native_runtime_assets":False,
               "external_tools":False,"texture_mode":"LAND source material blend with reported fallback" if baker else "procedural fallback; no source assets selected",
-              "material_issues":material_errors,"reused_tiles":0,"rebuilt_tiles":0,
+              "material_issues":material_errors,"seam_skirt_depth":skirts,"reused_tiles":0,"rebuilt_tiles":0,
               "settings_status":"Generated candidate; bounds and level semantics require game validation",
               "scope":"Experimental native NIF/DDS candidates; not an installable runtime package"}
     try:
@@ -115,7 +134,7 @@ def export(browser,world,output,levels=LEVELS,size=128,assets=None,previous=None
                 normal=f"textures/{base}/normal/{name}.n.level{level}.x{x}.y{y}.dds"
                 # Include neighbor cells for edge normal/transition changes; input hashes are canonical.
                 area=[(list(k),grids[k],materials.get(k)) for k in sorted(grids) if x-1<=k[0]<=x+level and y-1<=k[1]<=y+level]
-                digest=sha256(json.dumps(["lod-v2",level,x,y,size,area,sorted(baker.hashes.items()) if baker else None],sort_keys=True,separators=(",",":"),allow_nan=False).encode()).hexdigest()
+                digest=sha256(json.dumps(["lod-v3",level,x,y,size,skirts,area,sorted(baker.hashes.items()) if baker else None,[(str(k),browser.active.get(Identity(*k),{}).get("texture_set")) for k in sorted(baker.layers)] if baker else None,[(str(k),r.get("texture_paths")) for k,r in sorted(browser.active.items()) if r["signature"]=="TXST"] if baker else None],sort_keys=True,separators=(",",":"),allow_nan=False).encode()).hexdigest()
                 cached=old.get((level,x,y),{})
                 paths=(mesh_path,diffuse,normal)
                 if cached.get("input_sha256")==digest and set(cached.get("files",{}))==set(paths):
@@ -123,7 +142,7 @@ def export(browser,world,output,levels=LEVELS,size=128,assets=None,previous=None
                         for p in paths:
                             (out/p).parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(old_root/p,out/p)
                         manifest["tiles"].append(cached);manifest["reused_tiles"]+=1;continue
-                mesh=macro_mesh(grids,x,y,level)
+                mesh=macro_mesh(grids,x,y,level,skirts)
                 raw=encode(mesh,diffuse,normal,"terrain")
                 report=check(raw,len(mesh.faces))
                 for path in (mesh_path,diffuse,normal):(out/path).parent.mkdir(parents=True,exist_ok=True)
