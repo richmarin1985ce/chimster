@@ -88,6 +88,7 @@ def read_plugin(path, profile="new-vegas"):
                 if sig == "LAND" and b"VHGT" in fields and profile in ("oblivion","fallout3","new-vegas","skyrim","skyrim-se"):
                     row["height_raw"] = fields[b"VHGT"]
                 if sig in PLACED:
+                    row["transform_only_layout"] = [tag for tag,_ in parts] in ([b"NAME",b"DATA"],[b"NAME",b"XSCL",b"DATA"])
                     scale = fields.get(b"XSCL", b"")
                     if len(scale) == 4:
                         value = struct.unpack("<f", scale)[0]
