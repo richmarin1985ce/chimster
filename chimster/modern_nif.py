@@ -81,6 +81,14 @@ def extract_collision(path,helper,unit_scale):
     if cp.returncode:raise RuntimeError(cp.stderr[-4000:])
     if len(cp.stdout)>100*1024*1024:raise ValueError("collision output limit")
     report=json.loads(cp.stdout);vertices=[point(v) for v in report["vertices"]];triangles=report["triangles"]
-    if not vertices or not triangles or max(len(vertices),len(triangles))>500000:raise ValueError("invalid native collision output")
+    if max(len(vertices),len(triangles))>500000:raise ValueError("invalid native collision output")
     if any(len(t)!=3 or len(set(t))!=3 or any(type(i) is not int or not 0<=i<len(vertices) for i in t) for t in triangles):raise ValueError("invalid native collision index")
+    from .collision_hull import hull
+    cores=report.get("convex_cores",[])
+    if not isinstance(cores,list) or len(cores)>128 or sum(len(c) for c in cores)>4096:raise ValueError("convex core work limit")
+    for core in cores:
+        points,faces=hull(core);offset=len(vertices)
+        vertices.extend(points);triangles.extend(tuple(offset+i for i in t) for t in faces)
+        if max(len(vertices),len(triangles))>500000:raise ValueError("combined collision limit")
+    if not vertices or not triangles:raise ValueError("empty collision output")
     return {"vertices":vertices,"triangles":triangles}
