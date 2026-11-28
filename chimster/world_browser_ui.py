@@ -34,6 +34,8 @@ def mount(parent, game, open_preview=None):
                 state["paths"].append(p)
         update_paths()
     def update_paths():
+        if state.get('draft') and state['draft'].operations:
+            status.set('Export draft before changing load order; current draft discarded.')
         state["draft"] = None
         plugins.delete(0, "end")
         for p in state["paths"]:
@@ -240,10 +242,24 @@ def mount(parent, game, open_preview=None):
         try:
             from .world_preview import preview
             scene, report = preview(state['index'],state['cell'],int(radius.get()),state['models'])
-            if open_preview(scene,report,focus):
+            if open_preview(scene,report,focus,viewport_select):
                 show(report)
         except (OSError,ValueError,TypeError,KeyError) as exc:
             messagebox.showerror('Cell preview',str(exc),parent=parent)
+    def viewport_select(instance):
+        index=state["index"]
+        if not instance or index is None:return
+        target=instance.removeprefix("land:")
+        row=next((r for k,r in index.active.items() if label(k)==target),None)
+        if row is None:return
+        if row.get("cell")!=state["cell"]:
+            owner=index.active.get(row.get("cell"))
+            if owner and owner.get("world")==state["world"]:
+                select_key(owner["key"])
+        for item,ref in state["objects"].items():
+            if ref["key"]==row["key"]:
+                objects.selection_set(item);objects.see(item);break
+        show(index.details(row))
     def render_object(event=None):
         selected=objects.selection()
         if selected and selected[0] in state['objects']:
