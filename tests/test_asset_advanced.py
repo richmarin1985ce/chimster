@@ -36,3 +36,15 @@ class AdvancedAssetTests(unittest.TestCase):
         m.uv[4]=(.1,.2);s=Session(m)
         with self.assertRaises(ValueError):s.weld_vertices([0,4],0)
         self.assertEqual(s.mesh,m)
+    def test_project_roundtrip(self):
+        import tempfile
+        from pathlib import Path
+        from chimster.asset_project import save,load
+        s=Session(square());s.bind("a","textures/a.dds")
+        s.extrude_faces([0,1],(0,0,1))
+        with tempfile.TemporaryDirectory() as tmp:
+            p=Path(tmp)/"test.casset"
+            save(s,p);restored=load(p)
+            self.assertEqual(restored.mesh,s.mesh)
+            self.assertEqual(restored.materials,s.materials)
+            with self.assertRaises(FileExistsError):save(s,p)
