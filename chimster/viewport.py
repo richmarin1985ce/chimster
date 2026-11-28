@@ -132,9 +132,9 @@ def mount(parent):
         if native_preview:return
         if selected and any(i.id==selected for i in scene.instances):
             scene.remove(selected);selected=None;sync()
-    def open_scene():
+    def open_scene(dropped=None):
         nonlocal scene,selected,native_preview
-        p=filedialog.askopenfilename(filetypes=[("Chimster scene","*.json")])
+        p=dropped if dropped is not None else filedialog.askopenfilename(filetypes=[("Chimster scene","*.json")])
         if p:
             try:scene=Scene.load(p);selected=None;native_preview=False;source.set("Portable scene");sync()
             except (OSError,ValueError,KeyError,TypeError) as e:messagebox.showerror("Scene",str(e))
@@ -144,10 +144,10 @@ def mount(parent):
         if p:
             try:scene.save(p)
             except (OSError,ValueError) as e:messagebox.showerror("Scene",str(e))
-    def import_mesh():
+    def import_mesh(dropped=None):
         nonlocal selected
         if native_preview:return
-        p=filedialog.askopenfilename(filetypes=[("Triangulated OBJ","*.obj")])
+        p=dropped if dropped is not None else filedialog.askopenfilename(filetypes=[("Triangulated OBJ","*.obj")])
         if p:
             try:
                 m=load_obj(p);n=1
@@ -226,9 +226,9 @@ def mount(parent):
             thresholds=tuple(float(x.strip()) for x in lod_text.get().split(","))
             settings=replace(settings,lod_distances=thresholds).validate();draw()
         except ValueError as e:messagebox.showerror("LOD settings",str(e))
-    def import_materials():
+    def import_materials(dropped=None):
         nonlocal materials
-        p=filedialog.askopenfilename(filetypes=[("Material manifest","*.json")])
+        p=dropped if dropped is not None else filedialog.askopenfilename(filetypes=[("Material manifest","*.json")])
         if p:
             try:materials=load_materials(p);draw()
             except (OSError,ValueError,TypeError,ImportError) as e:messagebox.showerror("Materials",str(e))
@@ -360,4 +360,11 @@ def mount(parent):
             128*(y-sin(a)*right+cos(a)*forward)+preview_origin[1],
             128*z+preview_origin[2])
     load_cell_preview.drop_position=drop_position
+    def drop_json(path):
+        from tkinter import messagebox
+        choice=messagebox.askyesnocancel("Import JSON","Open as a scene? Choose No for a material manifest.",parent=parent)
+        if choice is True:open_scene(path)
+        elif choice is False:import_materials(path)
+    from .drop_import import editor_drop
+    editor_drop(parent,[((".json",),drop_json,False),((".obj",),import_mesh,False)],target=canvas)
     return load_cell_preview
