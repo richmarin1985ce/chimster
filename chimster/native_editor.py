@@ -87,12 +87,18 @@ class NativeSession:
         if revision!=self.revision:
             raise ValueError("stale session")
         candidate=NativeSession(self.profile,self.data,self.slots,self.external_types,self.external_records)
-        for path,index,expected,target in edits:
+        for edit in edits:
+            if len(edit)==4:
+                path,index,expected,target=edit
+                offset=None
+            elif len(edit)==5:
+                path,index,expected,target,offset=edit
+            else:raise ValueError("invalid edit tuple")
             path=tuple(path)
             node=candidate.node(path)
             if path not in candidate.rows:
                 raise ValueError("not an editable record")
-            updated=edit_reference(self.profile,node,self.slots,index,expected,target,candidate.types)
+            updated=edit_reference(self.profile,node,self.slots,index,expected,target,candidate.types,offset=offset)
             data=replace_payload(self.profile,candidate.data,path,node.payload,updated.payload)
             candidate=NativeSession(self.profile,data,self.slots,self.external_types,self.external_records)
         self.__dict__.update(candidate.__dict__)
