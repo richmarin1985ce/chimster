@@ -211,3 +211,20 @@ class StarfieldPreviewTests(unittest.TestCase):
         self.assertEqual(scene.instances[4].x,0)
         self.assertEqual(scene.instances[5].x,32)
         with self.assertRaises(ValueError):Heightfield([[float("nan"),0],[0,0]])
+
+    def test_planet_streaming_reuses_overlap(self):
+        from chimster.starfield_planets import LandingStream,surface_summary
+        from types import SimpleNamespace
+        key=Identity("test.esm",0x800)
+        catalog=SimpleNamespace(planets={key:{"radius_km":6000.,"biomes":[]}},biomes={})
+        stream=LandingStream(catalog,key,0,179.99,8,16)
+        a,r=stream.update();self.assertIsNone(stream.update(1,1))
+        b,s=stream.update(33,0)
+        self.assertEqual(s["origin_game_units"],(32,0,0))
+        self.assertIs(a.assets["planet-tile-1-1"],b.assets["planet-tile-1-1"])
+        self.assertEqual(len(b.instances),9)
+        for i in range(2,6):stream.update(i*32,0)
+        self.assertLessEqual(len(stream.cache),54)
+        summary=surface_summary({"signature":"SFPT","arrays":[("BNAM",struct.pack("<256I",*[0]*254,3,3))]})
+        self.assertEqual(summary[0]["top"],[("00000003",2)])
+        self.assertEqual(summary[0]["nonzero"],2)

@@ -3,7 +3,8 @@
 The native surface generation algorithm and raw surface-tree ID remapping
 are not implemented. Preview heights and biome geography are illustrative.
 """
-from math import sin,cos,pi,radians,degrees,isfinite,sqrt
+from math import sin,cos,pi,radians,degrees,isfinite,sqrt,floor,asin,atan2
+from collections import OrderedDict,Counter
 import struct
 from hashlib import sha256
 from .starfield_preview import Plugin,one,string,link,floats,rgb,label
@@ -193,10 +194,12 @@ def skirt(mesh,res,depth):
         mesh.faces.extend([((a,c,d),mat),((a,d,b),mat)])
     return mesh
 
-def terrain(catalog,k,lat,lon,span_km=8.,resolution=32,heightfield=None):
+def terrain(catalog,k,lat,lon,span_km=8.,resolution=32,heightfield=None,center=(0,0),cache=None):
     if not all(isfinite(x) for x in (lat,lon,span_km)) or not -90<=lat<=90 or not -180<=lon<=180 or not .1<=span_km<=100 or resolution not in (16,32,64):raise ValueError("Invalid landing preview")
     p=catalog.planets[k];radius=p.get("radius_km",0)
     if not 1<=radius<=1000000 or span_km>radius*.1:raise ValueError("Missing radius or oversized local patch")
+    if len(center)!=2 or any(type(i) is not int or abs(i)>100000 for i in center):raise ValueError("Invalid streaming tile center")
+    if heightfield is not None and center!=(0,0):raise ValueError("Imported heightfield is limited to its original extent")
     seed=hash_seed(k,p);colors=palette(catalog,k)
     # Scale to a 96-unit working area; use spherical geodesic coordinates
     # for sample continuity, and a shared local tangent-plane render origin.
@@ -205,8 +208,9 @@ def terrain(catalog,k,lat,lon,span_km=8.,resolution=32,heightfield=None):
     assets={};instances=[]
     for ty in range(3):
         for tx in range(3):
-            name=f"planet-tile-{tx}-{ty}"
-            def coord(x,y):return ((tx+x-1.5)*span_km/3,(ty+y-1.5)*span_km/3)
+            gx,gy=tx+center[0],ty+center[1]
+            name=f"planet-tile-{gx}-{gy}"
+            def coord(x,y):return ((gx+x-1.5)*span_km/3,(gy+y-1.5)*span_km/3)
             cx=(tx-1)*32;cy=(ty-1)*32
             def point(x,y):
                 a,b=coord(x,y);q=direction_at(lat,lon,a,b,radius)
@@ -218,8 +222,13 @@ def terrain(catalog,k,lat,lon,span_km=8.,resolution=32,heightfield=None):
                 return ((x-.5)*32,(y-.5)*32,z)
             def mat(x,y):return material_at(direction_at(lat,lon,*coord(x,y),radius),seed,colors)
             for tier,r in enumerate((resolution,resolution//2,resolution//4)):
-                mesh=grid(r,point,mat)
-                assets[name+("@lod"+str(tier) if tier else "")]=skirt(mesh,r,max(1.,height/meters_per_unit*.25))
+                asset=name+("@lod"+str(tier) if tier else "")
+                if cache is not None and asset in cache:
+                    mesh=cache[asset];cache.move_to_end(asset)
+                else:
+                    mesh=skirt(grid(r,point,mat),r,max(1.,height/meters_per_unit*.25))
+                    if cache is not None:cache[asset]=mesh
+                assets[asset]=mesh
             instances.append(Instance(name,name,cx,cy))
     mats={name:Material(tint=col) for name,(w,col) in colors.items()}
     fx={}
@@ -227,6 +236,35 @@ def terrain(catalog,k,lat,lon,span_km=8.,resolution=32,heightfield=None):
         _,density,ray,mie=p["atmosphere"]
         fx=dict(fog_density=min(.12,density*.012),scatter_strength=min(2.,(ray+mie)*.5),fog_falloff=.02,volume_distance=160.)
     r=report(k,mats,fx,9,"landing")
-    r.update(latitude=lat,longitude=lon,span_km=span_km,meters_per_unit=meters_per_unit,height_source="imported meters" if heightfield is not None else "illustrative procedural")
+    r.update(latitude=lat,longitude=lon,span_km=span_km,meters_per_unit=meters_per_unit,stream_center=center,origin_game_units=(center[0]*32,center[1]*32,0),height_source="imported meters" if heightfield is not None else "illustrative procedural")
     if heightfield is not None:r["issues"]=["User-supplied heightfield; native biome placement remains illustrative"]
     return Scene(assets,instances),r
+
+class LandingStream:
+    """Recenter a bounded 3x3 tile window in a fixed geographic tangent chart."""
+    def __init__(self,catalog,k,lat,lon,span_km=8.,resolution=32):
+        self.catalog=catalog;self.k=k;self.lat=lat;self.lon=lon;self.span=span_km;self.resolution=resolution
+        self.center=None;self.cache=OrderedDict()
+    def update(self,x=0.,y=0.):
+        if not all(isfinite(v) for v in (x,y)):raise ValueError("Invalid streaming coordinates")
+        center=(floor(x/32+.5),floor(y/32+.5))
+        if center==self.center:return None
+        radius=self.catalog.planets[self.k]["radius_km"]
+        if sqrt(sum(v*v for v in center))*self.span/3+self.span>radius*.1:raise ValueError("Outside landing chart; select a new geographic location")
+        scene,info=terrain(self.catalog,self.k,self.lat,self.lon,self.span,self.resolution,center=center,cache=self.cache)
+        while len(self.cache)>54:self.cache.popitem(last=False)
+        self.center=center
+        q=direction_at(self.lat,self.lon,center[0]*self.span/3,center[1]*self.span/3,radius)
+        info["latitude"]=degrees(asin(max(-1.,min(1.,q[2]))));info["longitude"]=degrees(atan2(q[1],q[0]))
+        info["planet_stream"]=True
+        return scene,info
+
+def surface_summary(row):
+    """Summarize documented native arrays without guessing runtime-ID remapping."""
+    if row is None:return []
+    results=[]
+    for tag,raw in row["arrays"]:
+        size=256 if row["signature"]=="SFPT" else 65536
+        counts=Counter(v[0] for v in struct.iter_unpack("<I",raw) if v[0])
+        results.append(dict(tag=tag,side=16 if size==256 else 256,nonzero=sum(counts.values()),unique=len(counts),top=[(f"{v:08X}",n) for v,n in counts.most_common(12)]))
+    return results
