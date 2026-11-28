@@ -277,13 +277,14 @@ def main(argv=None):
     selection.add_argument("--active", action="store_true", help="Select the sole active local editor project; fail if ambiguous")
     parser.add_argument("--allow-edit", action="store_true", help="Explicitly allow trusted client draft replacement and session undo/redo")
     parser.add_argument("--allow-create", action="store_true", help="Explicitly allow the trusted client to create new project text artifacts")
+    parser.add_argument("--register-client-config", metavar="PATH", help="Explicitly add Chimster to a closed local client JSON config, with backup")
     parser.add_argument("--client-config", action="store_true", help="Print local MCP client configuration; no files changed")
     parser.add_argument("--describe", action="store_true", help="Print the capability manifest and exit")
     args = parser.parse_args(argv)
     try:
         from .editor_presence import discover, select
         if args.discover_active:
-            if args.allow_create or args.allow_edit or args.describe or args.client_config:
+            if args.allow_create or args.allow_edit or args.describe or args.client_config or args.register_client_config:
                 raise ValueError("discovery is a standalone read-only operation")
             print(json.dumps(discover(),indent=2))
             return
@@ -297,10 +298,12 @@ def main(argv=None):
             project=select(instances[0]["id"])
         if (args.allow_create or args.allow_edit) and (project is None or not args.project):
             raise ValueError("write permission requires an explicit project path")
+        if args.register_client_config and (args.allow_create or args.allow_edit or args.describe or args.client_config or not args.project):
+            raise ValueError("registration requires an explicit read-only project")
         bridge = Bridge(project, args.allow_create, args.allow_edit)
     except (ValueError, OSError, KeyError, TypeError):
         parser.exit(2, "Invalid or unavailable Chimster project\n")
-    if args.client_config:
+    if args.client_config or args.register_client_config:
         from pathlib import Path
         import shutil
         executable=shutil.which("chimster")
@@ -316,7 +319,14 @@ def main(argv=None):
             command_args.append("--allow-create")
         if args.allow_edit:
             command_args.append("--allow-edit")
-        print(json.dumps({"mcpServers":{"chimster":{"command":executable,"args":command_args}}},indent=2))
+        config={"mcpServers":{"chimster":{"command":executable,"args":command_args}}}
+        if args.register_client_config:
+            from .mcp_registration import register_config
+            try:
+                config=register_config(args.register_client_config,config)
+            except (OSError,ValueError,KeyError,TypeError):
+                parser.exit(2,"Registration refused; inspect existing config and close the client before retrying.\n")
+        print(json.dumps(config,indent=2))
     elif args.describe:
         print(json.dumps(bridge.capabilities(), indent=2))
     else:
