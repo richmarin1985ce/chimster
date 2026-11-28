@@ -101,7 +101,7 @@ def diagnostic_color(key):
     digest=sha256(struct.pack("<I",key)).digest()
     return tuple(.18+.68*v/255 for v in digest[:3])
 
-def layer_image(btd,cell_x,cell_y,u0,v0,u1,v1,cells=1,size=64,colors=None):
+def layer_image(btd,cell_x,cell_y,u0,v0,u1,v1,cells=1,size=64,colors=None,material_source=None):
     """Bake native blend weights into a diagnostic preview, not game textures."""
     from .gpu_viewport import ImageMap
     if size not in (16,32,64,128) or not 1<=cells<=4 or not 0<=u0<u1<=1 or not 0<=v0<v1<=1:raise ValueError("Invalid terrain texture preview extent")
@@ -116,13 +116,13 @@ def layer_image(btd,cell_x,cell_y,u0,v0,u1,v1,cells=1,size=64,colors=None):
             weights=btd.layers(a,b)
             rgb=[0.,0.,0.]
             for k,w in weights.items():
-                col=colors.get(k,diagnostic_color(k))
+                col=material_source.color(k,a,b) if material_source is not None else colors.get(k,diagnostic_color(k))
                 if len(col)!=3 or any(not isfinite(z) or not 0<=z<=1 for z in col):raise ValueError("Invalid LTEX preview color")
                 for i in range(3):rgb[i]+=w*col[i]
             rgba.extend(max(0,min(255,round(c*255))) for c in rgb);rgba.append(255)
     return ImageMap(size,size,bytes(rgba)).validate()
 
-def apply_layer_preview(scene,report,btd,cell_x,cell_y,cells=1,colors=None):
+def apply_layer_preview(scene,report,btd,cell_x,cell_y,cells=1,colors=None,material_source=None):
     """Attach per-tile native-weight diagnostic diffuse maps to every LOD."""
     from .gpu_viewport import Material
     mats={}
@@ -130,23 +130,24 @@ def apply_layer_preview(scene,report,btd,cell_x,cell_y,cells=1,colors=None):
         for tx in range(3):
             name=f"planet-tile-{tx}-{ty}"
             mat="btd-layer-"+name
-            image=layer_image(btd,cell_x,cell_y,tx/3,ty/3,(tx+1)/3,(ty+1)/3,cells,colors=colors)
+            image=layer_image(btd,cell_x,cell_y,tx/3,ty/3,(tx+1)/3,(ty+1)/3,cells,colors=colors,material_source=material_source)
             mats[mat]=Material(diffuse=image).validate()
             for suffix in ("","@lod1","@lod2"):
                 mesh=scene.assets[name+suffix]
                 mesh.faces=[(tri,mat) for tri,_ in mesh.faces]
     report["preview_materials"]=mats
-    report["texture_source"]="native BTD blend weights, diagnostic LTEX colors"
+    report["texture_source"]="native BTD weights, mapped diffuse textures where available" if material_source else "native BTD blend weights, diagnostic LTEX colors"
     report["issues"]=["Native height samples and texture weights; vertical scale and geographic alignment supplied by user; diagnostic colors, not native material textures"]
+    if material_source:report["issues"].extend(material_source.issues[:20])
     return scene,report
 
 class BTDStream:
     """Bounded moving 3x3 native cell window with shared edge samples."""
-    def __init__(self,btd,catalog,k,cell_x,cell_y,lat,lon,cell_km,scale=1.,resolution=32):
+    def __init__(self,btd,catalog,k,cell_x,cell_y,lat,lon,cell_km,scale=1.,resolution=32,material_source=None):
         if not all(isfinite(n) for n in (cell_km,scale,lat,lon)) or not .001<=cell_km<=100 or not 0<scale<=1000 or resolution not in (16,32,64):raise ValueError("Invalid BTD streaming parameters")
         if not btd.min_cell[0]<=cell_x<btd.min_cell[0]+btd.nx or not btd.min_cell[1]<=cell_y<btd.min_cell[1]+btd.ny:raise ValueError("Initial BTD cell outside extent")
         self.btd=btd;self.catalog=catalog;self.k=k;self.start=(cell_x,cell_y);self.lat=lat;self.lon=lon
-        self.cell_km=cell_km;self.scale=scale;self.res=resolution;self.center=None;self.cache=OrderedDict()
+        self.cell_km=cell_km;self.scale=scale;self.res=resolution;self.center=None;self.cache=OrderedDict();self.material_source=material_source
     def tile(self,x,y):
         from .starfield_planets import grid,skirt
         from .gpu_viewport import Material
@@ -161,7 +162,7 @@ class BTDStream:
             height=b.low+(b.high-b.low)*b.sample(a,c)/65535
             return ((u-.5)*32,(v-.5)*32,height*factor)
         meshes=[skirt(grid(r,point,lambda u,v:name),r,max(1.,abs(b.high-b.low)*factor*.25)) for r in (self.res,self.res//2,self.res//4)]
-        material=Material(diffuse=layer_image(b,x,y,0,0,1,1,size=32))
+        material=Material(diffuse=layer_image(b,x,y,0,0,1,1,size=32,material_source=self.material_source))
         self.cache[key]=(name,meshes,material)
         while len(self.cache)>18:self.cache.popitem(last=False)
         return self.cache[key]
@@ -191,5 +192,54 @@ class BTDStream:
         info.update(planet_stream=True,latitude=lat,longitude=lon,origin_game_units=(dx*32,dy*32,0),height_source="native BTD samples (user scale)",texture_source="native BTD weights, diagnostic colors")
         info["render_preview"]["planet_solar"]={"latitude":lat,"atmosphere":p.get("atmosphere")}
         info["issues"]=["Native BTD coverage only; geographic alignment, cell width and vertical conversion are user supplied; diagnostic LTEX colors"]
+        if self.material_source:
+            info["texture_source"]="native BTD weights, mapped diffuse textures where available"
+            info["issues"].extend(self.material_source.issues[:20])
         self.center=center
         return Scene(assets,instances),info
+
+class TerrainMaterials:
+    """Explicit raw BTD ID to winning LTEX record mapping.
+
+    Read native LTEX BNAM material paths and reuse the JSON MAT/DDS adapter.
+    Unknown IDs, CDB-only materials and missing textures use diagnostic colors.
+    """
+    def __init__(self,catalog,path,sources):
+        import json
+        from .record_graph import Identity
+        from .starfield_materials import NativeMaterials
+        from .starfield_preview import one,string
+        p=Path(path)
+        if p.stat().st_size>1024*1024:raise ValueError("Terrain material mapping exceeds budget")
+        doc=json.loads(p.read_text(encoding="utf-8"))
+        if doc.get("version")!=1 or not isinstance(doc.get("ltex"),dict) or len(doc["ltex"])>256:raise ValueError("Invalid LTEX mapping")
+        self.repeat=doc.get("repeat_samples",16)
+        if type(self.repeat) is not int or not 1<=self.repeat<=128:raise ValueError("Invalid texture repeat")
+        mapping={}
+        for raw,row in doc["ltex"].items():
+            if not isinstance(raw,str) or len(raw)!=8 or not isinstance(row,list) or len(row)!=2 or not isinstance(row[0],str) or type(row[1]) is not int or not 1<=row[1]<=0xffffff:raise ValueError("Invalid raw LTEX identity")
+            ident=int(raw,16)
+            if ident in mapping:raise ValueError("Duplicate raw LTEX ID")
+            mapping[ident]=Identity(row[0].casefold(),row[1])
+        wanted=set(mapping.values());paths={}
+        for plugin in catalog.plugins:
+            for k,sig,flags,w,c,items,p in plugin.scan(lambda sig,fid,c,slots:sig==b"LTEX" and slots.decode(fid) in wanted):
+                if flags&0x20:paths.pop(k,None)
+                else:paths[k]=string(one(items,b"BNAM"))
+        self.reader=NativeMaterials(None,sources);self.materials={};self.issues=[]
+        for raw,ident in mapping.items():
+            try:
+                name=paths.get(ident)
+                if not name:raise ValueError("Missing winning LTEX material path")
+                m=self.reader(name)
+                if m is not None:self.materials[raw]=m
+            except (ValueError,OSError,TypeError,ImportError) as exc:self.issues.append(f"{raw:08X}: {str(exc)[:120]}")
+    def color(self,key,x,y):
+        mat=self.materials.get(key)
+        if mat is None:return diagnostic_color(key)
+        im=mat.diffuse
+        if im is None:return mat.tint
+        u=(x%self.repeat)*im.width//self.repeat
+        v=im.height-1-(y%self.repeat)*im.height//self.repeat
+        i=4*(v*im.width+u)
+        return tuple(im.rgba[i+j]/255*mat.tint[j] for j in range(3))

@@ -524,19 +524,20 @@ def mount(parent):
                         if lon is None:return
                         span=simpledialog.askfloat("Landing width","Area width in kilometers",initialvalue=8,minvalue=.1,maxvalue=100,parent=win)
                         if span is None:return
-                        heights=None;native_btd=False
+                        heights=None;native_btd=False;terrain_materials=None
                         if messagebox.askyesno("Landing heightfield","Use a user-supplied square JSON heightfield in meters instead of illustrative terrain?",parent=win):
                             heightpath=filedialog.askopenfilename(parent=win,filetypes=[("Heightfield JSON","*.json")])
                             if heightpath:heights=Heightfield.load(heightpath)
                         if heights is None and messagebox.askyesno("Native terrain","Preview a local Starfield .btd terrain file instead of generated relief?",parent=win):
                             from .starfield_btd import BTD
-                            btd=None
+                            btd=None;sources=None
                             if messagebox.askyesno("BTD source","Read terrain from selected BA2 archives or a loose Data directory?",parent=win):
                                 from .starfield_assets import Sources
                                 archives=filedialog.askopenfilenames(parent=win,filetypes=[("BA2 archive","*.ba2")])
                                 loose=filedialog.askdirectory(parent=win,title="Optional loose Data directory")
                                 name=simpledialog.askstring("Terrain asset","Relative terrain/*.btd path",parent=win)
-                                if name and (archives or loose):btd=BTD.from_sources(Sources(archives,loose),name)
+                                if name and (archives or loose):
+                                    sources=Sources(archives,loose);btd=BTD.from_sources(sources,name)
                             else:
                                 btdpath=filedialog.askopenfilename(parent=win,filetypes=[("Starfield terrain","*.btd")])
                                 if btdpath:btd=BTD.load(btdpath)
@@ -548,9 +549,13 @@ def mount(parent):
                                 scale=simpledialog.askfloat("BTD height units","Meters per stored height unit (verify against game data)",initialvalue=1,minvalue=.0001,maxvalue=1000,parent=win)
                                 if scale is None:return
                                 heights=btd.heightfield(x,y,meters_per_height_unit=scale);native_btd=True
+                                if sources is not None and messagebox.askyesno("Native terrain materials","Use an explicit raw LTEX ID mapping to preview native JSON MAT diffuse textures?",parent=win):
+                                    from .starfield_btd import TerrainMaterials
+                                    mapping=filedialog.askopenfilename(parent=win,filetypes=[("LTEX identity map","*.json")])
+                                    if mapping:terrain_materials=TerrainMaterials(catalog,mapping,sources)
                                 if messagebox.askyesno("Native terrain streaming","Stream adjacent BTD cells? The selected landing width will be used as the width of ONE native cell.",parent=win):
                                     from .starfield_btd import BTDStream
-                                    stream=BTDStream(btd,catalog,k,x,y,lat,lon,span,scale)
+                                    stream=BTDStream(btd,catalog,k,x,y,lat,lon,span,scale,material_source=terrain_materials)
                         if stream is not None:
                             candidate,report=stream.update()
                         elif heights is None:
@@ -561,7 +566,7 @@ def mount(parent):
                             if native_btd:
                                 from .starfield_btd import apply_layer_preview
                                 report["height_source"]="native BTD samples (user scale)"
-                                candidate,report=apply_layer_preview(candidate,report,btd,x,y)
+                                candidate,report=apply_layer_preview(candidate,report,btd,x,y,material_source=terrain_materials)
                     else:candidate,report=globe(catalog,k)
                     if load_cell_preview(candidate,report,on_stream=stream.update if stream else None):source.set("Starfield "+p["name"]+" | "+report.get("height_source","illustrative")+" "+report["planet_mode"]+" preview")
                 except (ValueError,OSError,KeyError) as exc:messagebox.showerror("Planet preview",str(exc),parent=win)

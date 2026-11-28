@@ -331,3 +331,14 @@ class StarfieldPreviewTests(unittest.TestCase):
         self.assertEqual(a.assets["btd--1--1"].vertices[16][2],a.assets["btd-0--1"].vertices[0][2])
         self.assertLessEqual(len(stream.cache),18)
         with self.assertRaises(ValueError):stream.update(128,0)
+
+    def test_terrain_material_texture_sampling(self):
+        from chimster.starfield_btd import TerrainMaterials,diagnostic_color
+        from chimster.gpu_viewport import Material,ImageMap
+        material=TerrainMaterials.__new__(TerrainMaterials)
+        material.repeat=2
+        material.materials={0x801:Material(diffuse=ImageMap(2,2,bytes((255,0,0,255,0,255,0,255,0,0,255,255,255,255,255,255))),tint=(.5,1.,1.))}
+        self.assertEqual(material.color(0x801,0,0),(0.,0.,1.))
+        self.assertEqual(material.color(0x801,0,1),(.5,0.,0.))
+        self.assertEqual(material.color(0x801,2,0),(0.,0.,1.))
+        self.assertEqual(material.color(0x802,0,0),diagnostic_color(0x802))
