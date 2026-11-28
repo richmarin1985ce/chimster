@@ -39,30 +39,54 @@ def geometry(mesh):
     body+=pack("HiHIB",0x4000,-1,t,t*3,1)+b"".join(pack("3H",*f) for f,_ in mesh.faces)+pack("H",0)
     return body,center,tuple((b-a)/2 for a,b in zip(lo,hi))
 
-def encode(mesh,diffuse,normal,kind="terrain",segmented=False):
-    if kind not in ("terrain","object","companion"):raise ValueError("Unknown LOD shader")
-    for path in (diffuse,normal):
-        if not path.isascii() or not path.lower().endswith(".dds") or not path.lower().startswith("textures/") or any(p in ("",".","..") or ":" in p for p in path.split("/")):raise ValueError("Unsafe DDS path")
-    data,center,extent=geometry(mesh)
-    names=[b"Chimster LOD",b"LOD Geometry"]
-    root=av(0)+pack("IiI",1,1,0)+pack("i",5)
-    shape=av(1,(3,))+pack("iiIiB",2,-1,0,-1,0)
-    shape_type="NiTriShape"
-    if segmented:
-        shape_type="BSSegmentedTriShape"
-        shape+=pack("I",1)+pack("BII",0,0,len(mesh.faces))
-    flag={"terrain":2,"object":4,"companion":0}[kind]
-    shader=net()+pack("HIIIfIififf",1,1,0x80000000,1|flag,1.,0,4,0.,0,4.,1.)
-    textures=pack("I",6)+b"".join(string(p.replace("/","\\")) for p in (diffuse,normal,"","","",""))
-    blocks=[("BSMultiBoundNode",root),(shape_type,shape),("NiTriShapeData",data),
-            ("BSShaderPPLightingProperty",shader),("BSShaderTextureSet",textures),
-            ("BSMultiBound",pack("i",6)),("BSMultiBoundAABB",pack("6f",*center,*extent))]
+def encode_groups(groups,kind="terrain",tile_extent=None):
+    """One shape per material pair, with 16 ordered object segments when requested."""
+    if kind not in ("terrain","object","companion") or not 1<=len(groups)<=128:raise ValueError("Invalid LOD groups")
+    names=[b"Chimster LOD"];children=[];blocks=[None];bounds=[]
+    for mesh,diffuse,normal in groups:
+        for path in (diffuse,normal):
+            if not path.isascii() or not path.lower().endswith(".dds") or not path.lower().startswith("textures/") or any(p in ("",".","..") or ":" in p for p in path.split("/")):raise ValueError("Unsafe DDS path")
+        segments=None
+        if kind=="object":
+            if not tile_extent or tile_extent<=0:raise ValueError("Object LOD requires tile extent")
+            buckets=[[] for _ in range(16)]
+            for f,m in mesh.faces:
+                center=tuple(sum(mesh.vertices[v][a] for v in f)/3 for a in range(2))
+                x,y=(min(3,max(0,int(v/tile_extent*4))) for v in center)
+                buckets[y*4+x].append((f,m))
+            copied=Mesh();copied.vertices=list(mesh.vertices);copied.uv=list(mesh.uv)
+            copied.faces=[face for bucket in buckets for face in bucket];mesh=copied
+            segments=[];offset=0
+            for bucket in buckets:
+                segments.append((0,offset,len(bucket)));offset+=len(bucket)*3
+        data,center,extent=geometry(mesh)
+        bounds.extend(tuple(center[i]+sign*extent[i] for i in range(3)) for sign in (-1,1))
+        i=len(blocks);children.append(i);names.append(("LOD Geometry "+str(len(children))).encode("ascii"))
+        shape=av(len(names)-1,(i+2,))+pack("iiIiB",i+1,-1,0,-1,0)
+        shape_type="NiTriShape"
+        if segments is not None:
+            shape_type="BSSegmentedTriShape"
+            shape+=pack("I",len(segments))+b"".join(pack("BII",*s) for s in segments)
+        flag={"terrain":2,"object":4,"companion":0}[kind]
+        shader=net()+pack("HIIIfIififf",1,1,0x80000000,1|flag,1.,0,i+3,0.,0,4.,1.)
+        textures=pack("I",6)+b"".join(string(p.replace("/","\\")) for p in (diffuse,normal,"","","",""))
+        blocks.extend([(shape_type,shape),("NiTriShapeData",data),("BSShaderPPLightingProperty",shader),("BSShaderTextureSet",textures)])
+    lo=tuple(min(p[i] for p in bounds) for i in range(3));hi=tuple(max(p[i] for p in bounds) for i in range(3))
+    center=tuple((a+b)/2 for a,b in zip(lo,hi));extent=tuple((b-a)/2 for a,b in zip(lo,hi))
+    i=len(blocks)
+    root=av(0)+pack("I",len(children))+b"".join(pack("i",c) for c in children)+pack("Ii",0,i)
+    blocks[0]=("BSMultiBoundNode",root)
+    blocks.extend([("BSMultiBound",pack("i",i+1)),("BSMultiBoundAABB",pack("6f",*center,*extent))])
     types=list(dict.fromkeys(t for t,_ in blocks))
     header=MAGIC+pack("IBIII",0x14020007,1,11,len(blocks),34)+b"\x09Chimster\0\x01\0\x01\0"
     header+=pack("H",len(types))+b"".join(string(t) for t in types)
     header+=b"".join(pack("H",types.index(t)) for t,_ in blocks)+b"".join(pack("I",len(b)) for _,b in blocks)
     header+=pack("II",len(names),max(map(len,names)))+b"".join(string(s) for s in names)+pack("I",0)
     return header+b"".join(b for _,b in blocks)+pack("Ii",1,0)
+
+def encode(mesh,diffuse,normal,kind="terrain",segmented=False):
+    if segmented and kind!="object":raise ValueError("Only object LOD uses segments")
+    return encode_groups([(mesh,diffuse,normal)],kind,16384 if kind=="object" else None)
 
 class Reader:
     def __init__(self,raw):self.raw=raw;self.i=0
@@ -119,8 +143,8 @@ def decode_geometry(raw):
 def check(raw,expected):
     rows=blocks(raw)
     geom=[decode_geometry(b) for t,b in rows if t=="NiTriShapeData"]
-    if len(geom)!=1 or len(geom[0].faces)!=expected:raise ValueError("NIF geometry roundtrip mismatch")
-    return {"triangles":expected,"vertices":len(geom[0].vertices),"block_types":[t for t,_ in rows],"runtime_verified":False}
+    if not geom or sum(len(g.faces) for g in geom)!=expected:raise ValueError("NIF geometry roundtrip mismatch")
+    return {"triangles":expected,"vertices":sum(len(g.vertices) for g in geom),"block_types":[t for t,_ in rows],"runtime_verified":False}
 
 
 def read_static(raw):
