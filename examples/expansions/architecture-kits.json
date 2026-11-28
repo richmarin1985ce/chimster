@@ -1,0 +1,535 @@
+{
+  "schema": "chimster.expansion-architecture.v1",
+  "status": "original graybox specifications; not meshes or native records",
+  "units": "provisional playable meters; building dimensions not tied to regional geographic compression",
+  "common": {
+    "door_clear_width_m": 1.1,
+    "walk_clearance_m": 1.2,
+    "minimum_headroom_m": 2.3,
+    "materials": "semantic placeholders; use licensed original or locally installed assets only",
+    "review": [
+      "door and portal connectivity",
+      "stairs and collision clearance",
+      "alternate routes",
+      "navmesh or pathgrid",
+      "LOD silhouettes",
+      "independent native runtime validation"
+    ]
+  },
+  "projects": [
+    {
+      "project": "flagstaff",
+      "kits": [
+        {
+          "id": "pit_block",
+          "title": "Captivity complex",
+          "dimensions_m": [
+            12,
+            18,
+            4
+          ],
+          "materials": [
+            "stone",
+            "metal",
+            "timber"
+          ],
+          "zones": [
+            "intake",
+            "work yard",
+            "store",
+            "service exit"
+          ],
+          "status": "graybox brief"
+        },
+        {
+          "id": "trade_house",
+          "title": "Caravan house",
+          "dimensions_m": [
+            10,
+            14,
+            5
+          ],
+          "materials": [
+            "brick",
+            "timber",
+            "sheet metal"
+          ],
+          "zones": [
+            "shop",
+            "ledger room",
+            "loading court"
+          ],
+          "status": "graybox brief"
+        },
+        {
+          "id": "ranch_shed",
+          "title": "Ranch outbuilding",
+          "dimensions_m": [
+            8,
+            12,
+            4
+          ],
+          "materials": [
+            "timber",
+            "metal"
+          ],
+          "zones": [
+            "feed storage",
+            "animal yard",
+            "work bench"
+          ],
+          "status": "graybox brief"
+        },
+        {
+          "id": "motor_court",
+          "title": "Roadside motor court",
+          "dimensions_m": [
+            6,
+            8,
+            3
+          ],
+          "materials": [
+            "stucco",
+            "concrete",
+            "metal"
+          ],
+          "zones": [
+            "guest rooms",
+            "repair bay",
+            "road access"
+          ],
+          "status": "graybox brief"
+        }
+      ]
+    },
+    {
+      "project": "coldharbour",
+      "kits": [
+        {
+          "id": "ash_refuge",
+          "title": "Distorted ash village refuge",
+          "dimensions_m": [
+            8,
+            10,
+            5
+          ],
+          "materials": [
+            "dark stone",
+            "ash",
+            "iron"
+          ],
+          "zones": [
+            "entry",
+            "sleeping chamber",
+            "concealed exit"
+          ],
+          "status": "graybox brief"
+        },
+        {
+          "id": "ledger_vault",
+          "title": "Contract counting house",
+          "dimensions_m": [
+            10,
+            14,
+            6
+          ],
+          "materials": [
+            "stone",
+            "iron",
+            "glass"
+          ],
+          "zones": [
+            "broker hall",
+            "record vault",
+            "guarded rear door"
+          ],
+          "status": "graybox brief"
+        },
+        {
+          "id": "chain_gate",
+          "title": "Chained passage",
+          "dimensions_m": [
+            6,
+            12,
+            8
+          ],
+          "materials": [
+            "iron",
+            "stone"
+          ],
+          "zones": [
+            "approach",
+            "gate chamber",
+            "alternate passage"
+          ],
+          "status": "graybox brief"
+        },
+        {
+          "id": "warden_tower",
+          "title": "Bent watchtower",
+          "dimensions_m": [
+            8,
+            8,
+            18
+          ],
+          "materials": [
+            "stone",
+            "iron"
+          ],
+          "zones": [
+            "base",
+            "stairs",
+            "lookout",
+            "escape bridge"
+          ],
+          "status": "graybox brief"
+        }
+      ]
+    },
+    {
+      "project": "hunting",
+      "kits": [
+        {
+          "id": "forest_lodge",
+          "title": "Hunting lodge",
+          "dimensions_m": [
+            10,
+            14,
+            6
+          ],
+          "materials": [
+            "timber",
+            "rough stone",
+            "thatch"
+          ],
+          "zones": [
+            "hearth",
+            "gear storage",
+            "guest room",
+            "back trail"
+          ],
+          "status": "graybox brief"
+        },
+        {
+          "id": "pack_den",
+          "title": "Pack refuge den",
+          "dimensions_m": [
+            8,
+            12,
+            4
+          ],
+          "materials": [
+            "rock",
+            "root",
+            "wood"
+          ],
+          "zones": [
+            "entrance",
+            "rest chamber",
+            "secondary exit"
+          ],
+          "status": "graybox brief"
+        },
+        {
+          "id": "watch_post",
+          "title": "Forest watch post",
+          "dimensions_m": [
+            5,
+            5,
+            9
+          ],
+          "materials": [
+            "timber",
+            "rope",
+            "stone"
+          ],
+          "zones": [
+            "base",
+            "ladder",
+            "lookout"
+          ],
+          "status": "graybox brief"
+        },
+        {
+          "id": "trial_ring",
+          "title": "Ritual trial clearing",
+          "dimensions_m": [
+            24,
+            24,
+            0
+          ],
+          "materials": [
+            "stone",
+            "earth",
+            "wood"
+          ],
+          "zones": [
+            "entry",
+            "markers",
+            "escape perimeter"
+          ],
+          "status": "graybox brief"
+        }
+      ]
+    },
+    {
+      "project": "pits",
+      "kits": [
+        {
+          "id": "quarantine_hall",
+          "title": "Quarantine refuge",
+          "dimensions_m": [
+            12,
+            16,
+            5
+          ],
+          "materials": [
+            "salt stone",
+            "bronze",
+            "cloth"
+          ],
+          "zones": [
+            "entry",
+            "clinic",
+            "supply room",
+            "safe exit"
+          ],
+          "status": "graybox brief"
+        },
+        {
+          "id": "assay_lab",
+          "title": "Salt assay hall",
+          "dimensions_m": [
+            8,
+            12,
+            4
+          ],
+          "materials": [
+            "stone",
+            "ceramic",
+            "metal"
+          ],
+          "zones": [
+            "work room",
+            "storage",
+            "observation gallery"
+          ],
+          "status": "graybox brief"
+        },
+        {
+          "id": "pump_works",
+          "title": "Mineral pump station",
+          "dimensions_m": [
+            12,
+            18,
+            6
+          ],
+          "materials": [
+            "mineral stone",
+            "iron",
+            "glass"
+          ],
+          "zones": [
+            "control room",
+            "pump floor",
+            "maintenance passage"
+          ],
+          "status": "graybox brief"
+        },
+        {
+          "id": "rim_gate",
+          "title": "Abyss descent gate",
+          "dimensions_m": [
+            10,
+            10,
+            10
+          ],
+          "materials": [
+            "obsidian",
+            "iron",
+            "stone"
+          ],
+          "zones": [
+            "rim approach",
+            "inspection chamber",
+            "descent access"
+          ],
+          "status": "graybox brief"
+        }
+      ]
+    },
+    {
+      "project": "baltimore",
+      "kits": [
+        {
+          "id": "rowhouse",
+          "title": "Urban rowhouse module",
+          "dimensions_m": [
+            5,
+            12,
+            8
+          ],
+          "materials": [
+            "brick",
+            "wood",
+            "concrete"
+          ],
+          "zones": [
+            "street entry",
+            "ground floor",
+            "upper floor",
+            "rear yard"
+          ],
+          "status": "graybox brief"
+        },
+        {
+          "id": "warehouse",
+          "title": "Harbor warehouse bay",
+          "dimensions_m": [
+            12,
+            18,
+            7
+          ],
+          "materials": [
+            "brick",
+            "steel",
+            "concrete"
+          ],
+          "zones": [
+            "loading dock",
+            "storage bay",
+            "service door"
+          ],
+          "status": "graybox brief"
+        },
+        {
+          "id": "utility_node",
+          "title": "Utility switching room",
+          "dimensions_m": [
+            10,
+            12,
+            4
+          ],
+          "materials": [
+            "concrete",
+            "steel",
+            "ceramic"
+          ],
+          "zones": [
+            "control room",
+            "service corridor",
+            "maintenance exit"
+          ],
+          "status": "graybox brief"
+        },
+        {
+          "id": "street_corner",
+          "title": "Commercial corner building",
+          "dimensions_m": [
+            10,
+            14,
+            9
+          ],
+          "materials": [
+            "brick",
+            "glass",
+            "metal"
+          ],
+          "zones": [
+            "storefront",
+            "stairs",
+            "upper space",
+            "rear passage"
+          ],
+          "status": "graybox brief"
+        }
+      ]
+    },
+    {
+      "project": "nautica",
+      "kits": [
+        {
+          "id": "boathouse",
+          "title": "Coastal boathouse",
+          "dimensions_m": [
+            8,
+            14,
+            5
+          ],
+          "materials": [
+            "weathered timber",
+            "metal",
+            "stone"
+          ],
+          "zones": [
+            "shore door",
+            "workshop",
+            "boat slip"
+          ],
+          "status": "graybox brief"
+        },
+        {
+          "id": "cottage",
+          "title": "Coastal cottage",
+          "dimensions_m": [
+            7,
+            10,
+            5
+          ],
+          "materials": [
+            "shingle",
+            "timber",
+            "stone"
+          ],
+          "zones": [
+            "porch",
+            "living space",
+            "upper room",
+            "rear path"
+          ],
+          "status": "graybox brief"
+        },
+        {
+          "id": "beacon",
+          "title": "Beacon tower",
+          "dimensions_m": [
+            6,
+            6,
+            16
+          ],
+          "materials": [
+            "stone",
+            "metal",
+            "glass"
+          ],
+          "zones": [
+            "base",
+            "stairs",
+            "lantern room"
+          ],
+          "status": "graybox brief"
+        },
+        {
+          "id": "fish_shed",
+          "title": "Fishing and salvage shed",
+          "dimensions_m": [
+            8,
+            12,
+            4
+          ],
+          "materials": [
+            "timber",
+            "sheet metal",
+            "rope"
+          ],
+          "zones": [
+            "loading area",
+            "storage",
+            "repair bench"
+          ],
+          "status": "graybox brief"
+        }
+      ]
+    }
+  ]
+}
