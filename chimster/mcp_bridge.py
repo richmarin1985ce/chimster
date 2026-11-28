@@ -203,15 +203,33 @@ def serve(bridge, source, sink):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="chimster --mcp")
-    parser.add_argument("--project", help="Explicit local Chimster project granted read access")
+    selection=parser.add_mutually_exclusive_group()
+    selection.add_argument("--project", help="Explicit local Chimster project granted read access")
+    selection.add_argument("--active-instance", help="Explicitly select a locally discovered editor instance ID")
+    selection.add_argument("--discover-active", action="store_true", help="List active local editor projects and exit")
+    selection.add_argument("--active", action="store_true", help="Select the sole active local editor project; fail if ambiguous")
     parser.add_argument("--allow-create", action="store_true", help="Explicitly allow the trusted client to create new project text artifacts")
     parser.add_argument("--client-config", action="store_true", help="Print local MCP client configuration; no files changed")
     parser.add_argument("--describe", action="store_true", help="Print the capability manifest and exit")
     args = parser.parse_args(argv)
     try:
-        if args.allow_create and not args.project:
-            raise ValueError("creation requires a selected project")
-        bridge = Bridge(Project(args.project) if args.project else None, args.allow_create)
+        from .editor_presence import discover, select
+        if args.discover_active:
+            if args.allow_create or args.describe or args.client_config:
+                raise ValueError("discovery is a standalone read-only operation")
+            print(json.dumps(discover(),indent=2))
+            return
+        project=Project(args.project) if args.project else None
+        if args.active_instance:
+            project=select(args.active_instance)
+        elif args.active:
+            instances=discover()
+            if len(instances)!=1:
+                raise ValueError("exactly one active instance required")
+            project=select(instances[0]["id"])
+        if args.allow_create and (project is None or not args.project):
+            raise ValueError("write permission requires an explicit project path")
+        bridge = Bridge(project, args.allow_create)
     except (ValueError, OSError, KeyError, TypeError):
         parser.exit(2, "Invalid or unavailable Chimster project\n")
     if args.client_config:
@@ -224,8 +242,8 @@ def main(argv=None):
         elif not executable:
             executable=sys.executable
             command_args=["-m","chimster","--mcp"]
-        if args.project:
-            command_args.extend(["--project",str(Path(args.project).resolve())])
+        if project:
+            command_args.extend(["--project",str(project.root)])
         if args.allow_create:
             command_args.append("--allow-create")
         print(json.dumps({"mcpServers":{"chimster":{"command":executable,"args":command_args}}},indent=2))
