@@ -199,3 +199,40 @@ def stage_override(stage,master,output):
         if created:out.unlink()
         raise
     return {"output":str(out),"registered_new_meshes":len(entries),"preserved_master_entries":sum(k==b"NVMI" for k,v in maps),"status":"experimental native NAVI override candidate; independent GECK and game validation required"}
+
+def candidate(project):
+    """Build a payload-only NAVI extension from local reference entries.
+
+    Exterior references must be exact NVMI bytes in the supplied base NAVI and
+    come with independently established XCLC coordinates. Do not trust arbitrary
+    user-supplied ordering or overwrite a plugin.
+    """
+    from .fnv_navi_variants import infer_grid_order
+    from .fnv_navmesh_review import fields
+    from .fnv_navmesh import inspect
+    if set(project)-{"base","meshes","registrations","grid_references"}:
+        raise ValueError("unknown NAVI candidate fields")
+    base=fields(project["base"]);existing={v for k,v in base if k==b"NVMI"}
+    metadata={}
+    for entry in project.get("registrations",[]):
+        if not isinstance(entry,dict) or "form_id" not in entry:raise ValueError("registration FormID required")
+        fid=form(entry["form_id"])
+        if fid in metadata:raise ValueError("duplicate registration metadata")
+        metadata[fid]={k:v for k,v in entry.items() if k!="form_id"}
+    exterior=any("world" in row for row in metadata.values())
+    references=[]
+    for ref in project.get("grid_references",[]):
+        if set(ref)!={"nvmi_hex","grid"}:raise ValueError("expected reference bytes and XCLC grid")
+        raw=bytes.fromhex(ref["nvmi_hex"])
+        if raw not in existing:raise ValueError("grid reference is not an entry of base NAVI")
+        references.append((raw,ref["grid"]))
+    order=infer_grid_order(references) if exterior or references else None
+    meshes=[]
+    for row in project["meshes"]:
+        report,_=inspect(fields(row))
+        if len(report["grid_candidates"])!=1:raise ValueError("native NAVM grid framing requires review")
+        meshes.append((form(row["form_id"]),report))
+    output=extend(base,meshes,registrations=metadata,grid_order=order)
+    return {"fields":[[k.decode("ascii"),v.hex()] for k,v in output],
+            "grid_order":order,"new_registrations":len(meshes),"preserved_base_fields":len(base),
+            "status":"experimental NAVI payload; verify worldspace, XCLC, preferred convention, GECK and engine behavior"}
