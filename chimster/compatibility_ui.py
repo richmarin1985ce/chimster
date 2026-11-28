@@ -62,9 +62,19 @@ def mount(parent,game=None):
         query=simpledialog.askstring("Asset lookup","Relative asset path")
         if query:return resolve(catalog,query)
         return {"indexed_paths":len(catalog),"layers":[name for name,_ in layers]}
+    def packed_assets():
+        from .archive_reader import directory,read
+        from tkinter import simpledialog
+        archive_path=filedialog.askopenfilename(filetypes=[("Archives","*.bsa *.ba2")])
+        if not archive_path:return None
+        entries=directory(archive_path)
+        query=simpledialog.askstring("Archive browser","Filter member paths (blank for first 500)")
+        if query is None:return None
+        matches=[name for name in entries if query.casefold().replace("\\\\","/") in name]
+        return {"archive":archive_path,"total":len(entries),"matches":len(matches),"members":matches[:500]}
     actions=ttk.Frame(parent);actions.pack(fill="x")
     for label,fn in [
-        ("Asset lookup",assets),("Installation",root),("Capabilities",lambda:capabilities(profile.get())),
+        ("Packed assets",packed_assets),("Asset lookup",assets),("Installation",root),("Capabilities",lambda:capabilities(profile.get())),
         ("Plugin",lambda:choose(lambda p,d:audit(profile.get(),d))),
         ("Dependencies",dependencies),("Archive header",lambda:choose(lambda p,d:archive(d),36)),
         ("NIF header",lambda:choose(lambda p,d:nif(d),256)),
