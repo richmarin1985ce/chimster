@@ -45,7 +45,8 @@ class NativePortalTests(unittest.TestCase):
             portal={"kind":"portal","id":"P","base":{"plugin":base.name,"id":0x801},
                     "position":[4,2,1.5],"rotation":[0,0,0],"primitive_hex":primitive(3),
                     "collision_layer":18,"rooms":["A","B"],
-                    "geometry_hex":struct.pack("<9f",2,3,4,2,1.5,0,0,0,1).hex()}
+                    "geometry_hex":struct.pack("<9f",2,3,4,2,1.5,0,0,0,1).hex(),
+                    "geometry_convention":{"order":"xyzw","plane":"yz","dimension_factor":0.5}}
             spec={"schema":1,"cells":[{"id":"Interior","title":"Interior","layout":layout,
                                       "native_markers":rooms+[portal]}]}
             path=root/"Interior.esp";out=export(spec,path,[base])
