@@ -111,6 +111,11 @@ def build_parser():
  a=s.add_parser('legacy-script-prepare'); a.add_argument('game'); a.add_argument('plugin'); a.add_argument('output'); a.add_argument('identity'); a.add_argument('source')
  a=s.add_parser('legacy-script-attach'); a.add_argument('game'); a.add_argument('draft'); a.add_argument('donor'); a.add_argument('output')
  a=s.add_parser('lua-check'); a.add_argument('compiler'); a.add_argument('source'); a.add_argument('--execute',action='store_true'); a.add_argument('--timeout',type=int,default=30)
+ a=s.add_parser('compiler-discover'); a.add_argument('game'); a.add_argument('--install')
+ a=s.add_parser('compiler-profile-create'); a.add_argument('path'); a.add_argument('game'); a.add_argument('backend',choices=['ck','caprica']); a.add_argument('compiler'); a.add_argument('flags'); a.add_argument('--import',dest='imports',action='append',default=[])
+ for opt in ('optimize','release','final','warnings-as-errors'): a.add_argument('--'+opt,action='store_true')
+ a=s.add_parser('compiler-profile-build'); a.add_argument('profile'); a.add_argument('source'); a.add_argument('output'); a.add_argument('--project',action='store_true'); a.add_argument('--execute',action='store_true'); a.add_argument('--reuse'); a.add_argument('--timeout',type=int,default=120)
+ a=s.add_parser('papyrus-log'); a.add_argument('path')
  a=s.add_parser('papyrus-build'); a.add_argument('game'); a.add_argument('backend',choices=['ck','caprica']); a.add_argument('compiler'); a.add_argument('source'); a.add_argument('flags'); a.add_argument('output'); a.add_argument('--import',dest='imports',action='append',default=[]); a.add_argument('--execute',action='store_true'); a.add_argument('--timeout',type=int,default=120)
  for opt in ('optimize','release','final','warnings-as-errors'): a.add_argument('--'+opt,action='store_true')
  a=s.add_parser('papyrus-batch'); a.add_argument('game'); a.add_argument('backend',choices=['ck','caprica']); a.add_argument('compiler'); a.add_argument('source_root'); a.add_argument('flags'); a.add_argument('output'); a.add_argument('--import',dest='imports',action='append',default=[]); a.add_argument('--execute',action='store_true'); a.add_argument('--timeout',type=int,default=120)
@@ -318,6 +323,20 @@ def main(argv=None):
    result=check(n.compiler,n.source,execute=n.execute,timeout=n.timeout)
    if n.execute and result['status']!='syntax-checked':
     print(json.dumps(result,indent=2)); raise SystemExit(1)
+  elif n.cmd=='compiler-discover':
+   from .compiler_profiles import discover
+   result=discover(n.game,n.install)
+  elif n.cmd=='compiler-profile-create':
+   from .compiler_profiles import create
+   result=create(n.path,n.game,n.backend,n.compiler,n.flags,n.imports,options={k:getattr(n,k) for k in ('optimize','release','final','warnings_as_errors')})
+  elif n.cmd=='compiler-profile-build':
+   from .compiler_profiles import configured_build
+   result=configured_build(n.profile,n.source,n.output,project=n.project,execute=n.execute,reuse=n.reuse,timeout=n.timeout)
+   if n.execute and result.get('status')!='header-checked':
+    print(json.dumps(result,indent=2)); raise SystemExit(1)
+  elif n.cmd=='papyrus-log':
+   from .papyrus_runtime import inspect
+   result=inspect(n.path)
   elif n.cmd=='papyrus-build':
    from .papyrus_build import build
    result=build(n.game,n.backend,n.compiler,n.source,n.flags,n.imports,n.output,execute=n.execute,timeout=n.timeout,options={k:getattr(n,k) for k in ('optimize','release','final','warnings_as_errors')})
