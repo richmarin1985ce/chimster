@@ -10,6 +10,7 @@ from .mcp_events import Subscriptions
 from .mcp_native import NativeProposals
 from .mcp_extended import native_profile, native_browse, native_detail, MeshProposals, ReferenceProposals, REFERENCE_PROFILES
 from .mcp_production import Production
+from .mcp_structure import StructureProposals
 
 VERSIONS = ("2024-11-05", "2025-03-26", "2025-06-18", "2025-11-25")
 MAX_LINE = 1024 * 1024
@@ -26,6 +27,7 @@ class Bridge:
         if allow_native and (not allow_edit or project is None or native_profile(project.read()["game"]) not in REFERENCE_PROFILES):
             raise ValueError("native edits require explicit supported project and edit permission")
         self.native=NativeProposals(project,self.creation,allow_native) if project is not None else None
+        self.structure=StructureProposals(project,self.creation,allow_native) if project is not None else None
         self.references=ReferenceProposals(project,self.creation,allow_native) if project is not None else None
         self.mesh=MeshProposals(project,self.creation,allow_create) if project is not None else None
         self.production=Production(project,self.creation,allow_create) if project is not None else None
@@ -77,7 +79,13 @@ class Bridge:
                                   schema({"id":key,"identity":identity,"index":{"type":"integer","minimum":0},"offset":{"type":"integer","minimum":0},
                                           "expected_identity":identity,"target_identity":identity,"revision":{"type":"integer","minimum":0},"sha256":{"type":"string","maxLength":64}},
                                          ["id","identity","index","offset","expected_identity","target_identity","revision","sha256"]),self.references.preview)
+                    self.register("native_structure_preview","Stage simple global duplication or numeric edit; New Vegas also supports simple exterior static reference relocation.",
+                                  schema({"id":key,"identity":identity,"operation":{"type":"string","maxLength":32},"revision":{"type":"integer","minimum":0},"sha256":{"type":"string","maxLength":64},
+                                          "new_edid":{"type":"string","maxLength":64},"value":{"type":"string","maxLength":64},"destination":identity,
+                                          "x":{"type":"integer","minimum":-10000000,"maximum":10000000},"y":{"type":"integer","minimum":-10000000,"maximum":10000000},"z":{"type":"integer","minimum":-10000000,"maximum":10000000}},
+                                         ["id","identity","operation","revision","sha256"]),self.structure.preview)
                     if allow_native:
+                        self.register("native_structure_apply","Apply exact staged native duplication, relocation or global edit.",schema({"token":{"type":"string","maxLength":80}},["token"]),self.structure.apply,write=True,destructive=True)
                         self.register("native_reference_apply","Commit an exact staged reference edit in a new project revision.",schema({"token":{"type":"string","maxLength":80}},["token"]),self.references.apply,write=True,destructive=True)
             self.register("asset_preview_transform","Stage a transformed intermediate OBJ as a separate project artifact.",
                           schema({"id":key,"output_id":key,"scale_percent":{"type":"integer","minimum":1,"maximum":1000},"yaw_degrees":{"type":"integer","minimum":-360,"maximum":360},"ground":{"type":"boolean"},"revision":{"type":"integer","minimum":0},"sha256":{"type":"string","maxLength":64}},["id","output_id","scale_percent","yaw_degrees","ground","revision","sha256"]),self.mesh.preview)
@@ -108,6 +116,7 @@ class Bridge:
                 self.register("asset_inspect_"+op, "Inspect a selected project "+op+" artifact using existing Chimster tooling.",
                               schema({"id":key},["id"]),lambda id,op=op:inspect_asset(project,id,op))
             operations=["navmesh","fuz","mesh-lod","mesh-preview"]
+            if importlib.util.find_spec("moderngl") is not None:operations.append("scene-render")
             if project.read()["game"]=="newvegas":operations.append("native-build")
             if importlib.util.find_spec("fontTools") is not None:operations.append("font")
             if importlib.util.find_spec("PIL") is not None:operations.append("texture-material")
