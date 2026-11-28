@@ -9,7 +9,7 @@ from .max_height import decode_land
 UNITS = 128.0
 
 
-def preview(browser, key, radius=0):
+def preview(browser, key, radius=0, models=None):
     if type(radius) is not int or not 0 <= radius <= 2:
         raise ValueError("Cell radius must be 0, 1 or 2")
     cell = browser.active.get(key)
@@ -34,6 +34,8 @@ def preview(browser, key, radius=0):
     refs = {}
     land_count = 0
     skipped = 0
+    model_count = 0
+    model_failures = set()
     for row in cells:
         coord = row.get("grid")
         children = browser.children.get(row["key"], ())
@@ -73,10 +75,23 @@ def preview(browser, key, radius=0):
         if len(instances)>=5000:
             skipped += 1
             continue
-        instances.append(Instance(label(ref["key"]),"reference",x,y,z,yaw,scale))
+        asset = "reference"
+        base = browser.active.get(ref.get("base"),{})
+        model = base.get("model")
+        if models is not None and model and model not in model_failures:
+            candidate = "model:"+model.casefold()
+            try:
+                if candidate not in assets:
+                    assets[candidate] = models(model)
+                asset = candidate
+                model_count += 1
+            except Exception as exc:
+                model_failures.add(model)
+                issues.append(f"Model {model}: {str(exc)[:200]}")
+        instances.append(Instance(label(ref["key"]),asset,x,y,z,yaw,scale))
     return Scene(assets,instances), {
         "cell":label(key),"cells":len(cells),"land_tiles":land_count,
-        "proxy_references":len(instances)-land_count,"skipped_references":skipped,
+        "proxy_references":len(instances)-land_count-model_count,"model_references":model_count,"skipped_references":skipped,
         "origin_game_units":(ox,oy,0),"units_per_preview_unit":UNITS,
-        "issues":issues,"mode":"Read-only LAND geometry and reference markers; not native NIF assets"
+        "issues":issues,"mode":"Read-only LAND and optional static loose NIF geometry; unsupported assets use markers"
     }
