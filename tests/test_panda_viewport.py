@@ -1,7 +1,7 @@
 import importlib.util
 import unittest
 from math import inf
-from chimster.panda_viewport import lod_ranges, texture_bytes, build_scene
+from chimster.panda_viewport import lod_ranges, texture_bytes, build_scene, lens_fov
 from chimster.gpu_viewport import ImageMap, Material, Settings
 from chimster.scene import Scene, Instance
 from chimster.flora import Mesh
@@ -13,6 +13,11 @@ class PandaViewportTests(unittest.TestCase):
         self.assertEqual(lod_ranges([True]*4,(10,20,30)),[(0,0,10),(1,10,20),(2,20,30),(3,30,inf)])
         with self.assertRaises(ValueError):
             lod_ranges([True]*4,(20,10,30))
+
+    def test_lens_fov(self):
+        self.assertAlmostEqual(lens_fov(45,1)[0],45)
+        self.assertGreater(lens_fov(45,2)[0],45)
+        self.assertEqual(lens_fov(45,2)[1],45)
 
     def test_texture_row_order(self):
         image=ImageMap(1,2,bytes((255,0,0,255,0,0,255,255)))

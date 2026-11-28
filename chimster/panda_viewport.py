@@ -1,5 +1,5 @@
 """Optional Panda3D scene adapter; no Panda dependency at import time."""
-from math import inf
+from math import inf, atan, tan, radians, degrees
 
 def lod_ranges(available, distances):
     """Coalesce missing tiers using the closest available finer mesh."""
@@ -18,6 +18,11 @@ def lod_ranges(available, distances):
             near=edges[tier]
     result.append((active,near,inf))
     return result
+
+
+def lens_fov(vertical, aspect):
+    """Convert the shared vertical FOV to Panda's horizontal/vertical pair."""
+    return degrees(2*atan(tan(radians(vertical)/2)*aspect)),vertical
 
 
 def texture_bytes(image):
@@ -148,7 +153,7 @@ class Preview:
             if self.model is not None:self.model.remove_node()
             self.model=candidate;self.model.reparent_to(self.root);self.key=key
         eye,_,_,_,_,_=basis(camera,w,h,settings)
-        self.lens.set_aspect_ratio(w/h);self.lens.set_fov(settings.fov);self.lens.set_near_far(settings.near,settings.far)
+        self.lens.set_aspect_ratio(w/h);self.lens.set_fov(*lens_fov(settings.fov,w/h));self.lens.set_near_far(settings.near,settings.far)
         self.visibility_report=self.visibility.update(eye) if self.visibility is not None else None
         self.camera.set_pos(*eye);self.camera.look_at(*camera.center)
         self.engine.render_frame();self.engine.sync_frame()

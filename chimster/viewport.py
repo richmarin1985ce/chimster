@@ -9,7 +9,7 @@ def mount(parent):
     from .gpu_viewport import Renderer, Settings, make_demo, load_materials
     scene,materials=make_demo();camera=Camera();selected=None;drag=None
     renderer=None;panda=None;photo=None;render_size=(1,1);settings=Settings();failure=''
-    backend=tk.StringVar(value='CPU');lod_text=tk.StringVar(value='22,45,90')
+    backend=tk.StringVar(value='Panda3D');lod_text=tk.StringVar(value='22,45,90')
     toolbar=ttk.Frame(parent);toolbar.pack(fill="x")
     pane=ttk.Panedwindow(parent,orient="horizontal");pane.pack(fill="both",expand=True)
     canvas=tk.Canvas(pane,bg="#1b232c",highlightthickness=0);pane.add(canvas,weight=4)
@@ -30,13 +30,13 @@ def mount(parent):
                 if panda is None:panda=Preview()
                 w,h=canvas.winfo_width(),canvas.winfo_height()
                 factor=min(1,1280/w,720/h);rw,rh=max(1,int(w*factor)),max(1,int(h*factor))
-                raw=panda.render(scene,replace(camera,zoom=camera.zoom*factor),rw,rh)
+                raw=panda.render(scene,replace(camera,zoom=camera.zoom*factor),rw,rh,materials,settings)
                 photo=ImageTk.PhotoImage(Image.frombytes("RGBA",(rw,rh),raw).resize((w,h)))
                 canvas.create_image(0,0,image=photo,anchor="nw",tags=("gl",))
-                status.set("Panda3D experimental | select objects in sidebar")
+                status.set("Panda3D | textured mesh LOD | select objects in sidebar")
                 return
             except Exception as e:
-                failure=str(e)[:180];backend.set("CPU")
+                failure="Panda3D: "+str(e)[:150];backend.set("ModernGL")
                 if panda is not None:
                     try:panda.close()
                     except Exception:pass
@@ -54,10 +54,10 @@ def mount(parent):
                 if (rw,rh)!=(w,h):image=image.resize((w,h),Image.Resampling.BILINEAR)
                 photo=ImageTk.PhotoImage(image);render_size=(rw,rh)
                 canvas.create_image(0,0,image=photo,anchor="nw",tags=("gl",))
-                status.set(f'{stats["renderer"]} | {stats["triangles"]} tris | {stats["draw_calls"]} draws | {stats["culled"]} culled | {stats["frame_ms"]:.1f} ms | LOD {stats["lod_counts"]}')
+                status.set(f'{stats["renderer"]} | {stats["triangles"]} tris | {stats["draw_calls"]} draws | {stats["culled"]} culled | {stats["frame_ms"]:.1f} ms | LOD {stats["lod_counts"]}' + (" | "+failure if failure else ""))
                 return
             except Exception as e:
-                failure=str(e)[:180];backend.set("CPU")
+                failure=(failure+" | " if failure else "")+"ModernGL: "+str(e)[:150];backend.set("CPU")
                 if renderer is not None:
                     try:renderer.close()
                     except Exception:pass
@@ -167,12 +167,23 @@ def mount(parent):
             finally:renderer=None
     parent.bind("<Destroy>",release,add="+")
     controls=ttk.Frame(parent);controls.pack(fill="x",before=pane)
-    choice=ttk.Combobox(controls,textvariable=backend,values=("CPU","ModernGL","Panda3D"),state="readonly",width=12)
-    choice.pack(side="left");choice.bind("<<ComboboxSelected>>",lambda e:draw())
+    choice=ttk.Combobox(controls,textvariable=backend,values=("Panda3D","ModernGL","CPU"),state="readonly",width=12)
+    choice.pack(side="left")
+    def switch_backend(event=None):
+        nonlocal renderer,panda,failure
+        failure=""
+        if backend.get()!="Panda3D" and panda is not None:
+            try:panda.close()
+            finally:panda=None
+        if backend.get()!="ModernGL" and renderer is not None:
+            try:renderer.close()
+            finally:renderer=None
+        draw()
+    choice.bind("<<ComboboxSelected>>",switch_backend)
     def toggle_setting(name,value):
         nonlocal settings
         settings=replace(settings,**{name:value}).validate();draw()
-    for name,label in (("cull","Culling"),("instancing","Instancing"),("hierarchy","Spatial hierarchy")):
+    for name,label in (("cull","GL culling"),("instancing","GL instancing"),("hierarchy","GL hierarchy")):
         var=tk.BooleanVar(value=getattr(settings,name))
         ttk.Checkbutton(controls,text=label,variable=var,
             command=lambda n=name,v=var:toggle_setting(n,v.get())).pack(side="left")
