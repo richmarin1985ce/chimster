@@ -104,7 +104,8 @@
           "type": "interior",
           "region": "slice",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "labor",
@@ -120,7 +121,8 @@
           "type": "interior",
           "region": "slice",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "service",
@@ -128,7 +130,8 @@
           "type": "interior",
           "region": "slice",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "repair",
@@ -152,7 +155,8 @@
           "type": "interior",
           "region": "city",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "depot",
@@ -184,7 +188,8 @@
           "type": "interior",
           "region": "rural",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "well",
@@ -200,7 +205,8 @@
           "type": "interior",
           "region": "highway",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "culvert",
@@ -208,7 +214,8 @@
           "type": "interior",
           "region": "highway",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "motel",
@@ -216,7 +223,8 @@
           "type": "interior",
           "region": "highway",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "museum",
@@ -224,7 +232,8 @@
           "type": "interior",
           "region": "highway",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "surveycamp",
@@ -240,7 +249,8 @@
           "type": "interior",
           "region": "east",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "ridge",
@@ -264,7 +274,8 @@
           "type": "interior",
           "region": "city",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "refuge",
@@ -280,7 +291,8 @@
           "type": "interior",
           "region": "city",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "crossroads",
@@ -295,6 +307,306 @@
           "name": "Mojave return point",
           "type": "transition",
           "region": "highway",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_01",
+          "name": "Intake inspection office",
+          "type": "interior",
+          "region": "slice",
+          "parent_location": "pit",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Confiscation records and alternate exit",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_02",
+          "name": "Workers' quarters",
+          "type": "interior",
+          "region": "slice",
+          "parent_location": "labor",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Captive testimony and personal effects",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_03",
+          "name": "Caravan inn",
+          "type": "interior",
+          "region": "city",
+          "parent_location": "market",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Rumors and trade contacts",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_04",
+          "name": "Cloth and leather shop",
+          "type": "interior",
+          "region": "city",
+          "parent_location": "market",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Civilian clothing and repair",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_05",
+          "name": "Charter treasury",
+          "type": "interior",
+          "region": "city",
+          "parent_location": "market",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Disputed accounts",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_06",
+          "name": "Supply guard barracks",
+          "type": "interior",
+          "region": "city",
+          "parent_location": "depot",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Provisioning orders",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_07",
+          "name": "Rusk farmhouse",
+          "type": "interior",
+          "region": "rural",
+          "parent_location": "ranch",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Family history",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_08",
+          "name": "Bighorner shelter",
+          "type": "interior",
+          "region": "rural",
+          "parent_location": "ranch",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Animal care and feed",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_09",
+          "name": "Fallow garage",
+          "type": "interior",
+          "region": "slice",
+          "parent_location": "repair",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Workbenches and memorabilia",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_10",
+          "name": "Hidden safehouse",
+          "type": "interior",
+          "region": "rural",
+          "parent_location": "refuge",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Family reunification",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_11",
+          "name": "Abandoned cinder mine",
+          "type": "interior",
+          "region": "rural",
+          "parent_location": "quarry",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Unstable levels and salvage",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_12",
+          "name": "East ridge listening bunker",
+          "type": "interior",
+          "region": "east",
+          "parent_location": "ridge",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Optional intelligence clues",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_13",
+          "name": "Highway drainage labyrinth",
+          "type": "interior",
+          "region": "highway",
+          "parent_location": "culvert",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Flooded bypass",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_14",
+          "name": "Motor court cellar",
+          "type": "interior",
+          "region": "highway",
+          "parent_location": "motel",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Locked stores and guest records",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_15",
+          "name": "Sealed logistics vault",
+          "type": "interior",
+          "region": "city",
+          "parent_location": "depot",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Competing cargo claims",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_16",
+          "name": "Collapsed overpass chambers",
+          "type": "interior",
+          "region": "highway",
+          "parent_location": "crossroads",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Vertical scavenging routes",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_17",
+          "name": "Old pumping works",
+          "type": "interior",
+          "region": "rural",
+          "parent_location": "well",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Water routing puzzle",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_18",
+          "name": "Service tunnel network",
+          "type": "interior",
+          "region": "highway",
+          "parent_location": "station",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Hidden route and caches",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_19",
+          "name": "Cold storage plant",
+          "type": "interior",
+          "region": "rural",
+          "parent_location": "stockyard",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Power puzzle and supply evidence",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_20",
+          "name": "Surveyor's field shelter",
+          "type": "interior",
+          "region": "east",
+          "parent_location": "surveycamp",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Field notes",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_21",
+          "name": "Clinic annex",
+          "type": "interior",
+          "region": "city",
+          "parent_location": "clinic",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Patient stories",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_22",
+          "name": "Civilian cookhouse",
+          "type": "interior",
+          "region": "city",
+          "parent_location": "market",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Food prices and encounters",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_23",
+          "name": "Ranch bunkhouse",
+          "type": "interior",
+          "region": "rural",
+          "parent_location": "ranch",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Worker conversations",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_24",
+          "name": "Hearing archive",
+          "type": "interior",
+          "region": "city",
+          "parent_location": "court",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Past judgments",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_25",
+          "name": "Road history annex",
+          "type": "interior",
+          "region": "highway",
+          "parent_location": "museum",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Motoring collectibles",
           "design_status": "proposed",
           "native_status": "unbuilt"
         }
@@ -906,7 +1218,11 @@
           35,
           50
         ],
-        "note": "targets not measured playtime; count meaningful authored quests, no radiant padding"
+        "note": "targets not measured playtime; count meaningful authored quests, no radiant padding",
+        "enterable_interiors": 35,
+        "substantial_dungeons": 15,
+        "interior_cells_minimum": 75,
+        "interior_count_note": "50 named destinations include interiors; 75 cells is a separate implementation budget, not unique destinations. Avoid inaccessible decorative hubs."
       }
     },
     {
@@ -1025,7 +1341,8 @@
           "type": "interior",
           "region": "slice",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "gate",
@@ -1049,7 +1366,8 @@
           "type": "interior",
           "region": "west",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "bridge",
@@ -1065,7 +1383,8 @@
           "type": "interior",
           "region": "west",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "archive",
@@ -1073,7 +1392,8 @@
           "type": "interior",
           "region": "north",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "tower",
@@ -1081,7 +1401,8 @@
           "type": "interior",
           "region": "north",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "terrace",
@@ -1097,7 +1418,8 @@
           "type": "interior",
           "region": "north",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "canal",
@@ -1121,7 +1443,8 @@
           "type": "interior",
           "region": "east",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "fort",
@@ -1137,7 +1460,8 @@
           "type": "interior",
           "region": "east",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "foundry",
@@ -1145,7 +1469,8 @@
           "type": "interior",
           "region": "south",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "quarry",
@@ -1161,7 +1486,8 @@
           "type": "interior",
           "region": "south",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "road",
@@ -1177,7 +1503,8 @@
           "type": "interior",
           "region": "core",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "sanctum",
@@ -1185,13 +1512,314 @@
           "type": "interior",
           "region": "core",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "exit",
           "name": "Return fissure",
           "type": "transition",
           "region": "core",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_01",
+          "name": "House of repeating doors",
+          "type": "interior",
+          "region": "slice",
+          "parent_location": "village",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Unstable memories",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_02",
+          "name": "Refuge infirmary",
+          "type": "interior",
+          "region": "slice",
+          "parent_location": "refuge",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Shelter and testimony",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_03",
+          "name": "Unbound supply room",
+          "type": "interior",
+          "region": "slice",
+          "parent_location": "refuge",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Voluntary barter",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_04",
+          "name": "Broker's enclosed stall",
+          "type": "interior",
+          "region": "west",
+          "parent_location": "market",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Contract negotiation",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_05",
+          "name": "Inn of borrowed names",
+          "type": "interior",
+          "region": "west",
+          "parent_location": "market",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Competing recollections",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_06",
+          "name": "Scribe's chambers",
+          "type": "interior",
+          "region": "west",
+          "parent_location": "market",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Document comparison",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_07",
+          "name": "Warden barracks",
+          "type": "interior",
+          "region": "east",
+          "parent_location": "fort",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Conflicting loyalties",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_08",
+          "name": "Custodian quarters",
+          "type": "interior",
+          "region": "east",
+          "parent_location": "fort",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Correspondence",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_09",
+          "name": "Ferryman's house",
+          "type": "interior",
+          "region": "east",
+          "parent_location": "docks",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Passage records",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_10",
+          "name": "Witness reading room",
+          "type": "interior",
+          "region": "north",
+          "parent_location": "archive",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Recovered testimony",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_11",
+          "name": "Ash burial chambers",
+          "type": "interior",
+          "region": "north",
+          "parent_location": "terrace",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Reordered tombs",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_12",
+          "name": "Inverted shrine undercroft",
+          "type": "interior",
+          "region": "slice",
+          "parent_location": "shrine",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Mirrored corridors",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_13",
+          "name": "Memory well depths",
+          "type": "interior",
+          "region": "west",
+          "parent_location": "well",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Echoes and missing names",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_14",
+          "name": "Chain bridge anchor halls",
+          "type": "interior",
+          "region": "west",
+          "parent_location": "bridge",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Chain traversal and levers",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_15",
+          "name": "Glass mine",
+          "type": "interior",
+          "region": "south",
+          "parent_location": "quarry",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Reflective paths",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_16",
+          "name": "Binding furnace",
+          "type": "interior",
+          "region": "south",
+          "parent_location": "foundry",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Mechanism puzzle",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_17",
+          "name": "Black canal sluices",
+          "type": "interior",
+          "region": "east",
+          "parent_location": "canal",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Water routing",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_18",
+          "name": "Folded road chambers",
+          "type": "interior",
+          "region": "south",
+          "parent_location": "road",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Spatial loops",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_19",
+          "name": "Watchtower inversion",
+          "type": "interior",
+          "region": "north",
+          "parent_location": "tower",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Contradictory stairs",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_20",
+          "name": "Catacomb of borrowed faces",
+          "type": "interior",
+          "region": "south",
+          "parent_location": "crypt",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Identity records and relic",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_21",
+          "name": "Tribunal records annex",
+          "type": "interior",
+          "region": "east",
+          "parent_location": "court",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Precedent and testimony",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_22",
+          "name": "Distorted craftsman's house",
+          "type": "interior",
+          "region": "slice",
+          "parent_location": "village",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Repairs and personal stories",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_23",
+          "name": "Refuge dormitory",
+          "type": "interior",
+          "region": "slice",
+          "parent_location": "refuge",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Family stories",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_24",
+          "name": "Silent dock storehouse",
+          "type": "interior",
+          "region": "east",
+          "parent_location": "docks",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Supplies",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_25",
+          "name": "Voluntary exchange hall",
+          "type": "interior",
+          "region": "west",
+          "parent_location": "market",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Post-campaign market",
           "design_status": "proposed",
           "native_status": "unbuilt"
         }
@@ -1795,7 +2423,11 @@
           35,
           50
         ],
-        "note": "targets not measured playtime; count meaningful authored quests, no radiant padding"
+        "note": "targets not measured playtime; count meaningful authored quests, no radiant padding",
+        "enterable_interiors": 35,
+        "substantial_dungeons": 15,
+        "interior_cells_minimum": 75,
+        "interior_count_note": "50 named destinations include interiors; 75 cells is a separate implementation budget, not unique destinations. Avoid inaccessible decorative hubs."
       }
     },
     {
@@ -1938,7 +2570,8 @@
           "type": "interior",
           "region": "west",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "mill",
@@ -1946,7 +2579,8 @@
           "type": "interior",
           "region": "west",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "spring",
@@ -1970,7 +2604,8 @@
           "type": "interior",
           "region": "north",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "ravine",
@@ -1986,7 +2621,8 @@
           "type": "interior",
           "region": "north",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "ridge",
@@ -2018,7 +2654,8 @@
           "type": "interior",
           "region": "east",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "blind",
@@ -2026,7 +2663,8 @@
           "type": "interior",
           "region": "east",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "meadow",
@@ -2050,7 +2688,8 @@
           "type": "interior",
           "region": "south",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "circle",
@@ -2066,7 +2705,8 @@
           "type": "interior",
           "region": "core",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "pass",
@@ -2081,6 +2721,306 @@
           "name": "Return crossing",
           "type": "transition",
           "region": "core",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_01",
+          "name": "Great Forest field shelter",
+          "type": "interior",
+          "region": "slice",
+          "parent_location": "camp",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Missing party clues",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_02",
+          "name": "Hunter common hall",
+          "type": "interior",
+          "region": "slice",
+          "parent_location": "lodge",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Rival hunters and contracts",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_03",
+          "name": "Lodge equipment room",
+          "type": "interior",
+          "region": "slice",
+          "parent_location": "lodge",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Gear and training",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_04",
+          "name": "Hearthkeeper healing hut",
+          "type": "interior",
+          "region": "west",
+          "parent_location": "hearth",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Transformation support",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_05",
+          "name": "Refuge cookhouse",
+          "type": "interior",
+          "region": "west",
+          "parent_location": "hearth",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Food exchange",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_06",
+          "name": "Guest cabin",
+          "type": "interior",
+          "region": "west",
+          "parent_location": "hearth",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Travelers and shelter",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_07",
+          "name": "Mill granary",
+          "type": "interior",
+          "region": "west",
+          "parent_location": "mill",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Supply dispute",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_08",
+          "name": "Hunter lookout cabin",
+          "type": "interior",
+          "region": "north",
+          "parent_location": "watch",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Watch records",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_09",
+          "name": "Pack sleeping chamber",
+          "type": "interior",
+          "region": "west",
+          "parent_location": "packden",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Kin and companions",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_10",
+          "name": "Ritual keeper quarters",
+          "type": "interior",
+          "region": "core",
+          "parent_location": "sanctum",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Ritual histories",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_11",
+          "name": "Cairn burial chambers",
+          "type": "interior",
+          "region": "west",
+          "parent_location": "cairn",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Memorials and hidden routes",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_12",
+          "name": "Ravine cavern",
+          "type": "interior",
+          "region": "north",
+          "parent_location": "ravine",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Lost scout and climbing",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_13",
+          "name": "Root maze",
+          "type": "interior",
+          "region": "north",
+          "parent_location": "cave",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Interconnected animal tunnels",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_14",
+          "name": "Lakeside grotto",
+          "type": "interior",
+          "region": "east",
+          "parent_location": "lake",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Flooded passages",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_15",
+          "name": "Ruined undercroft",
+          "type": "interior",
+          "region": "east",
+          "parent_location": "ruins",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Ritual emblem and puzzles",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_16",
+          "name": "Silverleaf burrow",
+          "type": "interior",
+          "region": "south",
+          "parent_location": "grove",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Tracking challenge",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_17",
+          "name": "Fallen tree depths",
+          "type": "interior",
+          "region": "south",
+          "parent_location": "hollow",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Natural maze",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_18",
+          "name": "Windward cave",
+          "type": "interior",
+          "region": "north",
+          "parent_location": "ridge",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Alternate routes",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_19",
+          "name": "Moon spring vault",
+          "type": "interior",
+          "region": "west",
+          "parent_location": "spring",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Transformation lore",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_20",
+          "name": "Chase pass caverns",
+          "type": "interior",
+          "region": "core",
+          "parent_location": "pass",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Pursuit and bypass",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_21",
+          "name": "Trophy gallery",
+          "type": "interior",
+          "region": "slice",
+          "parent_location": "lodge",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Disputed hunting histories",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_22",
+          "name": "Hearthkeeper stores",
+          "type": "interior",
+          "region": "west",
+          "parent_location": "hearth",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Refuge management",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_23",
+          "name": "Pack meeting chamber",
+          "type": "interior",
+          "region": "west",
+          "parent_location": "packden",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Faction negotiation",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_24",
+          "name": "Ford keeper hut",
+          "type": "interior",
+          "region": "east",
+          "parent_location": "ford",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Route observations",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_25",
+          "name": "Keeper's record chamber",
+          "type": "interior",
+          "region": "core",
+          "parent_location": "circle",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Ritual terms",
           "design_status": "proposed",
           "native_status": "unbuilt"
         }
@@ -2686,7 +3626,11 @@
           35,
           50
         ],
-        "note": "targets not measured playtime; count meaningful authored quests, no radiant padding"
+        "note": "targets not measured playtime; count meaningful authored quests, no radiant padding",
+        "enterable_interiors": 35,
+        "substantial_dungeons": 15,
+        "interior_cells_minimum": 75,
+        "interior_count_note": "50 named destinations include interiors; 75 cells is a separate implementation budget, not unique destinations. Avoid inaccessible decorative hubs."
       }
     },
     {
@@ -2813,7 +3757,8 @@
           "type": "interior",
           "region": "slice",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "salt",
@@ -2829,7 +3774,8 @@
           "type": "interior",
           "region": "salt",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "cistern",
@@ -2837,7 +3783,8 @@
           "type": "interior",
           "region": "salt",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "ash",
@@ -2853,7 +3800,8 @@
           "type": "interior",
           "region": "ash",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "bridge",
@@ -2877,7 +3825,8 @@
           "type": "interior",
           "region": "fungal",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "garden",
@@ -2885,7 +3834,8 @@
           "type": "interior",
           "region": "fungal",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "works",
@@ -2901,7 +3851,8 @@
           "type": "interior",
           "region": "drowned",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "foundry",
@@ -2909,7 +3860,8 @@
           "type": "interior",
           "region": "drowned",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "ledge",
@@ -2925,7 +3877,8 @@
           "type": "interior",
           "region": "wind",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "shelter",
@@ -2933,7 +3886,8 @@
           "type": "interior",
           "region": "wind",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "clinic",
@@ -2941,7 +3895,8 @@
           "type": "interior",
           "region": "quarantine",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "stores",
@@ -2949,7 +3904,8 @@
           "type": "interior",
           "region": "quarantine",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "rim",
@@ -2965,13 +3921,314 @@
           "type": "interior",
           "region": "core",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "exit",
           "name": "Return portal",
           "type": "transition",
           "region": "core",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_01",
+          "name": "Refuge living quarters",
+          "type": "interior",
+          "region": "slice",
+          "parent_location": "refuge",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Personal quests",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_02",
+          "name": "Communal kitchen",
+          "type": "interior",
+          "region": "slice",
+          "parent_location": "refuge",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Supply allocation",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_03",
+          "name": "Isolation ward",
+          "type": "interior",
+          "region": "quarantine",
+          "parent_location": "clinic",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Fictional affliction records",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_04",
+          "name": "Protective gear workshop",
+          "type": "interior",
+          "region": "quarantine",
+          "parent_location": "stores",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Crafting and repairs",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_05",
+          "name": "Assay office",
+          "type": "interior",
+          "region": "salt",
+          "parent_location": "lab",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Measurement records",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_06",
+          "name": "Salt custodian residence",
+          "type": "interior",
+          "region": "salt",
+          "parent_location": "salt",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Containment policy",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_07",
+          "name": "Mineral workers' quarters",
+          "type": "interior",
+          "region": "drowned",
+          "parent_location": "works",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Labor disputes",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_08",
+          "name": "Foundry control annex",
+          "type": "interior",
+          "region": "drowned",
+          "parent_location": "foundry",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Maintenance schedules",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_09",
+          "name": "Wind guide shelter",
+          "type": "interior",
+          "region": "wind",
+          "parent_location": "ledge",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Route information",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_10",
+          "name": "Descent guardroom",
+          "type": "interior",
+          "region": "slice",
+          "parent_location": "gate",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Passage rules",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_11",
+          "name": "White reservoir depths",
+          "type": "interior",
+          "region": "salt",
+          "parent_location": "cistern",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Reflective chambers",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_12",
+          "name": "Ash kiln flues",
+          "type": "interior",
+          "region": "ash",
+          "parent_location": "kiln",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Heat hazards and detours",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_13",
+          "name": "Spore labyrinth",
+          "type": "interior",
+          "region": "fungal",
+          "parent_location": "hollow",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Fictional hazards and puzzles",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_14",
+          "name": "Sealed seed vault",
+          "type": "interior",
+          "region": "fungal",
+          "parent_location": "garden",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Environmental records",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_15",
+          "name": "Flooded pump sump",
+          "type": "interior",
+          "region": "drowned",
+          "parent_location": "pump",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Water and power puzzle",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_16",
+          "name": "Deep mineral forge",
+          "type": "interior",
+          "region": "drowned",
+          "parent_location": "foundry",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Machinery and alternate access",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_17",
+          "name": "Wind spire shaft",
+          "type": "interior",
+          "region": "wind",
+          "parent_location": "spire",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Vertical traversal",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_18",
+          "name": "Abyss rim fissures",
+          "type": "interior",
+          "region": "core",
+          "parent_location": "rim",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Layered descent and relic",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_19",
+          "name": "Hazard testing annex",
+          "type": "interior",
+          "region": "slice",
+          "parent_location": "hazard",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Equipment challenge",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_20",
+          "name": "Regulator service labyrinth",
+          "type": "interior",
+          "region": "core",
+          "parent_location": "core",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Maintenance bypass",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_21",
+          "name": "Ash channel shelter",
+          "type": "interior",
+          "region": "ash",
+          "parent_location": "ash",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Travelers and supplies",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_22",
+          "name": "Fungal observation station",
+          "type": "interior",
+          "region": "fungal",
+          "parent_location": "fungus",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Plant records",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_23",
+          "name": "Mineral materials store",
+          "type": "interior",
+          "region": "drowned",
+          "parent_location": "works",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Salvage and trade",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_24",
+          "name": "Salt district meeting hall",
+          "type": "interior",
+          "region": "salt",
+          "parent_location": "salt",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "District politics",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_25",
+          "name": "Refuge records hall",
+          "type": "interior",
+          "region": "slice",
+          "parent_location": "refuge",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Ending consequences",
           "design_status": "proposed",
           "native_status": "unbuilt"
         }
@@ -3573,7 +4830,11 @@
           35,
           50
         ],
-        "note": "targets not measured playtime; count meaningful authored quests, no radiant padding"
+        "note": "targets not measured playtime; count meaningful authored quests, no radiant padding",
+        "enterable_interiors": 35,
+        "substantial_dungeons": 15,
+        "interior_cells_minimum": 75,
+        "interior_count_note": "50 named destinations include interiors; 75 cells is a separate implementation budget, not unique destinations. Avoid inaccessible decorative hubs."
       }
     },
     {
@@ -3684,7 +4945,8 @@
           "type": "interior",
           "region": "slice",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "tunnel",
@@ -3692,7 +4954,8 @@
           "type": "interior",
           "region": "slice",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "refuge",
@@ -3716,7 +4979,8 @@
           "type": "interior",
           "region": "east",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "rail",
@@ -3764,7 +5028,8 @@
           "type": "interior",
           "region": "downtown",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "roof",
@@ -3780,7 +5045,8 @@
           "type": "interior",
           "region": "downtown",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "clinic",
@@ -3788,7 +5054,8 @@
           "type": "interior",
           "region": "west",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "rowblock",
@@ -3804,7 +5071,8 @@
           "type": "interior",
           "region": "west",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "water",
@@ -3812,7 +5080,8 @@
           "type": "interior",
           "region": "west",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "park",
@@ -3844,7 +5113,8 @@
           "type": "interior",
           "region": "south",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "switch",
@@ -3852,13 +5122,314 @@
           "type": "interior",
           "region": "core",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "exit",
           "name": "Capital Wasteland return",
           "type": "transition",
           "region": "core",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_01",
+          "name": "Harbor diner",
+          "type": "interior",
+          "region": "slice",
+          "parent_location": "market",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Local stories",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_02",
+          "name": "Waterfront general store",
+          "type": "interior",
+          "region": "slice",
+          "parent_location": "market",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Trade and supplies",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_03",
+          "name": "Dock cooperative office",
+          "type": "interior",
+          "region": "slice",
+          "parent_location": "market",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Cargo claims",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_04",
+          "name": "Occupied rowhouse",
+          "type": "interior",
+          "region": "west",
+          "parent_location": "rowblock",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Residents and quests",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_05",
+          "name": "Vacant rowhouse",
+          "type": "interior",
+          "region": "west",
+          "parent_location": "rowblock",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Environmental stories",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_06",
+          "name": "Shared rowhouse workshop",
+          "type": "interior",
+          "region": "west",
+          "parent_location": "rowblock",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Repairs and utilities",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_07",
+          "name": "Transit ticket hall",
+          "type": "interior",
+          "region": "downtown",
+          "parent_location": "station",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Routes and maps",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_08",
+          "name": "Industrial machine shop",
+          "type": "interior",
+          "region": "east",
+          "parent_location": "yard",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Crafting",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_09",
+          "name": "Clinic treatment annex",
+          "type": "interior",
+          "region": "west",
+          "parent_location": "clinic",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Supply stories",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_10",
+          "name": "School classroom wing",
+          "type": "interior",
+          "region": "west",
+          "parent_location": "school",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Community restoration",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_11",
+          "name": "Warehouse cold storage",
+          "type": "interior",
+          "region": "slice",
+          "parent_location": "warehouse",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Power and cargo puzzle",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_12",
+          "name": "Harbor storm drains",
+          "type": "interior",
+          "region": "slice",
+          "parent_location": "tunnel",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Flooded alternate routes",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_13",
+          "name": "Abandoned subway platforms",
+          "type": "interior",
+          "region": "downtown",
+          "parent_location": "subway",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Transit exploration",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_14",
+          "name": "Utility plant basement",
+          "type": "interior",
+          "region": "east",
+          "parent_location": "plant",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Electrical puzzle",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_15",
+          "name": "Underground shopping concourse",
+          "type": "interior",
+          "region": "downtown",
+          "parent_location": "arcade",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Collapsed shops and rescue",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_16",
+          "name": "Office tower interior",
+          "type": "interior",
+          "region": "downtown",
+          "parent_location": "roof",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Vertical traversal",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_17",
+          "name": "Dry dock maintenance tunnels",
+          "type": "interior",
+          "region": "south",
+          "parent_location": "drydock",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Machinery and hidden stores",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_18",
+          "name": "Freight depot interior",
+          "type": "interior",
+          "region": "east",
+          "parent_location": "rail",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Industrial encounters",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_19",
+          "name": "Water reservoir chambers",
+          "type": "interior",
+          "region": "west",
+          "parent_location": "water",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Supply routing",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_20",
+          "name": "Bridge service chambers",
+          "type": "interior",
+          "region": "south",
+          "parent_location": "bridge",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Infrastructure and bypass",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_21",
+          "name": "Park pavilion",
+          "type": "interior",
+          "region": "west",
+          "parent_location": "park",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Community gatherings",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_22",
+          "name": "Protection crew office",
+          "type": "interior",
+          "region": "downtown",
+          "parent_location": "checkpoint",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Toll records",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_23",
+          "name": "Ferry terminal building",
+          "type": "interior",
+          "region": "south",
+          "parent_location": "ferry",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Travel and schedules",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_24",
+          "name": "Basin maintenance shed",
+          "type": "interior",
+          "region": "east",
+          "parent_location": "canal",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Tools and routes",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_25",
+          "name": "Neighborhood assembly hall",
+          "type": "interior",
+          "region": "slice",
+          "parent_location": "refuge",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Local decisions",
           "design_status": "proposed",
           "native_status": "unbuilt"
         }
@@ -4465,13 +6036,17 @@
           35,
           50
         ],
-        "note": "targets not measured playtime; count meaningful authored quests, no radiant padding"
+        "note": "targets not measured playtime; count meaningful authored quests, no radiant padding",
+        "enterable_interiors": 35,
+        "substantial_dungeons": 15,
+        "interior_cells_minimum": 75,
+        "interior_count_note": "50 named destinations include interiors; 75 cells is a separate implementation budget, not unique destinations. Avoid inaccessible decorative hubs."
       }
     },
     {
       "id": "nautica",
       "game": "fallout4",
-      "title": "Fallout Nautica",
+      "title": "Fallout: Nautica",
       "canon_status": "proposed; existing creator-approved canon takes precedence",
       "factions": [
         {
@@ -4584,7 +6159,8 @@
           "type": "interior",
           "region": "slice",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "marsh",
@@ -4624,7 +6200,8 @@
           "type": "interior",
           "region": "town",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "cistern",
@@ -4632,7 +6209,8 @@
           "type": "interior",
           "region": "town",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "crossroads",
@@ -4672,7 +6250,8 @@
           "type": "interior",
           "region": "inland",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "west",
@@ -4704,7 +6283,8 @@
           "type": "interior",
           "region": "south",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "cove",
@@ -4744,13 +6324,314 @@
           "type": "interior",
           "region": "core",
           "design_status": "proposed",
-          "native_status": "unbuilt"
+          "native_status": "unbuilt",
+          "enterable": true
         },
         {
           "id": "exit",
           "name": "Mainland return crossing",
           "type": "transition",
           "region": "core",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_01",
+          "name": "Harbor general store",
+          "type": "interior",
+          "region": "town",
+          "parent_location": "market",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Trade and stories",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_02",
+          "name": "Harbor inn",
+          "type": "interior",
+          "region": "town",
+          "parent_location": "market",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Travelers and cargo clues",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_03",
+          "name": "Town cottage",
+          "type": "interior",
+          "region": "slice",
+          "parent_location": "lane",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Resident stories",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_04",
+          "name": "Harbor dispatch office",
+          "type": "interior",
+          "region": "slice",
+          "parent_location": "street",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Schedules and records",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_05",
+          "name": "Salvage repair shed",
+          "type": "interior",
+          "region": "town",
+          "parent_location": "slip",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Crafting and parts",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_06",
+          "name": "Refuge farmhouse",
+          "type": "interior",
+          "region": "inland",
+          "parent_location": "farm",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Agricultural stories",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_07",
+          "name": "Farm equipment barn",
+          "type": "interior",
+          "region": "inland",
+          "parent_location": "farm",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Repairs and supplies",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_08",
+          "name": "Fishing community hall",
+          "type": "interior",
+          "region": "west",
+          "parent_location": "west",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Meetings and trade",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_09",
+          "name": "Coastal station quarters",
+          "type": "interior",
+          "region": "east",
+          "parent_location": "east",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Rescue watch stories",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_10",
+          "name": "Beacon keeper house",
+          "type": "interior",
+          "region": "slice",
+          "parent_location": "beacon",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Navigation records",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_11",
+          "name": "Grounded wreck lower decks",
+          "type": "interior",
+          "region": "south",
+          "parent_location": "wreck",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Ship exploration",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_12",
+          "name": "Coastal sea cave",
+          "type": "interior",
+          "region": "south",
+          "parent_location": "cove",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Tidal routes and stores",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_13",
+          "name": "Bunker utility levels",
+          "type": "interior",
+          "region": "inland",
+          "parent_location": "bunker",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Power and water puzzles",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_14",
+          "name": "Old cistern passages",
+          "type": "interior",
+          "region": "town",
+          "parent_location": "cistern",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Water routing",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_15",
+          "name": "Buried coastal shelter",
+          "type": "interior",
+          "region": "west",
+          "parent_location": "dunes",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Storm history",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_16",
+          "name": "Navigation relay service levels",
+          "type": "interior",
+          "region": "core",
+          "parent_location": "relay",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Signal puzzle",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_17",
+          "name": "Bluff service tunnel",
+          "type": "interior",
+          "region": "east",
+          "parent_location": "cliff",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Vertical route and missing watch",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_18",
+          "name": "Sealed cargo hold",
+          "type": "interior",
+          "region": "town",
+          "parent_location": "warehouse",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Disputed cargo",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_19",
+          "name": "Abandoned inland pumping station",
+          "type": "interior",
+          "region": "inland",
+          "parent_location": "moor",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Supply restoration",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_20",
+          "name": "Storm-wrecked coastal vessel",
+          "type": "interior",
+          "region": "south",
+          "parent_location": "surf",
+          "interior_category": "dungeon",
+          "enterable": true,
+          "experience": "Wreck salvage and rescue clues",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_21",
+          "name": "Arrival terminal",
+          "type": "interior",
+          "region": "slice",
+          "parent_location": "dock",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Return passage",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_22",
+          "name": "Inland meeting hall",
+          "type": "interior",
+          "region": "inland",
+          "parent_location": "crossroads",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Community negotiations",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_23",
+          "name": "Road junction shelter",
+          "type": "interior",
+          "region": "east",
+          "parent_location": "polpis",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Travel routes and history",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_24",
+          "name": "Fishing cottage",
+          "type": "interior",
+          "region": "west",
+          "parent_location": "west",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Personal stories",
+          "design_status": "proposed",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "int_25",
+          "name": "Rescue equipment workshop",
+          "type": "interior",
+          "region": "east",
+          "parent_location": "east",
+          "interior_category": "building",
+          "enterable": true,
+          "experience": "Boat gear and maintenance",
           "design_status": "proposed",
           "native_status": "unbuilt"
         }
@@ -5356,7 +7237,11 @@
           35,
           50
         ],
-        "note": "targets not measured playtime; count meaningful authored quests, no radiant padding"
+        "note": "targets not measured playtime; count meaningful authored quests, no radiant padding",
+        "enterable_interiors": 35,
+        "substantial_dungeons": 15,
+        "interior_cells_minimum": 75,
+        "interior_count_note": "50 named destinations include interiors; 75 cells is a separate implementation budget, not unique destinations. Avoid inaccessible decorative hubs."
       }
     }
   ]
