@@ -30,6 +30,15 @@ def check(project):
             corners=portals[pid]["corners"]
             if any(not min(q[i] for q in corners)-1e-5<=pos[i]<=max(q[i] for q in corners)+1e-5 for i in range(3)):
                 raise ValueError("bound door must lie on portal rectangle")
+        if "activation_chains" in c:
+            from .interior_activation import plan
+            plan(layout,c["activation_chains"],[p["id"] for p in c.get("placements",[])])
+        if "environment" in c:
+            from .interior_environment import inspect
+            inspect(layout,c["environment"])
+        if "visibility" in c:
+            from .interior_occlusion import audit
+            audit(layout,c["visibility"])
     return project
 
 def make_portal(layout,id,a,b,inset=0.1):
@@ -77,6 +86,12 @@ class History:
         if matches:items[matches[0]]=deepcopy(row)
         else:items.append(deepcopy(row))
         self.commit(p)
+    def settings(self,cell_id,settings):
+        if set(settings)-{"activation_chains","environment","visibility"}:raise ValueError("unknown portable settings")
+        p=deepcopy(self.current);c=cell(p,cell_id)
+        for key in ("activation_chains","environment","visibility"):
+            c.pop(key,None)
+        c.update(deepcopy(settings));self.commit(p)
     def bind(self,cell_id,portal_id,door_id):
         p=deepcopy(self.current);c=cell(p,cell_id)
         c.setdefault("portal_doors",{})[portal_id]=door_id
