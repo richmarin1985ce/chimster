@@ -57,3 +57,23 @@ def collect(report):
     for row in report.get("results",[]):
         items.extend(collect(row.get("result",{})))
     return items
+
+
+def remap(items,mapping):
+    """Map only exact staged paths or unambiguous basenames to known source files."""
+    norm=lambda p:str(p).replace("\\","/").casefold()
+    exact={norm(k):v for k,v in mapping.items()}
+    names={}
+    for k,v in exact.items():names.setdefault(k.rsplit("/",1)[-1],[]).append(v)
+    out=[]
+    for item in items:
+        item=dict(item)
+        if item.get("file"):
+            key=norm(item["file"])
+            hit=exact.get(key)
+            if hit is None and "/" not in key and len(names.get(key,[]))==1:hit=names[key][0]
+            if hit:
+                item["reported_file"]=item["file"];item["file"]=hit["path"]
+                item["source_sha256"]=hit["sha256"]
+        out.append(item)
+    return out
