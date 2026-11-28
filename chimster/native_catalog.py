@@ -22,6 +22,8 @@ CATALOGS = {
     "morrowind": {},
     "oblivion": fields(PLACED, RACE),
     "oblivion-remastered": {}, # independently validate
+    "skyrim-vr": {}, # structural inspection only, no inherited field offsets
+    "fallout4-vr": {},
     "fallout3": fields(PLACED, LIST, RACE, VOICE, SPELL),
     "new-vegas": fields(PLACED, LIST, RACE, VOICE, SPELL),
     "skyrim": fields(PLACED, LIST, RACE, VOICE, SPELL),
