@@ -39,3 +39,21 @@ The expected manifest is a JSON array of relative voice stems (no extension) obt
 - No commercial service or proprietary SDK bundled. Generated audio should use recordings and voices for which the mod author has appropriate rights.
 
 Run `python -m unittest discover -s tests -p test_audio.py -v`. Synthetic xWMA fixture bytes are structural only; do not ship them as game audio.
+
+## Dialogue voice manager
+
+The existing Voice containers desktop tab now includes a manifest audit, batch preview and explicit staged build. The standalone CLI is `python -m chimster.voice_manager` or `chimster-voice` after installation.
+
+Example manifest:
+
+```json
+{"game":"Skyrim","lines":[{"stem":"Example.esp/VoiceType/QuestTopic__00001234_1","record":"Example.esp:00001234","text":"Example dialogue."}]}
+```
+
+```sh
+chimster-voice audit Data/Sound/Voice manifest.json
+chimster-voice batch Data/Sound/Voice manifest.json --output StagedVoice
+chimster-voice batch Data/Sound/Voice manifest.json --output StagedVoice --encoder xWMAEncode --ffmpeg ffmpeg --lip-tool FaceFXWrapper --fonix FonixData.cdf --execute
+```
+
+Batch mode defaults to preview, refuses existing outputs, requires separate source and output roots and requires lip payloads unless explicitly allowed. Builds are per-line, not all-or-nothing. Record identities and exact file stems are supplied by the manifest; automatic extraction from native INFO records, validation of record IDs, game verification and archive integration are pending. Existing FUZ files with missing lip data must be unpacked first. External tool availability and normalization requirements may still block execution after preview. No external binaries are bundled.
