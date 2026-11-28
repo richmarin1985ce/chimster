@@ -38,6 +38,11 @@ def spatial(signature, parts):
             result["rotation"]=values[3:]
         elif signature in ("REFR","ACHR","ACRE") and tag==b"XSCL" and len(raw)==4:
             result["scale"]=struct.unpack("<f",raw)[0]
+        elif signature=="REFR" and tag==b"XTEL" and len(raw)==32:
+            target,*values=struct.unpack("<I6fI",raw)
+            result["teleport"]={"raw_target":target,"arrival":values[:3],"rotation":values[3:6],"flags":values[6]}
+        elif signature=="REFR" and tag==b"XLKR" and len(raw)==4:
+            result["linked_reference"]=struct.unpack("<I",raw)[0]
         elif signature=="CELL" and tag==b"XCLC" and len(raw) in (8,12):
             result["grid"]=struct.unpack_from("<2i",raw)
     return result
