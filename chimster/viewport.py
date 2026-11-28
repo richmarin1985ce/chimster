@@ -29,7 +29,7 @@ def mount(parent):
     native_preview=False
     selection_callback=None
     stream_callback=None;preview_origin=(0,0,0);pan_drag=None;preview_cell=None
-    native_weather={};native_render={}
+    native_weather={};native_render={};starfield_preview=False
     native_lighting_enabled=tk.BooleanVar(value=True)
     native_day=tk.StringVar(value="Day")
     def draw():
@@ -142,10 +142,10 @@ def mount(parent):
         if selected and any(i.id==selected for i in scene.instances):
             scene.remove(selected);selected=None;sync()
     def open_scene(dropped=None):
-        nonlocal scene,selected,native_preview
+        nonlocal scene,selected,native_preview,starfield_preview
         p=dropped if dropped is not None else filedialog.askopenfilename(filetypes=[("Chimster scene","*.json")])
         if p:
-            try:scene=Scene.load(p);selected=None;native_preview=False;source.set("Portable scene");sync()
+            try:scene=Scene.load(p);selected=None;native_preview=False;starfield_preview=False;source.set("Portable scene");sync()
             except (OSError,ValueError,KeyError,TypeError) as e:messagebox.showerror("Scene",str(e))
     def save_scene():
         if native_preview:return
@@ -395,10 +395,10 @@ def mount(parent):
     canvas.bind("<Button-2>",pan_start);canvas.bind("<B2-Motion>",pan_move);canvas.bind("<ButtonRelease-2>",pan_end)
     canvas.bind("<Configure>",lambda e:draw());sync()
     def load_cell_preview(candidate, report, focus=None, on_select=None, on_stream=None):
-        nonlocal scene,materials,camera,selected,native_preview,selection_callback,stream_callback,preview_origin,preview_cell
+        nonlocal scene,materials,camera,selected,native_preview,selection_callback,stream_callback,preview_origin,preview_cell,starfield_preview
         if not native_preview and not messagebox.askyesno("Cell preview", "Replace the current portable viewport scene? Save any edits first.",parent=parent):
             return False
-        scene=candidate;materials={};native_preview=True;selection_callback=on_select;stream_callback=on_stream;preview_origin=report["origin_game_units"];preview_cell=report["cell"]
+        scene=candidate;materials={};native_preview=True;starfield_preview=bool(report.get("starfield"));selection_callback=on_select;stream_callback=on_stream;preview_origin=report["origin_game_units"];preview_cell=report["cell"]
         selected=focus if any(i.id==focus for i in scene.instances) else None
         camera=Camera()
         apply_world_environment(report)
@@ -407,7 +407,7 @@ def mount(parent):
         return True
     def drop_position(root_x,root_y):
         """Inverse orthographic projection onto camera focus-height plane."""
-        if not native_preview or not canvas.winfo_viewable():return None
+        if not native_preview or starfield_preview or not canvas.winfo_viewable():return None
         px=root_x-canvas.winfo_rootx();py=root_y-canvas.winfo_rooty()
         w,h=canvas.winfo_width(),canvas.winfo_height()
         if not 0<=px<w or not 0<=py<h:return None
@@ -420,6 +420,33 @@ def mount(parent):
         return preview_cell,(128*(x+cos(a)*right+sin(a)*forward)+preview_origin[0],
             128*(y-sin(a)*right+cos(a)*forward)+preview_origin[1],
             128*z+preview_origin[2])
+    def open_starfield():
+        from .starfield_preview import Catalog,label
+        paths=filedialog.askopenfilenames(parent=parent,title="Select full Starfield masters and plugins in load order",filetypes=[("Starfield plugins","*.esm *.esp"),("All files","*")])
+        if not paths:return
+        try:
+            catalog=Catalog(paths)
+            query=simpledialog.askstring("Starfield cell","Filter cells by editor ID or plugin:local FormID",parent=parent)
+            if query is None:return
+            choices=catalog.choices(query)
+            if not choices:raise ValueError("No matching cells")
+            win=tk.Toplevel(parent);win.title("Select Starfield cell (experimental)")
+            rows=tk.Listbox(win,width=72,height=18,exportselection=False);rows.pack(fill="both",expand=True)
+            for key,name in choices:rows.insert("end",label(key)+"  "+name)
+            def choose():
+                ids=rows.curselection()
+                if not ids:return
+                units=simpledialog.askfloat("Preview scale","Game units per preview unit",initialvalue=1.,minvalue=.001,maxvalue=10000,parent=win)
+                if units is None:return
+                try:
+                    scene,report=catalog.preview(choices[ids[0]][0],units)
+                    if load_cell_preview(scene,report):
+                        source.set("Starfield experimental | "+report["cell"]+" | "+str(report["light_records"])+" lights | proxy geometry only")
+                        win.destroy()
+                except Exception as exc:messagebox.showerror("Starfield preview",str(exc),parent=win)
+            ttk.Button(win,text="Open read-only preview",command=choose).pack()
+        except Exception as exc:messagebox.showerror("Starfield preview",str(exc),parent=parent)
+    ttk.Button(toolbar,text="Starfield cell preview",command=open_starfield).pack(side="left")
     load_cell_preview.drop_position=drop_position
     def drop_json(path):
         from tkinter import messagebox
