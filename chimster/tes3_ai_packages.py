@@ -67,3 +67,47 @@ def encode_package(tag,properties,cell=None):
         if tag not in (b"AI_F",b"AI_E") or not isinstance(cell,str) or not cell.strip() or "\0" in cell:raise ValueError("Invalid package cell")
         parts.append((b"CNDT",cell.encode("cp1252")+b"\0"))
     return parts
+
+def manage(data,index,action,revision,*,package=None,destination=None,tag=None,properties=None,cell=None):
+    """Atomic package-list edit; indices refer to package order, not subrecords."""
+    import hashlib
+    from .native_parser import parse,subrecords
+    from .native_payload_edit import insert_adjacent,remove
+    if hashlib.sha256(data).hexdigest()!=revision:raise ValueError("Stale revision")
+    nodes=parse("morrowind",data)
+    if type(index)!=int or not 0<=index<len(nodes) or nodes[index].signature not in (b"NPC_",b"CREA"):raise ValueError("Expected actor")
+    parts=list(subrecords("morrowind",nodes[index]))
+    if any(k==b"DELE" for k,v in parts):raise ValueError("Deleted actor")
+    rows=inspect(parts)
+    blocks=[parts[r["index"]:r.get("cell_index",r["index"])+1] for r in rows]
+    if action=="add":
+        block=encode_package(tag,properties or {},cell)
+        destination=len(blocks) if destination is None else destination
+        if type(destination)!=int or not 0<=destination<=len(blocks):raise ValueError("Invalid destination")
+        blocks.insert(destination,block)
+    elif action in ("remove","move"):
+        if type(package)!=int or not 0<=package<len(blocks):raise ValueError("Invalid package")
+        block=blocks.pop(package)
+        if action=="move":
+            if type(destination)!=int or not 0<=destination<=len(blocks):raise ValueError("Invalid destination")
+            blocks.insert(destination,block)
+    else:raise ValueError("Unknown package action")
+    # Refuse interleaved package blocks rather than moving unrelated fields.
+    indices=[i for r in rows for i in range(r["index"],r.get("cell_index",r["index"])+1)]
+    if indices and indices!=list(range(indices[0],indices[-1]+1)):raise ValueError("Noncontiguous package list")
+    candidate=data
+    def rev():return hashlib.sha256(candidate).hexdigest()
+    start=indices[0] if indices else len(parts)
+    for i in reversed(indices):
+        k,v=parts[i];occ=sum(t==k for t,_ in parts[:i])
+        candidate=remove("morrowind",candidate,(index,),k,occ,v,rev())
+    remaining=[p for i,p in enumerate(parts) if i not in set(indices)]
+    if not remaining:raise ValueError("No actor anchor")
+    anchor=min(start,len(remaining)-1)
+    after=start>=len(remaining)
+    for k,v in [p for block in blocks for p in block]:
+        ak,av=remaining[anchor];occ=sum(t==ak for t,_ in remaining[:anchor])
+        candidate=insert_adjacent("morrowind",candidate,(index,),ak,occ,av,k,v,rev(),after=after)
+        pos=anchor+int(after);remaining.insert(pos,(k,v));anchor=pos;after=True
+    inspect(list(subrecords("morrowind",parse("morrowind",candidate)[index])))
+    return candidate
