@@ -31,7 +31,7 @@ class Production:
             if a["size"]>limit or (kind and a["kind"]!=kind):raise ValueError("invalid input artifact")
             return a,self.project._object(a)
         if operation!="native-build" and master_ids:raise ValueError("unexpected masters")
-        if operation!="fuz" and aux_id is not None:raise ValueError("unexpected auxiliary input")
+        if operation not in ("fuz","texture-material") and aux_id is not None:raise ValueError("unexpected auxiliary input")
         with tempfile.TemporaryDirectory(prefix="chimster-production-") as d:
             root=Path(d)
             name="generated-"+output_id
@@ -96,6 +96,46 @@ class Production:
                     lip=q.read_bytes()
                 summary={**xwma_info(raw),"lip_bytes":len(lip),"lip_validated":False}
                 outputs.append((output_id,"audio",name+".fuz",pack_fuz(raw,lip)))
+            elif operation=="texture-material":
+                from PIL import Image
+                from .textures import build_material
+                _,p=source(id,"texture")
+                _,q=source(aux_id,"texture")
+                for image in (p,q):
+                    with Image.open(image) as im:
+                        if max(im.size)>1024 or min(im.size)<1:raise ValueError("image dimension limit")
+                target=root/"maps"
+                summary=build_material(p,q,target)
+                summary.pop("output",None)
+                for suffix in ("n","s"):
+                    for ext in ("png","dds"):
+                        key=output_id+"."+suffix+"."+ext
+                        new_key(key)
+                        outputs.append((key,"texture",name+"_"+suffix+"."+ext,(target/("material_"+suffix+"."+ext)).read_bytes()))
+            elif operation in ("mesh-lod","mesh-preview"):
+                from .scene import load_obj
+                from .asset_forge import Session
+                a,p=source(id,"mesh",8*1024*1024)
+                if Path(a["filename"]).suffix.lower()!=".obj":raise ValueError("OBJ required")
+                s=Session(load_obj(p))
+                if operation=="mesh-lod":
+                    from .lod import bounds
+                    before=s.report()
+                    span=max(b-a for a,b in bounds(s.mesh))
+                    if span<=0:raise ValueError("degenerate mesh")
+                    s.simplify(span/32)
+                    target=root/(name+".obj");s.export_obj(target)
+                    Session(load_obj(target))
+                    outputs.append((output_id,"mesh",target.name,target.read_bytes()))
+                    summary={"before":before,"after":s.report(),"native_export":False}
+                else:
+                    from .lod import bake
+                    from .atlas import write_png
+                    if len(s.mesh.faces)>2000:raise ValueError("preview triangle budget")
+                    rgba,summary=bake(s.mesh,size=128)
+                    target=root/(name+".png");write_png(target,128,128,rgba)
+                    outputs.append((output_id,"texture",target.name,target.read_bytes()))
+                    summary["scope"]="flat-color orthographic mesh preview; not full scene rendering"
             else:raise ValueError("unsupported production operation")
         if sum(len(r[3]) for r in outputs)>LIMIT:raise ValueError("output size limit")
         if self.project.read()["revision"]!=revision:raise ValueError("project changed while staging")
