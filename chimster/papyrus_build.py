@@ -62,7 +62,7 @@ def inspect_pex(path, game):
             "source": fields[0], "size": p.stat().st_size,
             "sha256": digest(p), "scope": "header only"}
 
-from .compiler_diagnostics import parse as diagnostics, summarize
+from .compiler_diagnostics import parse as diagnostics, summarize, remap
 
 def compiler_options(game,backend,*,optimize=False,release=False,final=False,warnings_as_errors=False):
     target,_,_=family(game)
@@ -129,11 +129,13 @@ def build(game, backend, exe, source, flags, imports, output, *, execute=False, 
         except subprocess.TimeoutExpired as exc:
             def decode(s):return s.decode("utf-8",errors="replace") if isinstance(s,bytes) else s or ""
             items=diagnostics(decode(exc.stdout),stream="stdout")+diagnostics(decode(exc.stderr),stream="stderr")
+            items=remap(items,{preview["source"]:{"path":preview["source"],"sha256":preview["source_sha256"]}})
             return {**preview, "status": "timeout", "diagnostics": items,"summary":summarize(items)}
         except OSError as exc:
             return {**preview,"status":"launch-failed","diagnostics":[{"severity":"error","message":str(exc)}]}
         log = cp.stdout + "\n" + cp.stderr
         items=diagnostics(cp.stdout,stream="stdout")+diagnostics(cp.stderr,stream="stderr")
+        items=remap(items,{preview["source"]:{"path":preview["source"],"sha256":preview["source_sha256"]}})
         result = {**preview, "returncode": cp.returncode,
                   "diagnostics": items, "summary":summarize(items), "compiler_log": log}
         if cp.returncode:
