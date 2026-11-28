@@ -675,6 +675,23 @@ def mount(parent, game, open_preview=None, viewport_drop=None):
             show(audit(folder,world_name(index,world),GAME.get(index.profile,index.profile)))
         except (ValueError,OSError) as exc:messagebox.showerror("Audit LOD",str(exc),parent=parent)
     ttk.Button(nav,text="Audit LOD",command=audit_lod).pack(side="left")
+    def object_lod():
+        index=state["index"];world=state["world"]
+        if index is None or world is None:return
+        from .world_lod_objects import candidates,export
+        if state["models"] is None:
+            show(candidates(index,world))
+            status.set("Object LOD candidates listed. Select loose meshes or BSA models to generate.")
+            return
+        folder=filedialog.askdirectory(title="Choose parent directory for object LOD candidates")
+        if not folder:return
+        try:
+            root=state["loose"].root if state["loose"] is not None else None
+            out=Path(folder)/("object_lod_"+world.origin.replace(".","_")+"_"+format(world.local,"06x"))
+            show(export(index,world,out,state["models"],root))
+            status.set("Object LOD candidates exported; review materials before native conversion.")
+        except (ValueError,OSError,TypeError,KeyError) as exc:messagebox.showerror("Object LOD",str(exc),parent=parent)
+    ttk.Button(nav,text="Object LOD",command=object_lod).pack(side="left")
     def profile_changed(*_):
         # Preserve staged work; changing the game selector must not discard it.
         if state.get('draft') and state['draft'].operations:
