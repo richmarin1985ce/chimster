@@ -112,6 +112,41 @@ class Production:
                         key=output_id+"."+suffix+"."+ext
                         new_key(key)
                         outputs.append((key,"texture",name+"_"+suffix+"."+ext,(target/("material_"+suffix+"."+ext)).read_bytes()))
+            elif operation=="scene-render":
+                from .scene import Scene,Camera,transformed
+                from .gpu_viewport import Renderer,Settings
+                from .atlas import write_png
+                from math import sqrt,tan,radians
+                _,p=source(id,"scene",8*1024*1024)
+                scene=Scene.load(p)
+                triangles=sum(len(scene.assets[i.asset].faces) for i in scene.instances)
+                vertices=sum(len(scene.assets[i.asset].vertices) for i in scene.instances)
+                if not scene.instances or not 1<=triangles<=250000 or vertices>500000:
+                    raise ValueError("scene rendering budget")
+                # Fit every transformed object using a conservative bounding sphere.
+                lo=[float("inf")]*3;hi=[float("-inf")]*3
+                for instance in scene.instances:
+                    for v in transformed(scene.assets[instance.asset],instance):
+                        for k in range(3):
+                            lo[k]=min(lo[k],v[k]);hi[k]=max(hi[k],v[k])
+                center=tuple((a+b)/2 for a,b in zip(lo,hi))
+                radius=max(.01,sqrt(sum((b-a)**2 for a,b in zip(lo,hi)))/2)
+                width,height=960,540
+                distance=radius*(1+1.2/tan(radians(22.5)))
+                if distance+radius>9000000:raise ValueError("scene extent exceeds camera range")
+                settings=Settings(near=max(.001,distance-radius*1.1),far=max(1.,distance+radius*2),
+                                  cull=False,lod_distances=(1e7,2e7,3e7))
+                camera=Camera(center=center,zoom=height/(2*tan(radians(22.5))*distance))
+                if camera.zoom<.001:raise ValueError("scene too large for camera zoom")
+                renderer=Renderer()
+                try:
+                    pixels,report=renderer.render(scene,camera,width,height,settings=settings)
+                finally:
+                    renderer.close()
+                target=root/(name+".png");write_png(target,width,height,pixels)
+                outputs.append((output_id,"texture",target.name,target.read_bytes()))
+                summary={"width":width,"height":height,"instances":len(scene.instances),"triangles":triangles,
+                         "renderer":report,"scope":"full portable scene with default materials; no game engine or live viewport capture"}
             elif operation in ("mesh-lod","mesh-preview"):
                 from .scene import load_obj
                 from .asset_forge import Session
