@@ -22,23 +22,37 @@ def inspect(parts):
     triangles=[r[:3] for r in rows]
     if any(any(not 0<=v<nv for v in t) or len(set(t))!=3 for t in triangles):raise ValueError("invalid native triangle vertex")
     issues=[]
+    # Distinguish triangle flags from upper 16-bit cover flags; preserve both.
+    used_external=set();door_triangles=set();door_refs=set()
     for i,r in enumerate(rows):
         for e,j in enumerate(r[3:6]):
             if r[6]&(1<<e):
                 if not 0<=j<ne:issues.append(("external-index",i,e))
+                else:
+                    if j in used_external:issues.append(("duplicate-external-index",i,e))
+                    used_external.add(j)
                 continue
             if j==-1:continue
             if not 0<=j<nt or j==i:issues.append(("neighbor-index",i,e));continue
             edge={r[e],r[(e+1)%3]};other=rows[j]
             matches=[k for k in range(3) if {other[k],other[(k+1)%3]}==edge]
             if len(matches)!=1 or other[6]&(1<<matches[0]) or other[3+matches[0]]!=i:issues.append(("nonreciprocal-edge",i,e))
+    for j in sorted(set(range(ne))-used_external):issues.append(("unused-external-entry",j,0))
     edges.append((indices[b"DATA"],0,("CELL",)))
     doors=[]
     for off in range(0,nd*8,8):
         fid,tri,tail=struct.unpack_from("<IH2s",values[b"NVDP"],off)
         if not fid or tri>=nt:issues.append(("invalid-door",off//8,tri))
-        else:edges.append((indices[b"NVDP"],off,("REFR",)))
+        else:
+            edges.append((indices[b"NVDP"],off,("REFR",)))
+            door_triangles.add(tri)
+            if fid in door_refs:issues.append(("duplicate-door",off//8,tri))
+            door_refs.add(fid)
         doors.append({"raw_target":fid,"triangle":tri,"tail_hex":tail.hex()})
+    for i,r in enumerate(rows):
+        if bool(r[6]&0x400)!=(i in door_triangles):issues.append(("door-flag",i,0))
+    cover=[x[0] for x in struct.iter_unpack("<h",values.get(b"NVCA",b""))]
+    if any(not 0<=i<nt for i in cover) or len(set(cover))!=len(cover):issues.append(("cover-index",0,0))
     external=[]
     for off in range(0,ne*10,10):
         prefix,fid,tri=struct.unpack_from("<4sIH",values[b"NVEX"],off)
@@ -46,9 +60,16 @@ def inspect(parts):
         external.append({"prefix_hex":prefix.hex(),"raw_target":fid,"triangle":tri})
     grid=values.get(b"NVGD",b"")
     if grid and len(grid)<36:raise ValueError("invalid NAVM grid header")
+    grid_candidates=[]
+    if grid:
+        from .fnv_navmesh_finalize import read_grid
+        for width in (2,4):
+            try:decoded=read_grid(grid,nt,width)
+            except ValueError:continue
+            grid_candidates.append({"count_width":width,"divisor":decoded["divisor"],"bounds":decoded["bounds"]})
     return {"version":version,"raw_cell":cell,"vertices":vertices,"triangles":triangles,
             "neighbors":[r[3:6] for r in rows],"flags":[r[6] for r in rows],"doors":doors,
-            "external":external,"issues":issues,"grid_bytes":len(grid),
+            "external":external,"cover_triangles":cover,"issues":issues,"grid_bytes":len(grid),"grid_candidates":grid_candidates,
             "opaque_fields":[tag.decode() for tag in (b"NVCA",b"NVGD") if tag in values]},edges
 
 def draft(mesh,cell_form,version):
