@@ -33,8 +33,12 @@ def inspect_source(raw):
     except (ValueError,UnicodeError,struct.error) as exc:
         return {"signature":signature,"parse_complete":False,"issue":str(exc),"fields":{},"textures":[]}
     # A known signature is a prerequisite for edits, not proof of runtime compatibility.
+    textures=[]
+    for i,t in enumerate(t for t in info["tokens"] if t["tag"] in TEXTURE_TAGS):
+        value=raw[t["payload"]+4:t["end"]].rstrip(b"\0").decode("latin-1")
+        textures.append({"index":i,"tag":t["tag"],"value":value})
     return {"signature":signature,"parse_complete":info["complete"] and signature=="__IdvSpt_02_",
-            "issue":info["unknown"],"fields":info["fields"],"textures":info["textures"]}
+            "issue":info["unknown"],"fields":info["fields"],"textures":textures}
 
 def relink(raw,replacements):
     """Replace indexed texture strings only. Preserve original terminator convention."""
@@ -85,6 +89,7 @@ def export_project(project,output):
     meta=json.loads(read_bounded(root/"manifest.json",4*1024*1024))
     changes=json.loads(read_bounded(root/"edits.json",1024*1024))
     if meta.get("schema")!=SCHEMA or meta.get("source_sha256")!=digest(raw) or meta.get("source_bytes")!=len(raw):raise ValueError("Project source integrity mismatch")
+    if not isinstance(meta,dict):raise ValueError("Invalid project manifest")
     if not isinstance(changes,dict) or set(changes)!={"scalars","textures"} or any(not isinstance(v,dict) for v in changes.values()):raise ValueError("Invalid edits schema")
     original=raw;info=inspect_source(raw)
     if changes["scalars"] or changes["textures"]:
