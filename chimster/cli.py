@@ -82,6 +82,7 @@ def build_parser():
  b=c.add_parser('compare'); b.add_argument('old'); b.add_argument('new')
  b=c.add_parser('package-layout'); b.add_argument('paths',nargs='+')
  a=s.add_parser('navmesh-auto'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--rooms',action='store_true'); a.add_argument('--simplify',action='store_true'); a.add_argument('--spacing',type=float,default=0.5); a.add_argument('--radius',type=float,default=0.3); a.add_argument('--height',type=float,default=1.8)
+ a=s.add_parser('navmesh-tiled'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--previous'); a.add_argument('--tile-cells',type=int,default=32)
  a=s.add_parser('navmesh-nif'); a.add_argument('nif'); a.add_argument('output'); a.add_argument('helper'); a.add_argument('--unit-scale',type=float,required=True); a.add_argument('--spacing',type=float,required=True); a.add_argument('--radius',type=float,default=0.3); a.add_argument('--height',type=float,default=1.8); a.add_argument('--max-step',type=float,default=0.4); a.add_argument('--max-slope',type=float,default=45)
  a=s.add_parser('navmesh-simplify'); a.add_argument('project'); a.add_argument('output')
  a=s.add_parser('navmesh-route'); a.add_argument('project'); a.add_argument('start',type=int); a.add_argument('end',type=int); a.add_argument('--closed',action='append',default=[])
@@ -365,6 +366,14 @@ def main(argv=None):
    from pathlib import Path
    with Path(n.output).open("x",encoding="utf-8") as stream:json.dump(mesh,stream)
    result={"output":n.output,"vertices":len(mesh["vertices"]),"triangles":len(mesh["triangles"]),"regions":len(mesh["regions"]),"issues":mesh.get("issues",[]),"scope":mesh["scope"]}
+  elif n.cmd=='navmesh-tiled':
+   from .navmesh_tiles import build
+   from .quest_editor import load
+   from pathlib import Path
+   previous=load(n.previous)["cache"] if n.previous else None
+   bundle=build(load(n.project),previous,n.tile_cells)
+   with Path(n.output).open("x",encoding="utf-8") as stream:json.dump(bundle,stream)
+   result={"output":n.output,"rebuilt":bundle["rebuilt"],"reused":bundle["reused"],"removed":bundle["removed"],"triangles":len(bundle["mesh"]["triangles"]),"seam_edges":bundle["mesh"]["seam_edges"]}
   elif n.cmd=='navmesh-nif':
    from .modern_nif import extract_collision
    from .navmesh_collision import generate_collision
@@ -378,13 +387,13 @@ def main(argv=None):
    from .quest_editor import load
    from .navmesh_simplify import simplify
    from pathlib import Path
-   mesh=simplify(load(n.project))
+   source=load(n.project);mesh=simplify(source.get("mesh",source))
    with Path(n.output).open("x",encoding="utf-8") as stream:json.dump(mesh,stream)
    result={"output":n.output,**mesh["simplification"]}
   elif n.cmd=='navmesh-route':
    from .quest_editor import load
    from .navmesh import route
-   mesh=load(n.project);result=route(mesh,n.start,n.end,mesh.get("links",[]),n.closed)
+   mesh=load(n.project);mesh=mesh.get("mesh",mesh);result=route(mesh,n.start,n.end,mesh.get("links",[]),n.closed)
   elif n.cmd=='navmesh-draft':
    from .quest_editor import load
    from .fnv_navmesh import draft
