@@ -97,10 +97,10 @@ def inspect_profile(profile, signature, parts, slots):
 
 def capability_manifest():
     """Describe implemented format infrastructure, not retail certification."""
-    return {"version":1,"profiles":[
-        {"id":p.name,"family":p.family,"record_header":p.record_header,
+    return {"version":2,"pending_profiles":["skyrim-vr","fallout4-vr"],"deferred_profiles":["arena","daggerfall","oblivion-remastered","starfield","fallout76"],"profiles":[
+        {"id":p.name,"release_scope":"deferred" if p.name=="oblivion-remastered" else "active","family":p.family,"record_header":p.record_header,
          "group_header":p.group_header,"light_runtime":p.light_runtime,
-         "identity_kind":"named" if p.family=="TES3" else "plugin-relative",
+         "identity_kind":"named-subset" if p.family=="TES3" else "plugin-relative",
          "generated_schema":p.schema_revision,
          "retail_verified":False}
         for p in PROFILES.values()]}
