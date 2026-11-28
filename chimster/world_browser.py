@@ -9,7 +9,7 @@ import struct
 from math import isfinite, floor
 from .native_parser import parse, subrecords
 from .record_graph import Slots
-from .loadorder import plugin_name
+from .loadorder import plugin_name, fingerprint
 
 PLACED = {"REFR", "ACHR", "ACRE"}
 KINDS = {"WRLD", "CELL", "LAND", "NAVM"} | PLACED
@@ -149,7 +149,14 @@ class Browser:
 
     @classmethod
     def open(cls, paths):
-        return cls(read_plugin(path) for path in paths)
+        paths = tuple(Path(p).resolve(strict=True) for p in paths)
+        hashes = tuple(fingerprint(p) for p in paths)
+        result = cls(read_plugin(path) for path in paths)
+        if hashes != tuple(fingerprint(p) for p in paths):
+            raise ValueError('Plugin changed while building browser index')
+        result.source_paths = paths
+        result.source_hashes = hashes
+        return result
 
     def name(self, row):
         return row.get("editor_id") or row.get("name") or label(row["key"])
