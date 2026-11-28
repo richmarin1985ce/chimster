@@ -129,5 +129,5 @@ def capability_manifest():
          "group_header":p.group_header,"light_runtime":p.light_runtime,
          "identity_kind":"named-subset" if p.family=="TES3" else "plugin-relative",
          "generated_schema":p.schema_revision,
-         "experimental":p.experimental,"structural_read":True,"runtime_slots_verified":False,"retail_verified":False}
+         "experimental":p.experimental,"structural_read":p.name in active_profiles(),"runtime_slots_verified":False,"retail_verified":False}
         for p in PROFILES.values()]}
