@@ -7,6 +7,7 @@ from .mcp_operations import (CreationSession, diagnose, read_text, MAX_TEXT,
                              inspect_plugin_artifact, inspect_record, check_world, revision_diff, inspect_asset)
 from .mcp_jobs import Jobs
 from .mcp_events import Subscriptions
+from .mcp_native import NativeProposals
 
 VERSIONS = ("2024-11-05", "2025-03-26", "2025-06-18", "2025-11-25")
 MAX_LINE = 1024 * 1024
@@ -17,9 +18,12 @@ def schema(properties=None, required=()):
             "required": list(required), "additionalProperties": False}
 
 class Bridge:
-    def __init__(self, project=None, allow_create=False, allow_edit=False):
+    def __init__(self, project=None, allow_create=False, allow_edit=False, allow_native=False):
         self.project = project
         self.creation = CreationSession(project, allow_create, allow_edit) if project is not None else None
+        if allow_native and (not allow_edit or project is None or project.read()["game"]!="newvegas"):
+            raise ValueError("native edits require explicit FNV project and edit permission")
+        self.native=NativeProposals(project,self.creation,allow_native) if project is not None else None
         self.jobs = Jobs(project) if project is not None else None
         self.initialized = False
         self.ready = False
@@ -45,6 +49,15 @@ class Bridge:
                               schema({"id":key,"origin":{"type":"string","maxLength":120},
                                       "local_id":{"type":"integer","minimum":1,"maximum":0xffffff}}, ["id","origin","local_id"]),
                               lambda **args: inspect_record(project,**args))
+                self.register("fnv_record_preview_edit","Stage a typed edit to an owned FNV ESP record without changing the project.",
+                              schema({"id":key,"origin":{"type":"string","maxLength":120},"local_id":{"type":"integer","minimum":1,"maximum":0xffffff},
+                                      "field":{"type":"string","maxLength":4},"value_json":{"type":"string","maxLength":8192},
+                                      "revision":{"type":"integer","minimum":0},"plugin_sha256":{"type":"string","maxLength":64},
+                                      "record_sha256":{"type":"string","maxLength":64}},
+                                     ["id","origin","local_id","field","value_json","revision","plugin_sha256","record_sha256"]),self.native.preview)
+                if allow_native:
+                    self.register("fnv_record_apply_edit","Apply exact staged native record edit as a new project revision.",
+                                  schema({"token":{"type":"string","maxLength":80}},["token"]),self.native.apply,write=True,destructive=True)
                 self.register("fnv_world_check", "Validate ordered FNV plugin artifacts, masters first; optional quest and navmesh checks.",
                               schema({"ids":{"type":"array","minItems":1,"maxItems":8,"items":key},
                                       "quest_links":{"type":"boolean"},"navmesh":{"type":"boolean"}}, ["ids"]),
@@ -105,7 +118,7 @@ class Bridge:
     def capabilities(self):
         return {"application": "Chimster", "api_version": 1, "transport": "stdio",
                 "access": ("create-and-edit" if self.creation.enabled else "edit-only") if self.creation and self.creation.allow_edit else "create-only" if self.creation and self.creation.enabled else "read-only", "project_selected": self.project is not None,
-                "tools": sorted(self.registry), "live_ui": False}
+                "tools": sorted(self.registry), "native_write_granted": bool(self.native and self.native.enabled), "live_ui": False}
     def status(self):
         m = self.project.read()
         return {k: m[k] for k in ("name", "game", "revision")} | {"artifact_count": len(m["artifacts"])}
@@ -171,7 +184,7 @@ class Bridge:
             if len(result) > MAX_RESULT:
                 raise ValueError("result exceeds size limit")
             return {"content": [{"type": "text", "text": result}]}
-        except (ValueError, KeyError, OSError, TypeError, AttributeError, IndexError, OverflowError, RecursionError):
+        except (ValueError, KeyError, OSError, TypeError, AttributeError, IndexError, OverflowError, RecursionError, StopIteration):
             return {"isError": True, "content": [{"type": "text", "text": "Operation failed: invalid, unavailable or corrupt project data."}]}
     def dispatch(self, msg):
         def error(code, message, id=None):
@@ -275,6 +288,7 @@ def main(argv=None):
     selection.add_argument("--active-instance", help="Explicitly select a locally discovered editor instance ID")
     selection.add_argument("--discover-active", action="store_true", help="List active local editor projects and exit")
     selection.add_argument("--active", action="store_true", help="Select the sole active local editor project; fail if ambiguous")
+    parser.add_argument("--allow-native-edit", action="store_true", help="Grant staged FNV ESP record editing; requires --allow-edit")
     parser.add_argument("--allow-edit", action="store_true", help="Explicitly allow trusted client draft replacement and session undo/redo")
     parser.add_argument("--allow-create", action="store_true", help="Explicitly allow the trusted client to create new project text artifacts")
     parser.add_argument("--register-client-config", metavar="PATH", help="Explicitly add Chimster to a closed local client JSON config, with backup")
@@ -284,7 +298,7 @@ def main(argv=None):
     try:
         from .editor_presence import discover, select
         if args.discover_active:
-            if args.allow_create or args.allow_edit or args.describe or args.client_config or args.register_client_config:
+            if args.allow_create or args.allow_edit or args.allow_native_edit or args.describe or args.client_config or args.register_client_config:
                 raise ValueError("discovery is a standalone read-only operation")
             print(json.dumps(discover(),indent=2))
             return
@@ -296,11 +310,11 @@ def main(argv=None):
             if len(instances)!=1:
                 raise ValueError("exactly one active instance required")
             project=select(instances[0]["id"])
-        if (args.allow_create or args.allow_edit) and (project is None or not args.project):
+        if (args.allow_create or args.allow_edit or args.allow_native_edit) and (project is None or not args.project):
             raise ValueError("write permission requires an explicit project path")
-        if args.register_client_config and (args.allow_create or args.allow_edit or args.describe or args.client_config or not args.project):
+        if args.register_client_config and (args.allow_create or args.allow_edit or args.allow_native_edit or args.describe or args.client_config or not args.project):
             raise ValueError("registration requires an explicit read-only project")
-        bridge = Bridge(project, args.allow_create, args.allow_edit)
+        bridge = Bridge(project, args.allow_create, args.allow_edit, args.allow_native_edit)
     except (ValueError, OSError, KeyError, TypeError):
         parser.exit(2, "Invalid or unavailable Chimster project\n")
     if args.client_config or args.register_client_config:
@@ -319,6 +333,8 @@ def main(argv=None):
             command_args.append("--allow-create")
         if args.allow_edit:
             command_args.append("--allow-edit")
+        if args.allow_native_edit:
+            command_args.append("--allow-native-edit")
         config={"mcpServers":{"chimster":{"command":executable,"args":command_args}}}
         if args.register_client_config:
             from .mcp_registration import register_config
