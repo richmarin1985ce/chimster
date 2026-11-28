@@ -32,6 +32,7 @@ def export_esp(draft, output):
     refs=[r for r in draft.rows.values() if r["signature"]=="REFR"]
     cells.update(r["cell"] for r in refs)
     worlds={index.active[k]["world"] for k in cells if index.active[k]["world"] is not None}
+    worlds.update(k for k,r in draft.rows.items() if r["signature"]=="WRLD")
     wanted.update(cells|worlds)
     for p in paths:
         nodes=parse("new-vegas",p.read_bytes())
@@ -45,7 +46,7 @@ def export_esp(draft, output):
                     if key in wanted:source[key]=(node,local)
         walk(nodes)
 
-    def preserved(key, rename=None):
+    def preserved(key, rename=None, title=None):
         if key not in source:raise ValueError("Missing original native owner")
         node,local=source[key]
         # Opaque fields may contain FormIDs: copy only with identical disk slots.
@@ -53,7 +54,7 @@ def export_esp(draft, output):
             raise ValueError("Cannot preserve opaque record with changed master slots: "+str(key))
         flags=struct.unpack_from("<I",node.header,8)[0]
         if flags&0x20:raise ValueError("Deleted source record")
-        if rename is None:
+        if rename is None and title is None:
             return node.header+node.payload
         if flags&0x40000:raise ValueError("Compressed CELL rename not enabled")
         parts=list(subrecords("new-vegas",node))
@@ -62,6 +63,13 @@ def export_esp(draft, output):
         if any(t==b"EDID" for t,v in parts):
             parts=[(t,cstr(rename) if t==b"EDID" else v) for t,v in parts]
         else:parts.insert(0,(b"EDID",cstr(rename)))
+        if title is not None:
+            if len([v for t,v in parts if t==b"FULL"])>1:raise ValueError("Duplicate FULL field")
+            if any(t==b"FULL" for t,v in parts):
+                parts=[(t,cstr(title) if t==b"FULL" else v) for t,v in parts]
+            else:
+                offset=next((i+1 for i,(t,v) in enumerate(parts) if t==b"EDID"),0)
+                parts.insert(offset,(b"FULL",cstr(title)))
         body=b"".join(sub(t,v) for t,v in parts)
         return node.header[:4]+struct.pack("<I",len(body))+node.header[8:]+body
 
@@ -114,11 +122,14 @@ def export_esp(draft, output):
     body=b""
     if interior:
         body+=g(0,b"CELL",b"".join(g(2,b,b"".join(g(3,s,b"".join(rs)) for s,rs in sorted(ss.items()))) for b,ss in sorted(interior.items())))
-    if exterior:
+    if worlds:
         wrlds=[]
-        for world,blocks in sorted(exterior.items()):
+        for world in sorted(worlds):
+            blocks=exterior.get(world,{})
             nested=b"".join(g(4,struct.pack("<hh",*b),b"".join(g(5,struct.pack("<hh",*s),b"".join(rs)) for s,rs in sorted(ss.items()))) for b,ss in sorted(blocks.items()))
-            wrlds.append(preserved(world)+g(1,slots.encode(world),nested))
+            row=draft.rows.get(world)
+            raw=preserved(world,row["editor_id"],row["name"]) if row is not None else preserved(world)
+            wrlds.append(raw+(g(1,slots.encode(world),nested) if nested else b""))
             records+=1
         body+=g(0,b"WRLD",b"".join(wrlds))
     header=sub(b"HEDR",struct.pack("<fII",1.34,records+groups,draft.cursor))+sub(b"CNAM",b"Chimster\0")
@@ -132,7 +143,7 @@ def export_esp(draft, output):
         merged=Browser.open([*paths,out])
         for key,row in draft.rows.items():
             actual=merged.active.get(key)
-            if actual is None or any(actual.get(f)!=row.get(f) for f in ("signature","world","cell","grid","editor_id","base")):
+            if actual is None or any(actual.get(f)!=row.get(f) for f in ("signature","world","cell","grid","editor_id","base","name")):
                 raise ValueError("Native world edit roundtrip mismatch")
             if row["signature"]=="REFR":
                 if not all(isclose(a,b,rel_tol=1e-6,abs_tol=1e-5) for field in ("position","rotation") for a,b in zip(actual[field],row[field])) or not isclose(actual.get("scale",1),row["scale"],rel_tol=1e-6):
