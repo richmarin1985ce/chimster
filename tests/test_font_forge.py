@@ -59,3 +59,33 @@ class FontForgeTests(unittest.TestCase):
             self.assertFalse(path.exists())
             path.write_text('{"version":1,"family":"Test","glyphs":{"065":[]}}')
             with self.assertRaises(ValueError):load_project(path)
+
+    def test_otf_import(self):
+        from fontTools.fontBuilder import FontBuilder
+        from fontTools.pens.t2CharStringPen import T2CharStringPen
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp)
+            path=root/"Example.otf"
+            names=[".notdef","A"]
+            fb=FontBuilder(1000,isTTF=False)
+            fb.setupGlyphOrder(names)
+            fb.setupCharacterMap({65:"A"})
+            glyphs={}
+            for name in names:
+                pen=T2CharStringPen(600,None)
+                if name=="A":
+                    pen.moveTo((20,0))
+                    pen.lineTo((300,700))
+                    pen.lineTo((580,0))
+                    pen.closePath()
+                glyphs[name]=pen.getCharString()
+            fb.setupCFF("Example-Regular",{"FullName":"Example Regular","FamilyName":"Example","Weight":"Regular"},glyphs,{})
+            fb.setupHorizontalMetrics({name:(600,20 if name=="A" else 0) for name in names})
+            fb.setupHorizontalHeader(ascent=800,descent=-200)
+            fb.setupNameTable({"familyName":"Example","styleName":"Regular","uniqueFontIdentifier":"Example Regular","fullName":"Example Regular","psName":"Example-Regular"})
+            fb.setupOS2(sTypoAscender=800,sTypoDescender=-200,usWinAscent=1000,usWinDescent=200)
+            fb.setupPost()
+            fb.save(path)
+            target,info=FontLibrary(root/"library").import_font(path)
+            self.assertEqual(info["format"],"OTF")
+            self.assertEqual(target.read_bytes(),path.read_bytes())
