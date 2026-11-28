@@ -28,6 +28,13 @@ class ModernNifTests(unittest.TestCase):
             result=export(m,"newvegas",p,os.environ["CHIMSTER_NIFBRIDGE"],scale=10,box_collision=True)
             self.assertTrue(result["box_collision"])
             self.assertTrue(p.is_file())
+            from chimster.modern_nif import extract_collision
+            collision=extract_collision(p,os.environ["CHIMSTER_NIFBRIDGE"],7)
+            self.assertEqual(len(collision["vertices"]),8)
+            self.assertEqual(len(collision["triangles"]),12)
+            for axis in range(3):
+                self.assertAlmostEqual(min(v[axis] for v in collision["vertices"]),10*min(v[axis] for v in m.vertices),places=4)
+                self.assertAlmostEqual(max(v[axis] for v in collision["vertices"]),10*max(v[axis] for v in m.vertices),places=4)
 
     @unittest.skipUnless(os.environ.get("CHIMSTER_NIFBRIDGE"),"optional compiled native backend")
     def test_native_compound_collision(self):
@@ -45,3 +52,7 @@ class ModernNifTests(unittest.TestCase):
                     self.assertEqual(result["list_material"],19)
                     self.assertIn("warning",result)
                     self.assertTrue(p.is_file())
+                    from chimster.modern_nif import extract_collision
+                    collision=extract_collision(p,os.environ["CHIMSTER_NIFBRIDGE"],7)
+                    self.assertEqual(len(collision["vertices"]),8*8)
+                    self.assertEqual(len(collision["triangles"]),8*12)
