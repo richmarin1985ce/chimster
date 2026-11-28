@@ -4,6 +4,11 @@
 Active: Morrowind, classic Oblivion, Fallout 3, New Vegas, classic Skyrim, Skyrim SE/AE, Skyrim VR, Fallout 4 and Fallout 4 VR. VR variants require explicit capability profiles and independent format/runtime verification; do not assume desktop parity.
 Deferred: Arena, Daggerfall, Oblivion Remastered (legacy and Unreal), Starfield and Fallout 76 (including offline asset replacement). Preserve existing code and documentation; no new title-specific development until explicitly reopened. Shared improvements remain in scope. Exclude deferred-only tasks from active release readiness, but retain them in the lifetime roadmap. Continue easiest-first sweeps across active sections, with testing deferred as directed.
 
+## Rendering and asset architecture — 2026-11-27
+Prioritize sections 8 then 9. Panda3D is the preferred experimental advanced renderer, bundled in self-contained releases with no separate user installation or runtime downloads. Retain ModernGL and CPU fallbacks. Audit exact distributed binaries and license notices; require offline clean-machine launch before release. Engine features are candidates for integration, not completed Chimster capabilities.
+Unify Flora Forge and Asset Forge as one model creation subkit; pause new procedural modeling features, preserve existing generators. Mesh import, native conversion, materials, placement, rendering and LOD integration remain active.
+Current prototype: optional Panda3D dependency, scene adapter and offscreen preview. Desktop hookup, packaging and execution validation pending.
+
 Current baseline: PR23 merged at 7c356fbde0c879c0de46c47290e0bd7cb812635e; eight CI workflows green. Retail engine validation remains outstanding.
 | Area | Working foundation / limited implementation | Next production milestones |
 |---|---|---|
