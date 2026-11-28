@@ -11,7 +11,7 @@ KINDS=REFS|{"WRLD","CELL","LAND","NAVM","ROAD","LTEX"}
 DELETED=0x20
 PERSISTENT=0x400
 
-def validate(paths,max_records=2000000,max_issues=10000):
+def validate(paths,max_records=2000000,max_issues=10000,quest_links=False):
     paths=[Path(p).resolve(strict=True) for p in paths]
     names=[plugin_name(p.name) for p in paths]
     if not names or len(set(names))!=len(names):raise ValueError("supply distinct plugins in active load order, masters first")
@@ -81,7 +81,7 @@ def validate(paths,max_records=2000000,max_issues=10000):
                             prev=None;continue
                         if n>MAX_RECORD or f.tell()+n>bound:raise ValueError("record exceeds parent")
                         kind=sig.decode("ascii");identity=fid(raw,off);local_count+=1
-                        data=read(n) if kind in KINDS else None
+                        data=read(n) if kind in KINDS or quest_links and kind in ("QUST","DIAL","INFO") else None
                         if data is None:f.seek(n,1)
                         pt,key=parents[-1] if parents else (None,None)
                         world=next((v for t,v in parents if t==1),None)
@@ -91,6 +91,7 @@ def validate(paths,max_records=2000000,max_issues=10000):
                         if kind in ("LAND","NAVM") and pt!=9:issue("temporary-owner",name,off,f"{kind} must be in temporary cell children")
                         if kind in REFS and pt in (8,9) and bool(flags&PERSISTENT)!=(pt==8):issue("persistence",name,off,"Reference persistent flag disagrees with bucket","warning")
                         item={"kind":kind,"flags":flags,"provider":name,"offset":off,"world":world,"owner":owner,"coords":None,"links":[]}
+                        if kind=="INFO":item["topic"]=key if pt==7 else None
                         if identity in records:issue("duplicate-formid",name,off,str(identity))
                         if identity:records[identity]=item
                         if data is not None and not flags&DELETED:
@@ -101,6 +102,17 @@ def validate(paths,max_records=2000000,max_issues=10000):
                                 d=zlib.decompressobj();data=d.decompress(data[4:],size+1)
                                 if len(data)!=size or not d.eof or d.unused_data or d.unconsumed_tail:raise ValueError("invalid compressed record")
                             parts=list(subs(data));fields=dict(parts)
+                            if quest_links and kind in ("QUST","DIAL","INFO"):
+                                from .quest_remap_schema import fields as quest_fields
+                                try:exact=quest_fields(sig,parts)
+                                except (ValueError,UnicodeError,struct.error):
+                                    issue("opaque-quest-layout",name,off,"Quest layout outside generated schema","warning")
+                                else:
+                                    for i,offset,kinds in exact:
+                                        tag,value=parts[i];target=val32(value[offset:offset+4],off)
+                                        if target:item["links"].append((target,set(kinds),"quest-"+tag.decode("ascii").lower()))
+                                        if kind=="INFO" and tag==b"TPIC" and target!=item.get("topic"):
+                                            issue("info-topic-mismatch",name,off,"TPIC differs from group owner")
                             if kind=="CELL":
                                 if b"XCLC" in fields:
                                     v=fields[b"XCLC"]
@@ -180,6 +192,13 @@ def validate(paths,max_records=2000000,max_issues=10000):
         for target,types,role in r["links"]:
             t=live(target)
             if t is None or types and t["kind"] not in types or role=="base-object" and t["kind"] in {"WRLD","CELL","LAND","NAVM","ROAD","LTEX","TXST","REFR","ACHR","ACRE"}:issue("unresolved-"+role,name,off,f"{identity} -> {target}")
+        if quest_links and kind=="INFO":
+            topic=live(r.get("topic"))
+            if not topic or topic["kind"]!="DIAL":issue("orphan-topic",name,off,str(identity))
+            for target,types,role in r["links"]:
+                if role=="quest-pnam":
+                    previous=live(target)
+                    if previous and previous.get("topic")!=r.get("topic"):issue("previous-info-topic",name,off,str(target))
         if r["world"] is not None and (not live(r["world"]) or live(r["world"])["kind"]!="WRLD"):issue("orphan-world",name,off,str(identity))
         if r["owner"] is not None:
             c=live(r["owner"])
@@ -194,4 +213,4 @@ def validate(paths,max_records=2000000,max_issues=10000):
         if kind=="LAND" and r["owner"] is not None:
             if r["owner"] in lands:issue("duplicate-land",name,off,f"{identity} and {lands[r['owner']]}")
             lands[r["owner"]]=identity
-    return {"game":"newvegas","valid":not counts["error"] and not incomplete,"complete":not incomplete,"errors":counts["error"],"warnings":counts["warning"],"issues":issues,"plugins":reports,"winning_records":len(winning),"exterior_cells":len(coords),"persistent_cells":len(persistent),"land_records":len(lands),"scope":"FNV hierarchy and selected references; not a complete schema or engine validator; no modifications"}
+    return {"game":"newvegas","valid":not counts["error"] and not incomplete,"complete":not incomplete,"errors":counts["error"],"warnings":counts["warning"],"issues":issues,"plugins":reports,"winning_records":len(winning),"exterior_cells":len(coords),"persistent_cells":len(persistent),"land_records":len(lands),"quest_links_checked":quest_links,"scope":"FNV hierarchy and selected references; not a complete schema or engine validator; no modifications"}
