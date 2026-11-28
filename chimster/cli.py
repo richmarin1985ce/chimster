@@ -35,6 +35,8 @@ def build_parser():
  a=s.add_parser('git-branches'); a.add_argument('root'); a.add_argument('--create')
  a=s.add_parser('lod'); l=a.add_subparsers(dest='lop',required=True)
  b=l.add_parser('tree'); b.add_argument('output'); b.add_argument('--seed',type=int,default=42); b.add_argument('--size',type=int,default=128); b.add_argument('--views',type=int,choices=[1,2,4],default=2)
+ b=l.add_parser('spt-import'); b.add_argument('source'); b.add_argument('project')
+ b=l.add_parser('spt-export'); b.add_argument('project'); b.add_argument('output')
  b=l.add_parser('spt-inspect'); b.add_argument('source')
  b=l.add_parser('spt-edit'); b.add_argument('source'); b.add_argument('changes'); b.add_argument('output')
  b=l.add_parser('spt-billboard'); b.add_argument('game',choices=['oblivion','fallout3','new-vegas']); b.add_argument('model'); b.add_argument('output'); b.add_argument('--width',type=float,required=True); b.add_argument('--height',type=float,required=True); b.add_argument('--data'); b.add_argument('--archive',action='append',default=[])
@@ -713,6 +715,9 @@ def main(argv=None):
    from .lod_tools import workflow,openmw_settings
    from pathlib import Path
    if n.lop=='tree':result=build_tree(Recipe(seed=n.seed),n.output,n.size,n.views)
+   elif n.lop in ('spt-import','spt-export'):
+    from .speedtree_project import import_file,export_project
+    result=import_file(n.source,n.project) if n.lop=='spt-import' else export_project(n.project,n.output)
    elif n.lop in ('spt-inspect','spt-edit'):
     from .speedtree import parse,edit_scalars
     source=Path(n.source)
