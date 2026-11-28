@@ -31,6 +31,7 @@ class Bridge:
         self.subscriptions=Subscriptions(self.read_resource)
         self.register("chimster_capabilities", "Discover available Chimster commands and their scope.", schema(), self.capabilities)
         if project is not None:
+            self.register("editor_context","Read active dashboard instance and selection for this explicitly scoped project.",schema(),self.editor_context)
             self.register("project_status", "Read selected project name, game, revision and artifact count.", schema(), self.status)
             self.register("project_artifacts", "List selected project's artifact metadata, with pagination.",
                           schema({"offset": {"type": "integer", "minimum": 0}, "limit": {"type": "integer", "minimum": 1, "maximum": 100}}), self.artifacts)
@@ -119,6 +120,11 @@ class Bridge:
         return {"application": "Chimster", "api_version": 1, "transport": "stdio",
                 "access": ("create-and-edit" if self.creation.enabled else "edit-only") if self.creation and self.creation.allow_edit else "create-only" if self.creation and self.creation.enabled else "read-only", "project_selected": self.project is not None,
                 "tools": sorted(self.registry), "native_write_granted": bool(self.native and self.native.enabled), "live_ui": False}
+    def editor_context(self):
+        from .editor_presence import discover
+        rows=[{"id":row["id"],"revision":row["revision"],"selected":row["selected"]}
+              for row in discover() if row["project"]==str(self.project.root)]
+        return {"instances":rows,"scope":"saved project and dashboard selection only","unsaved_state":False}
     def status(self):
         m = self.project.read()
         return {k: m[k] for k in ("name", "game", "revision")} | {"artifact_count": len(m["artifacts"])}
@@ -140,6 +146,7 @@ class Bridge:
         rows=[{"uri":"chimster://capabilities","name":"Chimster capabilities","mimeType":"application/json"}]
         if self.project is not None:
             rows.append({"uri":"chimster://project/status","name":"Selected project status","mimeType":"application/json"})
+            rows.append({"uri":"chimster://editor/context","name":"Live dashboard context","mimeType":"application/json"})
         return rows
     def resource_templates(self):
         if self.project is None:
@@ -148,6 +155,8 @@ class Bridge:
     def read_resource(self, uri):
         if uri=="chimster://capabilities":
             data=self.capabilities()
+        elif self.project is not None and uri=="chimster://editor/context":
+            data=self.editor_context()
         elif self.project is not None and uri=="chimster://project/status":
             data=self.status()
         elif self.project is not None and uri.startswith("chimster://project/artifacts/"):
