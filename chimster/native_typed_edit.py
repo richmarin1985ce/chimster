@@ -112,9 +112,6 @@ def _fixed_properties(profile,sig,tag,raw):
 
 def _property_layout(profile,sig,tag):
     if profile not in _SCALAR_PROFILES:return None
-    if tag==b"CNTO" and sig in (b"NPC_",b"CONT",b"CREA") and profile in ("oblivion","fallout3","new-vegas","skyrim","skyrim-se","fallout4"):
-        # Inventory FormID is read separately and is not editable in this adapter.
-        return None
     if tag==b"DATA":
         if profile in ("fallout3","new-vegas") and sig in (b"MISC",b"KEYM"):
             return "<if",("value","weight")
@@ -135,6 +132,7 @@ def _edit_fixed(profile,sig,tag,raw,changes):
     if spec is None:return None
     fmt,keys=spec
     if set(changes)-set(keys):raise ValueError("Unsupported property")
+    if len(raw)!=struct.calcsize(fmt):raise ValueError("Unexpected property layout size")
     values=dict(zip(keys,struct.unpack(fmt,raw)))
     values.update(changes)
     for key,v in changes.items():
@@ -146,11 +144,14 @@ def _edit_fixed(profile,sig,tag,raw,changes):
 
 def property_fields(profile,node,localized=False):
     """Field-level editor rows, including repeated typed inventory/effect entries."""
-    rows=common_fields(profile,node,localized)
     parts=list(subrecords(profile,node));counts={}
+    tes3=PROFILES[profile].family=="TES3"
+    if (tes3 and (any(k==b"DELE" for k,_ in parts) or struct.unpack_from("<I",node.header,12)[0]&0x20)) or (not tes3 and struct.unpack_from("<I",node.header,8)[0]&0x20):return []
+    rows=common_fields(profile,node,localized)
     for tag,raw in parts:
         occurrence=counts.get(tag,0);counts[tag]=occurrence+1
         try:
+            if tag not in (b"CNTO",b"NPCO",b"ENAM",b"LVLO",b"INTV") and sum(k==tag for k,_ in parts)!=1:continue
             values=_fixed_properties(profile,node.signature,tag,raw)
             if values is None and profile in _SCALAR_PROFILES and tag==b"CNTO" and node.signature in (b"NPC_",b"CONT",b"CREA"):
                 if len(raw)==8:values={"count":struct.unpack_from("<i",raw,4)[0]}
@@ -215,6 +216,7 @@ def edit(profile,data,path,tag,occurrence,changes,revision):
             updated=tes3_actor_data.flags_edit(sig,raw,**changes)
         else:raise ValueError("No registered typed editor for field")
     elif _property_layout(profile,sig,tag) is not None:
+        if len(matches)!=1:raise ValueError("Ambiguous fixed property field")
         updated=_edit_fixed(profile,sig,tag,raw,changes)
     elif profile in _SCALAR_PROFILES and tag==b"CNTO" and sig in (b"NPC_",b"CONT",b"CREA"):
         if len(raw)!=8 or set(changes)!={"count"} or type(changes["count"])!=int or not 1<=changes["count"]<=2147483647:
