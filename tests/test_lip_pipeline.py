@@ -7,12 +7,14 @@ from chimster import lip_pipeline as lp
 from test_audio import wav
 
 def lip():
-    return struct.pack("<iii",1,4,0)+b"test"
+    return struct.pack("<IIIHHiHH",1,132*30+28,13,30,3,-4,16,0)+b"test"
 
 class LipPipelineTests(unittest.TestCase):
     def test_header(self):
         self.assertEqual(lp.header(lip())["payload_bytes"],4)
-        for data in (b"",b"not a lip",struct.pack("<iii",0,4,0)+b"test"):
+        self.assertEqual(lp.header(lip())["game"],"Skyrim")
+        with self.assertRaises(ValueError):lp.header(lip(),"Fallout4")
+        for data in (b"",b"not a lip",struct.pack("<IIIHHiHH",0,132*30+28,13,30,3,-4,16,0)+b"test"):
             with self.assertRaises(ValueError):lp.header(data)
 
     def test_receipt(self):
