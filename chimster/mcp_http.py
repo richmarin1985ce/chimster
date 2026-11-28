@@ -57,6 +57,7 @@ class Server(HTTPServer):
     def drop(self,key):
         bridge,_,_,_=self.sessions.pop(key)
         if bridge.jobs:bridge.jobs.close()
+        if bridge.production_jobs:bridge.production_jobs.close()
     def server_close(self):
         for key in list(self.sessions):self.drop(key)
         super().server_close()
@@ -146,6 +147,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.reply(404 if code==-32601 else 400 if code else 200,result)
             finally:
                 if bridge.jobs:bridge.jobs.close()
+                if bridge.production_jobs:bridge.production_jobs.close()
             return
         key=self.headers.get("Mcp-Session-Id")
         if msg.get("method")=="initialize" and key is None:
@@ -156,12 +158,14 @@ class Handler(BaseHTTPRequestHandler):
             result=bridge.dispatch(msg)
             if result is None or "result" not in result:
                 if bridge.jobs:bridge.jobs.close()
+                if bridge.production_jobs:bridge.production_jobs.close()
                 self.reply(400,result);return
             # HTTP JSON-only transport does not support push subscriptions.
             result["result"]["capabilities"]["resources"]={}
             version=result["result"]["protocolVersion"]
             if version=="2024-11-05":
                 if bridge.jobs:bridge.jobs.close()
+                if bridge.production_jobs:bridge.production_jobs.close()
                 self.reply(400);return
             key=secrets.token_urlsafe(24)
             self.server.sessions[key]=(bridge,version,time.monotonic(),self.principal)
