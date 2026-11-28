@@ -101,6 +101,7 @@ def build_parser():
  a=s.add_parser('script-check'); a.add_argument('path')
  a=s.add_parser('script-syntax-export'); a.add_argument('language',choices=['papyrus','geck','oblivion','morrowind','lua']); a.add_argument('output')
  a=s.add_parser('papyrus-build'); a.add_argument('game'); a.add_argument('backend',choices=['ck','caprica']); a.add_argument('compiler'); a.add_argument('source'); a.add_argument('flags'); a.add_argument('output'); a.add_argument('--import',dest='imports',action='append',default=[]); a.add_argument('--execute',action='store_true'); a.add_argument('--timeout',type=int,default=120)
+ a=s.add_parser('papyrus-batch'); a.add_argument('game'); a.add_argument('backend',choices=['ck','caprica']); a.add_argument('compiler'); a.add_argument('source_root'); a.add_argument('flags'); a.add_argument('output'); a.add_argument('--import',dest='imports',action='append',default=[]); a.add_argument('--execute',action='store_true'); a.add_argument('--timeout',type=int,default=120)
  a=s.add_parser('pex-inspect'); a.add_argument('game'); a.add_argument('path')
  a=s.add_parser('quest-states'); a.add_argument('project'); a.add_argument('--max-states',type=int,default=100000)
  a=s.add_parser('quest-native'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--master',action='append',default=[]); a.add_argument('--ledger-in'); a.add_argument('--ledger-out'); a.add_argument('--script-draft',action='store_true')
@@ -286,6 +287,11 @@ def main(argv=None):
   elif n.cmd=='papyrus-build':
    from .papyrus_build import build
    result=build(n.game,n.backend,n.compiler,n.source,n.flags,n.imports,n.output,execute=n.execute,timeout=n.timeout)
+   if n.execute and result['status']!='header-checked':
+    print(json.dumps(result,indent=2)); raise SystemExit(1)
+  elif n.cmd=='papyrus-batch':
+   from .papyrus_batch import batch
+   result=batch(n.game,n.backend,n.compiler,n.source_root,n.flags,n.imports,n.output,execute=n.execute,timeout=n.timeout)
    if n.execute and result['status']!='header-checked':
     print(json.dumps(result,indent=2)); raise SystemExit(1)
   elif n.cmd=='pex-inspect':
