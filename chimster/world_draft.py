@@ -136,6 +136,53 @@ class Draft:
         self.redo_stack=[]
         return key,{"copied":len(refs),"omitted":omitted,"scope":"cell shell and static references only"}
 
+    def create_world(self,name,title,origin=(0,0),size=(1,1),environment=None):
+        """Create a bounded initial exterior grid and its single persistent owner."""
+        name=self.unique_name(name)
+        from .world_environment import normalize
+        if not isinstance(title,str) or "\0" in title or len(title.encode("cp1252"))>255:
+            raise ValueError("Invalid worldspace title")
+        if len(origin)!=2 or len(size)!=2 or any(type(v)!=int for v in (*origin,*size)) or min(size)<1 or size[0]*size[1]>256:
+            raise ValueError("Initial grid must contain 1–256 cells")
+        if any(not -32768<=origin[i]<=origin[i]+size[i]-1<=32767 for i in range(2)):
+            raise ValueError("Invalid grid bounds")
+        index=self.index()
+        settings=normalize({"heights":(14000,10500),"lod_height":(10500,),
+                            "flags":(0x10,),"map_offset":(1,0,0),**(environment or {})},index)
+        if any(settings.get(k) is None for k in settings):settings={k:v for k,v in settings.items() if v is not None}
+        self.checkpoint()
+        world=self.allocate();persistent=self.allocate()
+        common={"plugin":self.name,"cell":None,"bucket":None,"name":""}
+        self.rows[world]={**common,"key":world,"signature":"WRLD","flags":0,"world":None,
+                          "editor_id":name,"name":title,"environment":settings,
+                          "bounds":(origin,(origin[0]+size[0]-1,origin[1]+size[1]-1))}
+        self.rows[persistent]={**common,"key":persistent,"signature":"CELL","flags":0x400,
+                               "world":world,"editor_id":"","persistent_cell":True,"interior":False}
+        for y in range(origin[1],origin[1]+size[1]):
+            for x in range(origin[0],origin[0]+size[0]):
+                key=self.allocate()
+                self.rows[key]={**common,"key":key,"signature":"CELL","flags":0,"world":world,
+                                "editor_id":"","interior":False,"grid":(x,y)}
+        self.operations.append({"action":"create_world","key":key_json(world),"editor_id":name,
+                                "title":title,"origin":origin,"size":size,"environment":settings})
+        return world
+
+    def set_environment(self,key,values):
+        from .world_environment import normalize
+        index=self.index()
+        row=index.worlds.get(key)
+        if row is None:raise ValueError("Select a live worldspace")
+        values=normalize(values,index)
+        self.checkpoint()
+        env=dict(row.get("environment",{}))
+        changes=dict(row.get("environment_changes",{}))
+        for name,value in values.items():
+            if value is None:env.pop(name,None)
+            else:env[name]=value
+            changes[name]=value
+        self.rows[key]={**row,"plugin":self.name,"environment":env,"environment_changes":changes}
+        self.operations.append({"action":"world_environment","key":key_json(key),"values":values})
+
     def world_properties(self,key,name,title):
         row=self.index().worlds.get(key)
         if row is None:raise ValueError("Select a live worldspace")
