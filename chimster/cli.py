@@ -89,7 +89,7 @@ def build_parser():
  a=s.add_parser('navmesh-nif'); a.add_argument('nif'); a.add_argument('output'); a.add_argument('helper'); a.add_argument('--unit-scale',type=float,required=True); a.add_argument('--spacing',type=float,required=True); a.add_argument('--radius',type=float,default=0.3); a.add_argument('--height',type=float,default=1.8); a.add_argument('--max-step',type=float,default=0.4); a.add_argument('--max-slope',type=float,default=45)
  a=s.add_parser('navmesh-simplify'); a.add_argument('project'); a.add_argument('output')
  a=s.add_parser('navmesh-route'); a.add_argument('project'); a.add_argument('start',type=int); a.add_argument('end',type=int); a.add_argument('--closed',action='append',default=[]); a.add_argument('--avoid-area',action='append',default=[])
- a=s.add_parser('navmesh-native-review'); a.add_argument('project')
+ a=s.add_parser('navmesh-native-review'); a.add_argument('project'); a.add_argument('--grid-order',choices=('xy','yx'),default='xy'); a.add_argument('--require-connections',action='store_true')
  a=s.add_parser('navmesh-verify-stage'); a.add_argument('stage'); a.add_argument('finalized'); a.add_argument('--master',action='append',default=[])
  a=s.add_parser('navmesh-navi-candidate'); a.add_argument('project'); a.add_argument('output')
  a=s.add_parser('navmesh-navi-inspect'); a.add_argument('fields'); a.add_argument('--grid-order',choices=('xy','yx'),required=True)
@@ -509,7 +509,7 @@ def main(argv=None):
   elif n.cmd=='navmesh-native-review':
    from .navmesh_tiles import load
    from .fnv_navmesh_review import review
-   source=load(n.project);result=review(source["meshes"],source["navi"],source.get("door_backlinks",[]))
+   source=load(n.project);result=review(source["meshes"],source["navi"],source.get("door_backlinks",[]),grid_order=n.grid_order,require_connections=n.require_connections)
   elif n.cmd=='navmesh-verify-stage':
    from .fnv_navmesh_stage import review
    result=review(n.stage,n.finalized,n.master)
