@@ -8,7 +8,10 @@ ITEMS={b"BOOK",b"NOTE",b"WEAP",b"ARMO",b"CLOT",b"ALCH",b"INGR",b"AMMO",b"MISC",b
 LOCALIZED={ "skyrim","skyrim-se","fallout4" }
 
 def inspect(profile,data):
-    if profile not in PROFILES or PROFILES[profile].family=="TES3":raise ValueError("Unsupported item catalog profile")
+    if profile not in PROFILES:raise ValueError("Unsupported item catalog profile")
+    if PROFILES[profile].family=="TES3":
+        from .tes3_items import inspect as tes3_inspect
+        return tes3_inspect(profile,data)
     nodes=parse(profile,data)
     if not nodes or nodes[0].signature!=b"TES4":raise ValueError("Missing plugin header")
     localized=profile in LOCALIZED and bool(struct.unpack_from("<I",nodes[0].header,8)[0]&0x80)
@@ -36,3 +39,17 @@ def inspect(profile,data):
             rows.append(row)
     walk(nodes)
     return {"profile":profile,"localized":localized,"items":rows}
+
+def edit_fallout_book_data(profile,raw,**changes):
+    """Typed payload edit, preserving unrelated flag bits and unknown subrecords."""
+    if profile not in ("fallout3","new-vegas") or len(raw)!=10:raise ValueError("Unsupported book layout")
+    flags,skill,value,weight=struct.unpack("<Bbif",raw)
+    if set(changes)-{"skill","value","weight","untakeable"}:raise ValueError("Unknown book property")
+    skill=changes.get("skill",skill);value=changes.get("value",value);weight=changes.get("weight",weight)
+    if type(skill)!=int or not -128<=skill<=127:raise ValueError("Invalid raw skill")
+    if type(value)!=int or not 0<=value<=2147483647:raise ValueError("Invalid value")
+    if not isfinite(weight) or not 0<=weight<=1e6:raise ValueError("Invalid weight")
+    if "untakeable" in changes:
+        if type(changes["untakeable"])!=bool:raise ValueError("Expected boolean")
+        flags=(flags&~2)|(2 if changes["untakeable"] else 0)
+    return struct.pack("<Bbif",flags,skill,value,weight)
