@@ -156,3 +156,19 @@ class ViewportTests(unittest.TestCase):
             self.assertIsNone(r.pick(32,24))
             self.assertEqual(len(b),64*48*4)
         finally:r.close()
+
+    @unittest.skipUnless(os.environ.get("CHIMSTER_TEST_GL"),"optional GL context")
+    def test_spot_shadow_depth(self):
+        from chimster.render_effects import Effects,LocalLight
+        from dataclasses import replace
+        s,m=make_demo();r=Renderer(backend="egl")
+        try:
+            light=LocalLight(position=(0,0,8),direction=(0,0,-1),radius=24,shadows=True)
+            fx=Effects(shadow_size=512,fog_density=.03,scatter_strength=.4,lights=(light,))
+            a,_=r.render(s,Camera(zoom=4),96,72,m,effects=fx)
+            self.assertEqual(r.shadows.spot_state["spot_index"],0)
+            self.assertEqual(r.shadows.spot[0].size,(512,512))
+            b,_=r.render(s,Camera(zoom=4),96,72,m,effects=replace(fx,lights=(replace(light,shadows=False),)))
+            self.assertIsNone(r.shadows.spot)
+            self.assertEqual(len(a),len(b))
+        finally:r.close()

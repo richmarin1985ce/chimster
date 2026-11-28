@@ -62,7 +62,7 @@ void main(){
  float shadow=sun_visibility(world,1.0-diffuse,true);
  vec3 lit=base*ambient_level+sun_color*(base*sun_intensity+vec3(spec))*diffuse*shadow;
  for(int i=0;i<light_count;i++){
-   vec3 dir;vec3 radiance=local_light(i,world,dir);
+   vec3 dir;vec3 radiance=local_light(i,world,dir)*local_visibility(i,world);
    float nd=max(0.0,dot(n,dir));
    float highlight=pow(max(0.0,dot(n,normalize(dir+v))),gloss)*texture(specmap,texcoord).r*spec_strength;
    lit+=(base+vec3(highlight))*radiance*nd;

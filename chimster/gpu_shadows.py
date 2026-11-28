@@ -35,17 +35,35 @@ float sun_visibility(vec3 p,float slope,bool soft){
  float blend=smoothstep(shadow_split-shadow_blend,shadow_split+shadow_blend,z);
  return mix(shadow_tap(shadow_near,a,bias,soft),farv,blend);
 }
-float local_visibility(int i,vec3 p){return 1.0;}
+uniform sampler2D spot_map;
+uniform int spot_index;
+uniform vec3 spot_origin,spot_right,spot_up,spot_forward;
+uniform vec3 spot_projection;
+float local_visibility(int i,vec3 p){
+ if(i!=spot_index)return 1.0;
+ vec3 d=p-spot_origin;
+ float z=dot(d,spot_forward),n=spot_projection.y,f=spot_projection.z;
+ if(z<=n||z>=f)return 1.0;
+ vec2 q=vec2(dot(d,spot_right),dot(d,spot_up))*spot_projection.x/z*.5+.5;
+ if(any(lessThan(q,vec2(0)))||any(greaterThan(q,vec2(1))))return 1.0;
+ float depth=f/(f-n)*(1.0-n/z);
+ return step(depth-shadow_bias,texture(spot_map,q).r);
+}
 """
 VERTEX="""#version 330
 in vec3 pos;in vec2 uv;in vec3 origin;in vec2 rotation;in float scale;
 uniform vec3 center,rightv,upv,axis;
 uniform float extent,depth_range;
+uniform vec3 perspective;
+uniform int is_spot;
 out vec2 texcoord;
 void main(){
  mat3 r=mat3(rotation.x,rotation.y,0,-rotation.y,rotation.x,0,0,0,1);
  vec3 d=origin+r*pos*scale-center;
- gl_Position=vec4(dot(d,rightv)/extent,dot(d,upv)/extent,-dot(d,axis)/depth_range,1);
+ if(is_spot!=0){
+   float z=dot(d,axis),n=perspective.y,f=perspective.z;
+   gl_Position=vec4(dot(d,rightv)*perspective.x,dot(d,upv)*perspective.x,(f+n)*z/(f-n)-2.0*f*n/(f-n),z);
+ }else gl_Position=vec4(dot(d,rightv)/extent,dot(d,upv)/extent,-dot(d,axis)/depth_range,1);
  texcoord=uv;
 }"""
 FRAGMENT="""#version 330
@@ -87,7 +105,7 @@ class ShadowMaps:
         self.renderer=renderer;self.ctx=renderer.ctx
         self.program=self.ctx.program(vertex_shader=VERTEX,fragment_shader=FRAGMENT)
         self.program["albedo"].value=0
-        self.targets=[];self.key=None;self.state=None
+        self.targets=[];self.key=None;self.state=None;self.spot=None;self.spot_state=None
     def resize(self,size,count):
         if self.key==(size,count):return
         self.release_targets()
@@ -105,39 +123,74 @@ class ShadowMaps:
         self.resize(effects.shadow_size,len(views));depth_range=max(effects.shadow_extent*2,max(v[1] for v in views)*2)
         p=self.program
         for i,(anchor,extent) in enumerate(views):
-            tex,fbo=self.targets[i];fbo.use();fbo.clear(depth=1.)
-            self.ctx.viewport=(0,0,effects.shadow_size,effects.shadow_size)
-            self.ctx.enable_only(self.renderer.gl.DEPTH_TEST);self.ctx.depth_func="<"
-            for key,value in dict(center=anchor,rightv=r,upv=u,axis=n,extent=extent,depth_range=depth_range).items():p[key].value=value
-            batches={}
-            for item in scene.instances:
-                meshes=[scene.assets[item.asset],*variants(scene,item.asset)]
-                delta=tuple(v-a for v,a in zip((item.x,item.y,item.z),anchor))
-                rad=max(self.renderer.radius(m) for m in meshes if m is not None)*item.scale
-                if abs(dot(delta,r))>extent+rad or abs(dot(delta,u))>extent+rad or abs(dot(delta,n))>depth_range+rad:continue
-                lod=lod_index(length(delta),settings.lod_distances)
-                while meshes[lod] is None:lod-=1
-                m=meshes[lod];a=radians(item.yaw)
-                batches.setdefault(id(m),(m,[]))[1].extend((item.x,item.y,item.z,cos(a),sin(a),item.scale,0,0,0,0))
-            for mesh,rows in batches.values():
-                vbo,parts,_=self.renderer.mesh(mesh)
-                self.renderer.instance_buffer.write(array("f",rows).tobytes())
-                for name,ibo,_,count in parts:
-                    mat=materials.get(name,default_material(name)).validate()
-                    self.renderer.texture(mat.diffuse or self.renderer.white).use(0);p["alpha_cut"].value=mat.cutout
-                    vao=self.ctx.vertex_array(p,[(vbo,"3f 12x 2f","pos","uv"),(self.renderer.instance_buffer,"3f 2f 1f 16x /i","origin","rotation","scale")],ibo,index_element_size=4)
-                    try:vao.render(self.renderer.gl.TRIANGLES,instances=len(rows)//10)
-                    finally:vao.release()
+            self.draw_depth(self.targets[i],effects.shadow_size,scene,settings,materials,anchor,r,u,n,extent,depth_range)
+        self.render_spot(scene,settings,effects,materials)
         a,e=views[0];b,f=views[-1]
         self.state=dict(shadow_count=len(views),shadow_right=r,shadow_up=u,shadow_axis=n,shadow_center0=a,shadow_center1=b,shadow_extent=(e,f),shadow_depth=depth_range,shadow_bias=effects.shadow_bias,shadow_texel=1/effects.shadow_size,shadow_split=split,shadow_blend=overlap,shadow_eye=view[0],shadow_forward=tuple(-v for v in view[3]))
+    def draw_depth(self,target,size,scene,settings,materials,anchor,r,u,n,extent,depth_range,spot=False,perspective=(1.,.05,1.)):
+        from .gpu_viewport import default_material,variants,lod_index,length
+        from math import radians,cos,sin
+        from array import array
+        p=self.program
+        tex,fbo=target;fbo.use();fbo.clear(depth=1.)
+        self.ctx.viewport=(0,0,size,size)
+        self.ctx.enable_only(self.renderer.gl.DEPTH_TEST);self.ctx.depth_func="<"
+        for key,value in dict(center=anchor,rightv=r,upv=u,axis=n,extent=extent,depth_range=depth_range,is_spot=int(spot),perspective=perspective).items():p[key].value=value
+        batches={}
+        for item in scene.instances:
+            meshes=[scene.assets[item.asset],*variants(scene,item.asset)]
+            delta=tuple(v-a for v,a in zip((item.x,item.y,item.z),anchor))
+            rad=max(self.renderer.radius(m) for m in meshes if m is not None)*item.scale
+            if spot:
+                if length(delta)>depth_range+rad:continue
+            elif abs(dot(delta,r))>extent+rad or abs(dot(delta,u))>extent+rad or abs(dot(delta,n))>depth_range+rad:continue
+            lod=lod_index(length(delta),settings.lod_distances)
+            while meshes[lod] is None:lod-=1
+            m=meshes[lod];a=radians(item.yaw)
+            batches.setdefault(id(m),(m,[]))[1].extend((item.x,item.y,item.z,cos(a),sin(a),item.scale,0,0,0,0))
+        for mesh,rows in batches.values():
+            vbo,parts,_=self.renderer.mesh(mesh)
+            self.renderer.instance_buffer.write(array("f",rows).tobytes())
+            for name,ibo,_,count in parts:
+                mat=materials.get(name,default_material(name)).validate()
+                self.renderer.texture(mat.diffuse or self.renderer.white).use(0);p["alpha_cut"].value=mat.cutout
+                vao=self.ctx.vertex_array(p,[(vbo,"3f 12x 2f","pos","uv"),(self.renderer.instance_buffer,"3f 2f 1f 16x /i","origin","rotation","scale")],ibo,index_element_size=4)
+                try:vao.render(self.renderer.gl.TRIANGLES,instances=len(rows)//10)
+                finally:vao.release()
+    def render_spot(self,scene,settings,effects,materials):
+        from math import tan,radians
+        self.spot_state=None
+        found=next(((i,l) for i,l in enumerate(effects.lights) if l.shadows and l.direction is not None),None)
+        if found is None:
+            self.release_spot();return
+        i,light=found
+        size=min(512,effects.shadow_size)
+        if self.spot is None or self.spot[0].size!=(size,size):
+            self.release_spot()
+            tex=self.ctx.depth_texture((size,size));tex.compare_func="";tex.filter=(self.renderer.gl.NEAREST,)*2;tex.repeat_x=False;tex.repeat_y=False
+            self.spot=(tex,self.ctx.framebuffer(depth_attachment=tex))
+        n=unit(light.direction);ref=(0,0,1) if abs(n[2])<.99 else (0,1,0)
+        r=unit(cross(n,ref));u=cross(r,n)
+        proj=(1/tan(radians(light.cone/2)),.05,max(.1,light.radius))
+        self.draw_depth(self.spot,size,scene,settings,materials,light.position,r,u,n,1.,light.radius,True,proj)
+        self.spot_state=dict(spot_index=i,spot_origin=light.position,spot_right=r,spot_up=u,spot_forward=n,spot_projection=proj)
+    def release_spot(self):
+        if self.spot is not None:
+            for obj in reversed(self.spot):obj.release()
+        self.spot=None;self.spot_state=None
     def bind(self,program,enabled):
         program["shadow_count"].value=len(self.targets) if enabled and self.state else 0
         program["shadow_near"].value=3;program["shadow_far"].value=4
+        program["spot_map"].value=6;program["spot_index"].value=-1
         if not enabled or not self.state:return
         for key,value in self.state.items():
             if key in program:program[key].value=value
         self.targets[0][0].use(3);self.targets[-1][0].use(4)
+        if self.spot_state:
+            for key,value in self.spot_state.items():program[key].value=value
+            self.spot[0].use(6)
     def release_targets(self):
+        self.release_spot()
         for tex,fbo in self.targets:fbo.release();tex.release()
         self.targets=[];self.key=None;self.state=None
     def close(self):
@@ -148,3 +201,4 @@ def bind(program,maps,enabled):
     else:
         program["shadow_count"].value=0
         program["shadow_near"].value=3;program["shadow_far"].value=4
+        program["spot_map"].value=6;program["spot_index"].value=-1
