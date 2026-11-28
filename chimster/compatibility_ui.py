@@ -114,6 +114,10 @@ def mount(parent,game=None):
         formats={"oblivion":("103",".bsa"),"fallout3":("104",".bsa"),"new-vegas":("104",".bsa"),"skyrim":("104",".bsa"),"skyrim-se":("105",".bsa"),"skyrim-vr":("105",".bsa"),"morrowind":("tes3",".bsa"),"fallout4":("ba2",".ba2"),"fallout4-vr":("ba2",".ba2")}
         if profile.get() not in formats:raise ValueError("Archive writing is not available for this game profile")
         fmt,suffix=formats[profile.get()]
+        if fmt=='ba2':
+            choice=messagebox.askyesnocancel('BA2 archive type','Create a texture-only DX10 archive?\nYes: DDS textures only.\nNo: general-purpose archive.')
+            if choice is None:return
+            if choice:fmt='dx10'
         source=filedialog.askdirectory(title="Select original mod asset directory")
         if not source:return
         target=filedialog.asksaveasfilename(defaultextension=suffix,filetypes=[("Game archive","*"+suffix)])
