@@ -93,7 +93,7 @@ def verify(directory, source, transcript):
     report=json.loads((directory/"receipt.json").read_text(encoding="utf-8"))
     data=(directory/"voice.lip").read_bytes()
     header(data,report["game"])
-    return {"lip_matches":digest(data)==report["lip_sha256"],
+    return {"game":report["game"],"lip_matches":digest(data)==report["lip_sha256"],
             "audio_matches":digest(Path(source).read_bytes())==report["source_sha256"],
             "transcript_matches":digest(transcript.encode("utf-8"))==report["transcript_sha256"],
             "runtime_verified":False,"experimental":report["experimental"]}
