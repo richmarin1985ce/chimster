@@ -27,14 +27,34 @@ def geometry(mesh):
     center=tuple((a+b)/2 for a,b in zip(lo,hi))
     radius=max(sqrt(sum((p[i]-center[i])**2 for i in range(3))) for p in verts)
     normals=[[0.,0.,0.] for _ in verts]
+    tangents=[[0.,0.,0.] for _ in verts];bitangents=[[0.,0.,0.] for _ in verts]
     for (a,b,c),_ in mesh.faces:
         normal=cross(tuple(verts[b][i]-verts[a][i] for i in range(3)),tuple(verts[c][i]-verts[a][i] for i in range(3)))
+        e1=tuple(verts[b][i]-verts[a][i] for i in range(3));e2=tuple(verts[c][i]-verts[a][i] for i in range(3))
+        u1=mesh.uv[b][0]-mesh.uv[a][0];v1=mesh.uv[a][1]-mesh.uv[b][1]
+        u2=mesh.uv[c][0]-mesh.uv[a][0];v2=mesh.uv[a][1]-mesh.uv[c][1]
+        det=u1*v2-u2*v1
+        tangent=tuple((v2*e1[i]-v1*e2[i])/det for i in range(3)) if abs(det)>1e-12 else (0,0,0)
+        bitangent=tuple((u1*e2[i]-u2*e1[i])/det for i in range(3)) if abs(det)>1e-12 else (0,0,0)
         for k in (a,b,c):
-            for i in range(3):normals[k][i]+=normal[i]
+            for i in range(3):
+                normals[k][i]+=normal[i]
+                tangents[k][i]+=tangent[i]
+                bitangents[k][i]+=bitangent[i]
     def unit(v):
         r=sqrt(sum(x*x for x in v));return tuple(x/r for x in v) if r else (0,0,1)
+    ns=[unit(v) for v in normals];ts=[];bs=[]
+    for normal,tangent,bitangent in zip(ns,tangents,bitangents):
+        dot=sum(a*b for a,b in zip(normal,tangent))
+        ortho=tuple(tangent[i]-normal[i]*dot for i in range(3))
+        if sum(v*v for v in ortho)<1e-20:
+            axis=(1,0,0) if abs(normal[0])<.9 else (0,1,0)
+            ortho=cross(axis,normal)
+        t=unit(ortho);b=cross(normal,t)
+        sign=-1 if sum(x*y for x,y in zip(b,bitangent))<0 else 1
+        ts.append(t);bs.append(tuple(sign*v for v in b))
     body=pack("iHBBB",0,n,0,0,1)+b"".join(pack("3f",*v) for v in verts)
-    body+=pack("HB",1,1)+b"".join(pack("3f",*unit(v)) for v in normals)
+    body+=pack("HB",0x1001,1)+b"".join(pack("3f",*v) for v in ns+ts+bs)
     body+=pack("4fB",*center,radius,0)+b"".join(pack("2f",u,1-v) for u,v in mesh.uv)
     body+=pack("HiHIB",0x4000,-1,t,t*3,1)+b"".join(pack("3H",*f) for f,_ in mesh.faces)+pack("H",0)
     return body,center,tuple((b-a)/2 for a,b in zip(lo,hi))
