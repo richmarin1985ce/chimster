@@ -14,7 +14,7 @@ def launch():
   'Project':('Project','Core management','Game compatibility','Record projects','Action planner'),
   'Records':('Native records','Record editor','Plugin inspector','Load order'),
   'World':('3D viewport','Terrain editor','Interior editor','Navmesh editor','Worldspace validator','Landscape budget'),
-  'Narrative':('Quest editor','Dialogue views','Books & notes','Localization'),
+  'Narrative':('Quest editor','Dialogue views','Script editor','Books & notes','Localization'),
   'Assets':('Texture Forge','Voice containers'),
   'Gameplay':('Minigame editor',),
   'Tools':('Tool registry','Installed tools','OpenMW bridge','All development tools'),
@@ -40,6 +40,9 @@ def launch():
  f=tab('Game compatibility')
  from .compatibility_ui import mount as mount_compatibility
  mount_compatibility(f,game)
+ f=tab('Script editor')
+ from .script_ui import mount as mount_scripts
+ mount_scripts(f,game)
  f=tab('Tool registry'); bar=ttk.Frame(f); bar.pack(fill='x'); out=output(f)
  def refresh(): show(out,[x for x in catalog() if '*' in x['games'] or game.get() in x['games']])
  ttk.Button(bar,text='Refresh for selected game',command=refresh).pack(side='left'); game.trace_add('write',lambda *_:refresh()); refresh()
