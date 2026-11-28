@@ -8,7 +8,7 @@ GROUPS={
 "Compatibility":("compatibility","tes3-inventory"),
 "Records":("fnv-index","record-compare","record-build","master-reorder"),
 "Mod management":("loadorder","install-zip","fomod","stage-overlay","autopatch"),
-"World":("fnv-world","fnv-interior","navmesh-auto","navmesh-tiled","navmesh-adaptive","navmesh-areas","navmesh-nif","navmesh-fo4","navmesh-simplify","navmesh-route","navmesh-draft","navmesh-finalize","navmesh-grid-compare","navmesh-native-review","navmesh-registration","navmesh-verify-stage","navmesh-navi-stage","navmesh-navi-candidate","navmesh-navi-inspect","building","chunk-build","chunk-load"),
+"World":("fnv-world","fnv-interior","navmesh-auto","navmesh-tiled","navmesh-adaptive","navmesh-areas","navmesh-nif","navmesh-fo4","navmesh-simplify","navmesh-route","navmesh-draft","navmesh-finalize","navmesh-grid-compare","navmesh-native-review","navmesh-registration","navmesh-verify-stage","navmesh-navi-stage","navmesh-navi-candidate","navmesh-navi-inspect","navmesh-navi-reference","building","chunk-build","chunk-load"),
 "Landscape":("landscape-budget","terrain-tile"),
 "Validation":("world-check","audit-assets","interior-check"),
 "Rendering":("render-preview","render-benchmark"),
