@@ -21,7 +21,7 @@ class Assets:
         self.layers=[]
         for p in archives:
             p=Path(p).resolve(strict=True)
-            if p.suffix.lower()!=".bsa":raise ValueError("Expected classic BSA")
+            if p.suffix.lower() not in (".bsa",".ba2"):raise ValueError("Expected BSA or BA2")
             stamp=archive_stamp(p);entries=directory(p)
             if archive_stamp(p)!=stamp:raise ValueError("Archive changed during indexing")
             self.layers.append((p,entries,stamp))
@@ -62,15 +62,24 @@ def reduced(mesh):
     return best
 
 def export(browser,world,output,assets,limit=512,previous=None,atlas=True):
-    if browser.profile not in ("new-vegas","fallout3"):raise ValueError("Native object LOD currently FO3/FNV only")
+    if browser.profile not in ("new-vegas","fallout3","skyrim","skyrim-se","fallout4"):raise ValueError("Native object LOD profile not supported")
+    modern=browser.profile in ("skyrim","skyrim-se","fallout4")
+    if modern:
+        from .modern_lod_codec import read_static_groups as modern_read,encode_groups as modern_encode,inspect as modern_inspect
+    def read(raw):return modern_read(raw,browser.profile) if modern else read_static_groups(raw,include_cutout=True)
+    def encode_native(groups,kind):return modern_encode(groups,browser.profile,kind) if modern else encode_groups(groups,kind,16384 if kind=="object" else None)
+    def inspect_native(raw,count):
+        result=modern_inspect(raw,browser.profile) if modern else check(raw,count)
+        if result["triangles"]!=count:raise ValueError("Geometry mismatch")
+        return result
     name=world_name(browser,world)
     if not 1<=limit<=10000:raise ValueError("Invalid placement budget")
     refs=[]
     for r in browser.active.values():
-        if r["signature"]!="REFR" or "position" not in r:continue
+        if r["signature"]!="REFR" or "position" not in r or r["flags"]&0x800 or r.get("enable_parent"):continue
         cell=browser.active.get(r.get("cell"),{})
         base=browser.active.get(r.get("base"),{})
-        if cell.get("world")==world and base.get("signature") in ("STAT","TREE") and base.get("model"):
+        if cell.get("world")==world and base.get("signature") in (("STAT",) if modern else ("STAT","TREE")) and base.get("model"):
             refs.append((r,base))
     if len(refs)>limit:raise ValueError("Object placement budget exceeded; select a smaller world or raise limit")
     prior={};old_root=None
@@ -80,7 +89,7 @@ def export(browser,world,output,assets,limit=512,previous=None,atlas=True):
         if manifest.get("world")!=name:raise ValueError("Previous object package belongs to another world")
         prior={tuple(t["grid"]):t for t in manifest["tiles"]}
     output=Path(output);output.mkdir(exist_ok=False)
-    report={"world":name,"external_tools":False,"native_runtime_assets":False,"companions":[],"tiles":[],"skipped":[],"atlas_issues":[],"reused_tiles":0,"rebuilt_tiles":0}
+    report={"world":name,"profile":browser.profile,"external_tools":False,"native_runtime_assets":False,"companions":[],"tiles":[],"skipped":[],"atlas_issues":[],"reused_tiles":0,"rebuilt_tiles":0}
     cache={};tiles=defaultdict(dict)
     try:
         for ref,base in sorted(refs,key=lambda p:p[0]["key"]):
@@ -89,17 +98,23 @@ def export(browser,world,output,assets,limit=512,previous=None,atlas=True):
                 try:
                     path=sibling(model)
                     generated=False
-                    try:raw=assets.get(path)
-                    except FileNotFoundError:
-                        raw=assets.get(model);generated=True
-                    groups=read_static_groups(raw,include_cutout=True)
+                    if modern:
+                        # Prefer an explicit record-level LOD model where indexed; no classic _lod assumption.
+                        chosen=base.get("lod_model")
+                        raw=assets.get(chosen or model);generated=not chosen
+                    else:
+                        try:raw=assets.get(path)
+                        except FileNotFoundError:
+                            raw=assets.get(model);generated=True
+                    groups=read(raw)
                     if generated:
                         groups=[(mesh if cut else reduced(mesh),d,n,cut) for mesh,d,n,cut in groups]
                         dest=output/path;dest.parent.mkdir(parents=True,exist_ok=True)
                         total=sum(len(mesh.faces) for mesh,*_ in groups)
-                        raw=encode_groups(groups,"companion");check(raw,total)
-                        with dest.open("xb") as f:f.write(raw)
-                        report["companions"].append({"path":path,"triangles":total,"sha256":sha256(raw).hexdigest()})
+                        if not modern:
+                            raw=encode_native(groups,"companion");inspect_native(raw,total)
+                            with dest.open("xb") as f:f.write(raw)
+                            report["companions"].append({"path":path,"triangles":total,"sha256":sha256(raw).hexdigest()})
                     cache[key]=groups
                 except (ValueError,OSError,TypeError,UnicodeError) as exc:
                     cache[key]=str(exc)[:200]
@@ -128,6 +143,9 @@ def export(browser,world,output,assets,limit=512,previous=None,atlas=True):
             if not active:continue
             path=f"meshes/landscape/lod/{name}/blocks/{name}.level4.x{x}.y{y}.nif"
             stem=f"textures/landscape/lod/{name}/blocks/{name}.level4.x{x}.y{y}"
+            if modern:
+                path=f"meshes/terrain/{name}/objects/{name}.4.{x}.{y}.bto"
+                stem=f"textures/terrain/{name}/objects/{name}.4.{x}.{y}"
             texpaths=(stem+".dds",stem+"_n.dds")
             class CachedAssets:
                 def __init__(self):self.raw={};self.hashes={};self.total=0
@@ -143,7 +161,7 @@ def export(browser,world,output,assets,limit=512,previous=None,atlas=True):
                 for p in sorted({p for _,d,n,cut in active if not cut for p in (d,n)}):
                     try:source.get(p)
                     except (ValueError,OSError):source.hashes[p]="unavailable"
-            digest=sha256(json.dumps(["object-lod-v4",name,x,y,atlas,[(m.vertices,m.uv,m.faces,d,n,cut) for m,d,n,cut in active],sorted(source.hashes.items())],separators=(",",":"),allow_nan=False).encode()).hexdigest()
+            digest=sha256(json.dumps(["object-lod-v5",browser.profile,name,x,y,atlas,[(m.vertices,m.uv,m.faces,d,n,cut) for m,d,n,cut in active],sorted(source.hashes.items())],separators=(",",":"),allow_nan=False).encode()).hexdigest()
             cached=prior.get((x,y),{})
             files=cached.get("files",{})
             if (cached.get("input_sha256")==digest and set(files) in ({path},{path,*texpaths})
@@ -166,8 +184,8 @@ def export(browser,world,output,assets,limit=512,previous=None,atlas=True):
                         with dest.open("xb") as f:f.write(mip_dds(result["size"],result["size"],image,normal=normal))
                         written.append(p)
                     atlas_info={"size":result["size"],"groups":result["groups"],"source_hashes":result["source_hashes"]}
-            raw=encode_groups(active,"object",16384)
-            info=check(raw,sum(len(m.faces) for m,*_ in active))
+            raw=encode_native(active,"object")
+            info=inspect_native(raw,sum(len(m.faces) for m,*_ in active))
             dest=output/path;dest.parent.mkdir(parents=True,exist_ok=True)
             with dest.open("xb") as f:f.write(raw)
             written.append(path)
