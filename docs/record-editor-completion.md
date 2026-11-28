@@ -18,3 +18,6 @@ To remove every unused master, omit the master paths and retain the opt-in flag.
 
 ## Generated exterior hierarchy and compressed records
 The staged writer now supports the exact generated exterior WRLD/CELL/LAND/REFR hierarchy, typed LTEX/TXST links and generated BOOK/NOTE layouts. Group owner identities and grid labels are checked on reopen. Known-schema compressed payloads use bounded decoding and recompression. Other nested groups (including arbitrary interiors/dialogue), opaque fields and unsupported flags still fail closed. Source inspection only; new synthetic regression fixtures await execution.
+
+## Script-free generated quests
+Master-table staging supports exact generated New Vegas QUST/DIAL/INFO layouts and type-7 topic-owned groups; known CTDA parameters and quest/dialogue links are remapped by origin. Nonempty result scripts and unknown conditions are refused. Graph inspection shares the generated quest and world offsets. No blanket quest/script compatibility or runtime certification. Regression execution deferred.
