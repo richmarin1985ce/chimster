@@ -5,7 +5,7 @@ from .native_parser import parse,subrecords
 from .native_payload_edit import replace
 from .tes3_items import edit_properties,SCHEMAS,edit_book_data,edit_ingredient,edit_magic_effect,edit_container_flags,edit_leveled_level,edit_chance_none,ITEMS
 
-def create(data,signature,new_id,name,revision,*,model=None,properties=None,body='',effects=(),entries=(),actor_fields=None):
+def create(data,signature,new_id,name,revision,*,model=None,properties=None,body='',effects=(),entries=(),actor_fields=None,ai_packages=()):
     if hashlib.sha256(data).hexdigest()!=revision:raise ValueError("Stale revision")
     if signature.encode("ascii") not in ITEMS:raise ValueError("Unsupported creation template")
     def encode(value,limit):
@@ -54,6 +54,9 @@ def create(data,signature,new_id,name,revision,*,model=None,properties=None,body
         required={b"FLAG",b"AIDT"} | ({b"RNAM",b"CNAM",b"ANAM",b"BNAM",b"KNAM"} if signature=="NPC_" else set())
         if any(sum(k==tag for k,v in fields)!=1 for tag in required):raise ValueError("Missing or duplicate actor field")
         parts.extend(fields)
+        from .tes3_ai_packages import encode_package
+        for package in ai_packages:
+            parts.extend(encode_package(**package))
     else:raise ValueError("Unsupported creation template")
     if signature in ("SPEL","ENCH","ALCH"):
         for effect in effects:
@@ -64,6 +67,7 @@ def create(data,signature,new_id,name,revision,*,model=None,properties=None,body
         for item,count in entries:
             if type(count)!=int or not -2147483648<=count<=2147483647:raise ValueError("Invalid inventory count")
             parts.append((b"NPCO",struct.pack("<i32s",count,encode(item,31))))
+    if ai_packages and signature not in ("NPC_","CREA"):raise ValueError("AI packages require actor")
     nodes=parse("morrowind",data)
     if not nodes or nodes[0].signature!=b"TES3":raise ValueError("Missing header")
     for node in nodes[1:]:
