@@ -53,6 +53,18 @@ for profile in ("skyrim", "skyrim-se", "fallout4"):
         ("CONT", b"CNTO", 8, 0, ()),
         ("REFR", b"XEZN", 4, 0, ("ECZN",)),
         ("CELL", b"XEZN", 4, 0, ("ECZN",)))
+# Candidate fixed-width layouts; independently validate per game.
+for profile in ("fallout3","new-vegas","skyrim","skyrim-se","fallout4"):
+    extend(profile,
+        ("NPC_",b"SNAM",8,0,("FACT",)),
+        ("LVLI",b"LVLG",4,0,("GLOB",)),
+        ("ALCH",b"EFID",4,0,("MGEF",)),
+        ("ENCH",b"EFID",4,0,("MGEF",)),
+        ("REFR",b"XGLB",4,0,("GLOB",)))
+for profile in ("fallout3","new-vegas"):
+    extend(profile,
+        ("LVLI",b"LVLO",12,4,()),
+        ("LVLN",b"LVLO",12,4,("NPC_","LVLN")))
 # TES3 NAME is not universally a record identity (e.g. CELL and INFO).
 TES3_NAMED = frozenset(("NPC_", "CREA", "WEAP", "ARMO", "CLOT", "BOOK",
                        "ALCH", "INGR", "MISC", "CONT", "ACTI", "STAT",
