@@ -76,5 +76,25 @@ class PostTests(unittest.TestCase):
         try:
             pixels=preview.render(scene,Camera(zoom=4),96,72,materials,effects=Effects(ao_strength=.4,scatter_strength=.4))
             self.assertEqual(len(pixels),96*72*4)
-            self.assertTrue(preview.post is not None or preview.post_error)
+            self.assertIsNotNone(preview.post,preview.post_error)
+        finally:preview.close()
+
+    def test_glsl_filter_direct(self):
+        import os
+        if not os.environ.get("CHIMSTER_TEST_PANDA_GL"):self.skipTest("Optional framebuffer test")
+        from panda3d.core import load_prc_file_data
+        load_prc_file_data("chimster-test","load-display p3headlessgl\naudio-library-name null")
+        from chimster.panda_viewport import Preview
+        from chimster.gpu_viewport import make_demo
+        from chimster.scene import Camera
+        from chimster.render_effects import Effects
+        from chimster.panda_glsl_filters import GLSLFilters
+        scene,materials=make_demo();preview=Preview()
+        try:
+            cam=Camera(zoom=4);fx=Effects(ao_strength=.7)
+            base=preview.render(scene,cam,96,72,materials,effects=fx)
+            preview.post=GLSLFilters(preview,fx)
+            preview.post.update()
+            preview.engine.render_frame();preview.engine.sync_frame()
+            self.assertEqual(len(preview.texture.get_ram_image_as("RGBA")),len(base))
         finally:preview.close()

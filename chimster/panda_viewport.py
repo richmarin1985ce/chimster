@@ -282,7 +282,14 @@ class Preview:
             if mode!="native" and (mode!="filters" or effects.ao_strength or effects.scatter_strength):
                 from .panda_post import PBR,NativeFilters
                 try:self.post=(PBR if mode=="pbr" else NativeFilters)(self,effects)
-                except Exception as exc:self.post_error=str(exc)[:160]
+                except Exception as exc:
+                    self.post_error=str(exc)[:160]
+                    if mode=="filters":
+                        from .panda_glsl_filters import GLSLFilters
+                        try:
+                            self.post=GLSLFilters(self,effects)
+                            self.post_error="Using GLSL filter fallback"
+                        except Exception as fallback:self.post_error=("Native/GLSL filters: "+str(fallback))[:160]
         if self.post is not None:self.post.update()
     def close_buffer(self):
         self.close_post()
