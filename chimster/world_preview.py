@@ -1,5 +1,5 @@
 """Read-only cell neighborhood to portable viewport scene adapter."""
-from math import degrees, isfinite
+from math import degrees, isfinite, floor
 from .world_browser import PLACED, label
 from .scene import Scene, Instance
 from .architecture import box_mesh
@@ -90,8 +90,37 @@ def preview(browser, key, radius=0, models=None):
                 issues.append(f"Model {model}: {str(exc)[:200]}")
         instances.append(Instance(label(ref["key"]),asset,x,y,z,yaw,scale))
     return Scene(assets,instances), {
-        "cell":label(key),"cells":len(cells),"land_tiles":land_count,
+        "cell":label(key),"cells":len(cells),"grid":grid,"land_tiles":land_count,
         "proxy_references":len(instances)-land_count-model_count,"model_references":model_count,"skipped_references":skipped,
         "origin_game_units":(ox,oy,0),"units_per_preview_unit":UNITS,
         "issues":issues,"mode":"Read-only LAND and optional static loose NIF geometry; unsupported assets use markers"
     }
+
+
+class Neighborhood:
+    """Camera-driven bounded neighborhood loader. Coordinates are absolute game units."""
+    def __init__(self,browser,key,radius=1,models=None):
+        row=browser.active.get(key)
+        if row is None or row["signature"]!="CELL":
+            raise ValueError("Select a live CELL")
+        if type(radius) is not int or not 0<=radius<=2:
+            raise ValueError("Invalid neighborhood radius")
+        self.browser=browser
+        self.world=row["world"]
+        self.key=key
+        self.grid=row.get("grid")
+        self.radius=radius
+        self.models=models
+
+    def move(self,x,y):
+        if self.world is None or self.grid is None or not all(isfinite(v) and abs(v)<=1e9 for v in (x,y)):
+            return None
+        grid=(floor(x/4096),floor(y/4096))
+        if grid==self.grid:return None
+        matches=self.browser.coordinates.get((self.world,grid),())
+        if len(matches)!=1:return None
+        key=matches[0]["key"]
+        scene,report=preview(self.browser,key,self.radius,self.models)
+        self.key=key
+        self.grid=grid
+        return scene,report
