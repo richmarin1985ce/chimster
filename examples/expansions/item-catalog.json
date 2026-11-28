@@ -1,0 +1,2915 @@
+{
+  "schema": "chimster.expansion-items.v1",
+  "status": "original design catalog; no completed meshes or records",
+  "authoring_policy": "Chimster-only end-to-end; internally bundled licensed libraries allowed, no separate external authoring tools required or optional for this production pipeline",
+  "targets_per_expansion": {
+    "weapons": 15,
+    "armor_sets": 8,
+    "clothing_outfits": 15,
+    "accessories": 10,
+    "consumables": 12,
+    "quest_and_misc_items": 20,
+    "books_and_notes": 15,
+    "environmental_props": 35
+  },
+  "projects": [
+    {
+      "id": "flagstaff",
+      "title": "Fallout 66: Courier's Road",
+      "game": "newvegas",
+      "items": [
+        {
+          "id": "FLAGSTAFF_ITEM_001",
+          "category": "weapon",
+          "name": "Cinder Road Carbine",
+          "distribution_location": "repair",
+          "design_brief": "Weathered desert firearm silhouette with road-marker insignia; conventional in-game ranged role",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "FLAGSTAFF_ITEM_002",
+          "category": "weapon",
+          "name": "Quartermaster's Sidearm",
+          "distribution_location": "depot",
+          "design_brief": "Distinctive Legion supply-officer presentation; unique reward variant",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "FLAGSTAFF_ITEM_003",
+          "category": "weapon",
+          "name": "Stockyard Crook",
+          "distribution_location": "ranch",
+          "design_brief": "Long pastoral implement adapted as a melee item",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "FLAGSTAFF_ITEM_004",
+          "category": "weapon",
+          "name": "The Mile Marker",
+          "distribution_location": "museum",
+          "design_brief": "Roadside sign-inspired improvised melee collectible",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "FLAGSTAFF_ITEM_005",
+          "category": "weapon",
+          "name": "Ash's Resolve",
+          "distribution_location": "refuge",
+          "design_brief": "Personalized companion weapon tied to freedom storyline",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "FLAGSTAFF_ITEM_006",
+          "category": "weapon",
+          "name": "Charter Guard Blade",
+          "distribution_location": "market",
+          "design_brief": "Ceremonial short blade with trade-house crest",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "FLAGSTAFF_ITEM_007",
+          "category": "armor",
+          "name": "Charter Guard Armor",
+          "distribution_location": "market",
+          "design_brief": "Layered civilian guard clothing with protective panels",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "FLAGSTAFF_ITEM_008",
+          "category": "armor",
+          "name": "Cinder Patrol Gear",
+          "distribution_location": "depot",
+          "design_brief": "Dusty supply patrol equipment; faction-sensitive distribution",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "FLAGSTAFF_ITEM_009",
+          "category": "armor",
+          "name": "Quarry Work Suit",
+          "distribution_location": "quarry",
+          "design_brief": "Heavy workwear and protective headgear",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "FLAGSTAFF_ITEM_010",
+          "category": "clothing",
+          "name": "Caravan Broker Coat",
+          "distribution_location": "market",
+          "design_brief": "Tailored desert coat with ledger pockets",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_clothing_or_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "FLAGSTAFF_ITEM_011",
+          "category": "clothing",
+          "name": "Ranch Hand Outfit",
+          "distribution_location": "ranch",
+          "design_brief": "Practical rural work clothing",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_clothing_or_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "FLAGSTAFF_ITEM_012",
+          "category": "clothing",
+          "name": "Mother Road Jacket",
+          "distribution_location": "repair",
+          "design_brief": "Faded motoring club jacket",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_clothing_or_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "FLAGSTAFF_ITEM_013",
+          "category": "clothing",
+          "name": "Refuge Traveling Clothes",
+          "distribution_location": "refuge",
+          "design_brief": "Plain repaired clothing with no captive insignia",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_clothing_or_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "FLAGSTAFF_ITEM_014",
+          "category": "clothing",
+          "name": "Ledger Clerk Attire",
+          "distribution_location": "ledger",
+          "design_brief": "Civilian office wear",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_clothing_or_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "FLAGSTAFF_ITEM_015",
+          "category": "accessory",
+          "name": "Road Goggles",
+          "distribution_location": "repair",
+          "design_brief": "Dust goggles with distinctive frames",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "attachment_or_rig_if_worn",
+            "native_item_record",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "FLAGSTAFF_ITEM_016",
+          "category": "accessory",
+          "name": "Caravan Satchel",
+          "distribution_location": "market",
+          "design_brief": "Travel bag and inventory accessory where supported",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "attachment_or_rig_if_worn",
+            "native_item_record",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "FLAGSTAFF_ITEM_017",
+          "category": "consumable",
+          "name": "Roadside Provision Tin",
+          "distribution_location": "station",
+          "design_brief": "Original food item with illustrated label",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "native_consumable_record",
+            "effects_balance",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "FLAGSTAFF_ITEM_018",
+          "category": "consumable",
+          "name": "Ranch Stew",
+          "distribution_location": "ranch",
+          "design_brief": "Local food recipe with balanced gameplay effect",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "native_consumable_record",
+            "effects_balance",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "FLAGSTAFF_ITEM_019",
+          "category": "quest",
+          "name": "Confiscation Receipt",
+          "distribution_location": "pit",
+          "design_brief": "Persistent evidence for opening quest",
+          "required_artifacts": [
+            "mesh_or_supported_readable",
+            "texture",
+            "native_item_record",
+            "quest_binding",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "FLAGSTAFF_ITEM_020",
+          "category": "quest",
+          "name": "Charter Seal",
+          "distribution_location": "ledger",
+          "design_brief": "Document authentication token",
+          "required_artifacts": [
+            "mesh_or_supported_readable",
+            "texture",
+            "native_item_record",
+            "quest_binding",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "FLAGSTAFF_ITEM_021",
+          "category": "book",
+          "name": "Mother Road Guide",
+          "distribution_location": "museum",
+          "design_brief": "Illustrated road history and optional clues",
+          "required_artifacts": [
+            "mesh",
+            "texture",
+            "native_readable_record",
+            "authored_text",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "FLAGSTAFF_ITEM_022",
+          "category": "misc",
+          "name": "Cinder Route Token",
+          "distribution_location": "crossroads",
+          "design_brief": "Collectible roadside keepsake",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "native_misc_record",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "FLAGSTAFF_ITEM_023",
+          "category": "prop",
+          "name": "Caravan Freight Crate",
+          "distribution_location": "market",
+          "design_brief": "Reusable storage prop with charter branding",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "collision",
+            "native_static_or_container_record",
+            "placement",
+            "lod_if_required"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "FLAGSTAFF_ITEM_024",
+          "category": "prop",
+          "name": "Restored Road Sign",
+          "distribution_location": "repair",
+          "design_brief": "Original environmental signage and display object",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "collision",
+            "native_static_or_container_record",
+            "placement",
+            "lod_if_required"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        }
+      ]
+    },
+    {
+      "id": "coldharbour",
+      "title": "Coldharbour",
+      "game": "morrowind",
+      "items": [
+        {
+          "id": "COLDHARBOUR_ITEM_001",
+          "category": "weapon",
+          "name": "Chainwake Blade",
+          "distribution_location": "foundry",
+          "design_brief": "Dark metal blade with fractured links; original fantasy silhouette",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "COLDHARBOUR_ITEM_002",
+          "category": "weapon",
+          "name": "Glass of the Unbound",
+          "distribution_location": "quarry",
+          "design_brief": "Angular glass-like fantasy dagger",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "COLDHARBOUR_ITEM_003",
+          "category": "weapon",
+          "name": "Warden's Reach",
+          "distribution_location": "fort",
+          "design_brief": "Long ceremonial polearm adapted to supported weapon classes",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "COLDHARBOUR_ITEM_004",
+          "category": "weapon",
+          "name": "Echo Staff",
+          "distribution_location": "cave",
+          "design_brief": "Resonant fantasy staff with layered rings",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "COLDHARBOUR_ITEM_005",
+          "category": "weapon",
+          "name": "Witness Bow",
+          "distribution_location": "archive",
+          "design_brief": "Sculpted dark wood bow with pale inlays",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "COLDHARBOUR_ITEM_006",
+          "category": "weapon",
+          "name": "The Unsigned",
+          "distribution_location": "sanctum",
+          "design_brief": "Unique contract-breaking relic blade",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "COLDHARBOUR_ITEM_007",
+          "category": "armor",
+          "name": "Chain Warden Harness",
+          "distribution_location": "fort",
+          "design_brief": "Segmented iron armor with chain motifs",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "COLDHARBOUR_ITEM_008",
+          "category": "armor",
+          "name": "Glass Mine Guard",
+          "distribution_location": "quarry",
+          "design_brief": "Angular protective plates",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "COLDHARBOUR_ITEM_009",
+          "category": "armor",
+          "name": "Refuge Sentinel Armor",
+          "distribution_location": "refuge",
+          "design_brief": "Repaired leather and dark metal",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "COLDHARBOUR_ITEM_010",
+          "category": "clothing",
+          "name": "Unbound Robe",
+          "distribution_location": "refuge",
+          "design_brief": "Layered ash-stained cloth",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_clothing_or_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "COLDHARBOUR_ITEM_011",
+          "category": "clothing",
+          "name": "Broker's Vestments",
+          "distribution_location": "market",
+          "design_brief": "Elaborate robe with symbolic stitching",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_clothing_or_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "COLDHARBOUR_ITEM_012",
+          "category": "clothing",
+          "name": "Witness Scribe Robe",
+          "distribution_location": "archive",
+          "design_brief": "Pale cloth with ink motifs",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_clothing_or_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "COLDHARBOUR_ITEM_013",
+          "category": "clothing",
+          "name": "Ferryman's Coat",
+          "distribution_location": "docks",
+          "design_brief": "Heavy weathered robe",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_clothing_or_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "COLDHARBOUR_ITEM_014",
+          "category": "clothing",
+          "name": "Custodian Mantle",
+          "distribution_location": "fort",
+          "design_brief": "Distinctive ceremonial silhouette",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_clothing_or_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "COLDHARBOUR_ITEM_015",
+          "category": "accessory",
+          "name": "Unwritten Ring",
+          "distribution_location": "count",
+          "design_brief": "Enchanted accessory concept with optional resistance",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "attachment_or_rig_if_worn",
+            "native_item_record",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "COLDHARBOUR_ITEM_016",
+          "category": "accessory",
+          "name": "Memory Pendant",
+          "distribution_location": "well",
+          "design_brief": "Personal keepsake with fantasy enchantment",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "attachment_or_rig_if_worn",
+            "native_item_record",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "COLDHARBOUR_ITEM_017",
+          "category": "consumable",
+          "name": "Ash Orchard Fruit",
+          "distribution_location": "terrace",
+          "design_brief": "Fictional alchemical ingredient",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "native_consumable_record",
+            "effects_balance",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "COLDHARBOUR_ITEM_018",
+          "category": "consumable",
+          "name": "Refuge Tonic",
+          "distribution_location": "refuge",
+          "design_brief": "Original in-game restoration consumable",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "native_consumable_record",
+            "effects_balance",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "COLDHARBOUR_ITEM_019",
+          "category": "quest",
+          "name": "Unsigned Contract",
+          "distribution_location": "market",
+          "design_brief": "Branching evidence object",
+          "required_artifacts": [
+            "mesh_or_supported_readable",
+            "texture",
+            "native_item_record",
+            "quest_binding",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "COLDHARBOUR_ITEM_020",
+          "category": "quest",
+          "name": "Witness Tablet",
+          "distribution_location": "archive",
+          "design_brief": "Recorded testimony",
+          "required_artifacts": [
+            "mesh_or_supported_readable",
+            "texture",
+            "native_item_record",
+            "quest_binding",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "COLDHARBOUR_ITEM_021",
+          "category": "book",
+          "name": "Maps That Lie",
+          "distribution_location": "tower",
+          "design_brief": "Illustrated contradictory route journal",
+          "required_artifacts": [
+            "mesh",
+            "texture",
+            "native_readable_record",
+            "authored_text",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "COLDHARBOUR_ITEM_022",
+          "category": "misc",
+          "name": "Glass Memory Shard",
+          "distribution_location": "quarry",
+          "design_brief": "Collectible lore object",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "native_misc_record",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "COLDHARBOUR_ITEM_023",
+          "category": "prop",
+          "name": "Binding Ledger Stand",
+          "distribution_location": "court",
+          "design_brief": "Interactive architectural furnishing",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "collision",
+            "native_static_or_container_record",
+            "placement",
+            "lod_if_required"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "COLDHARBOUR_ITEM_024",
+          "category": "prop",
+          "name": "Broken Chain Lantern",
+          "distribution_location": "village",
+          "design_brief": "Original lighting prop",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "collision",
+            "native_static_or_container_record",
+            "placement",
+            "lod_if_required"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        }
+      ]
+    },
+    {
+      "id": "hunting",
+      "title": "The Hunting Grounds",
+      "game": "oblivion",
+      "items": [
+        {
+          "id": "HUNTING_ITEM_001",
+          "category": "weapon",
+          "name": "Ashen Track Bow",
+          "distribution_location": "packden",
+          "design_brief": "Forest bow with woven motifs",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "HUNTING_ITEM_002",
+          "category": "weapon",
+          "name": "Antler Company Blade",
+          "distribution_location": "lodge",
+          "design_brief": "Ceremonial hunting sword",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "HUNTING_ITEM_003",
+          "category": "weapon",
+          "name": "Keeper's Crescent",
+          "distribution_location": "sanctum",
+          "design_brief": "Curved fantasy blade with ritual markings",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "HUNTING_ITEM_004",
+          "category": "weapon",
+          "name": "Moonlit Staff",
+          "distribution_location": "spring",
+          "design_brief": "Fantasy staff with pale stone head",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "HUNTING_ITEM_005",
+          "category": "weapon",
+          "name": "Silverleaf Knife",
+          "distribution_location": "grove",
+          "design_brief": "Leaf-shaped fantasy dagger",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "HUNTING_ITEM_006",
+          "category": "weapon",
+          "name": "The Unseen Quarry",
+          "distribution_location": "arena",
+          "design_brief": "Unique nonmandatory trial reward weapon",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "HUNTING_ITEM_007",
+          "category": "armor",
+          "name": "Pack Trail Armor",
+          "distribution_location": "packden",
+          "design_brief": "Flexible layered leather silhouette",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "HUNTING_ITEM_008",
+          "category": "armor",
+          "name": "Antler Hunter Armor",
+          "distribution_location": "lodge",
+          "design_brief": "Distinctive forest hunting set",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "HUNTING_ITEM_009",
+          "category": "armor",
+          "name": "Keeper's Ritual Guard",
+          "distribution_location": "sanctum",
+          "design_brief": "Stone-and-hide inspired ceremonial armor",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "HUNTING_ITEM_010",
+          "category": "clothing",
+          "name": "Hearthkeeper Tunic",
+          "distribution_location": "hearth",
+          "design_brief": "Warm woodland everyday clothing",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_clothing_or_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "HUNTING_ITEM_011",
+          "category": "clothing",
+          "name": "Trail Guide Cloak",
+          "distribution_location": "camp",
+          "design_brief": "Weathered forest cloak",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_clothing_or_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "HUNTING_ITEM_012",
+          "category": "clothing",
+          "name": "Hunter Lodge Finery",
+          "distribution_location": "lodge",
+          "design_brief": "Social gathering outfit",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_clothing_or_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "HUNTING_ITEM_013",
+          "category": "clothing",
+          "name": "Millworker Clothes",
+          "distribution_location": "mill",
+          "design_brief": "Practical rural clothing",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_clothing_or_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "HUNTING_ITEM_014",
+          "category": "clothing",
+          "name": "Moonwatch Robe",
+          "distribution_location": "spring",
+          "design_brief": "Ritual healer garments",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_clothing_or_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "HUNTING_ITEM_015",
+          "category": "accessory",
+          "name": "Voluntary Hunt Token",
+          "distribution_location": "circle",
+          "design_brief": "Wearable ritual membership token",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "attachment_or_rig_if_worn",
+            "native_item_record",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "HUNTING_ITEM_016",
+          "category": "accessory",
+          "name": "Silverleaf Pendant",
+          "distribution_location": "grove",
+          "design_brief": "Nature-themed enchanted jewelry",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "attachment_or_rig_if_worn",
+            "native_item_record",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "HUNTING_ITEM_017",
+          "category": "consumable",
+          "name": "Woodland Trail Ration",
+          "distribution_location": "hearth",
+          "design_brief": "Original food item",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "native_consumable_record",
+            "effects_balance",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "HUNTING_ITEM_018",
+          "category": "consumable",
+          "name": "Moonlit Draught",
+          "distribution_location": "spring",
+          "design_brief": "Fictional transformation-related consumable",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "native_consumable_record",
+            "effects_balance",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "HUNTING_ITEM_019",
+          "category": "quest",
+          "name": "Antler Crown",
+          "distribution_location": "ruins",
+          "design_brief": "Disputed ritual emblem",
+          "required_artifacts": [
+            "mesh_or_supported_readable",
+            "texture",
+            "native_item_record",
+            "quest_binding",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "HUNTING_ITEM_020",
+          "category": "quest",
+          "name": "Scout's Trail Marker",
+          "distribution_location": "ravine",
+          "design_brief": "Persistent tracking clue",
+          "required_artifacts": [
+            "mesh_or_supported_readable",
+            "texture",
+            "native_item_record",
+            "quest_binding",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "HUNTING_ITEM_021",
+          "category": "book",
+          "name": "Terms of the Chase",
+          "distribution_location": "sanctum",
+          "design_brief": "Ritual rules and alternative interpretations",
+          "required_artifacts": [
+            "mesh",
+            "texture",
+            "native_readable_record",
+            "authored_text",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "HUNTING_ITEM_022",
+          "category": "misc",
+          "name": "Cairn Memorial Token",
+          "distribution_location": "cairn",
+          "design_brief": "Collectible personal keepsake",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "native_misc_record",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "HUNTING_ITEM_023",
+          "category": "prop",
+          "name": "Hunter Trophy Display",
+          "distribution_location": "lodge",
+          "design_brief": "Decorative mount with story variation",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "collision",
+            "native_static_or_container_record",
+            "placement",
+            "lod_if_required"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "HUNTING_ITEM_024",
+          "category": "prop",
+          "name": "Hearthkeeper Supply Basket",
+          "distribution_location": "hearth",
+          "design_brief": "Original furnishing and container",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "collision",
+            "native_static_or_container_record",
+            "placement",
+            "lod_if_required"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        }
+      ]
+    },
+    {
+      "id": "pits",
+      "title": "The Pits",
+      "game": "skyrim",
+      "items": [
+        {
+          "id": "PITS_ITEM_001",
+          "category": "weapon",
+          "name": "Saltglass Sword",
+          "distribution_location": "salt",
+          "design_brief": "Translucent mineral fantasy blade",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "PITS_ITEM_002",
+          "category": "weapon",
+          "name": "Ash Channel Hammer",
+          "distribution_location": "kiln",
+          "design_brief": "Mineral forge-themed melee weapon",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "PITS_ITEM_003",
+          "category": "weapon",
+          "name": "Windcut Bow",
+          "distribution_location": "ledge",
+          "design_brief": "Angular bow silhouette with wind motifs",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "PITS_ITEM_004",
+          "category": "weapon",
+          "name": "Fungal Resonance Staff",
+          "distribution_location": "fungus",
+          "design_brief": "Fictional organic staff with luminous accents",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "PITS_ITEM_005",
+          "category": "weapon",
+          "name": "Regulator's Verdict",
+          "distribution_location": "core",
+          "design_brief": "Unique enchanted relic weapon",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "PITS_ITEM_006",
+          "category": "weapon",
+          "name": "Mineral Worker's Pick",
+          "distribution_location": "works",
+          "design_brief": "Industrial fantasy tool with in-game melee role",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "PITS_ITEM_007",
+          "category": "armor",
+          "name": "Salt Custodian Plate",
+          "distribution_location": "salt",
+          "design_brief": "Layered pale mineral armor",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "PITS_ITEM_008",
+          "category": "armor",
+          "name": "Abyss Descent Gear",
+          "distribution_location": "rim",
+          "design_brief": "Protective armor with fantasy hazard resistance",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "PITS_ITEM_009",
+          "category": "armor",
+          "name": "Mineral Worker Harness",
+          "distribution_location": "foundry",
+          "design_brief": "Industrial fantasy protective gear",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "PITS_ITEM_010",
+          "category": "clothing",
+          "name": "Quarantine Steward Robe",
+          "distribution_location": "refuge",
+          "design_brief": "Practical layered garments",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_clothing_or_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "PITS_ITEM_011",
+          "category": "clothing",
+          "name": "Assay Scholar Coat",
+          "distribution_location": "lab",
+          "design_brief": "Mineral-stained scholar apparel",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_clothing_or_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "PITS_ITEM_012",
+          "category": "clothing",
+          "name": "Wind Guide Mantle",
+          "distribution_location": "ledge",
+          "design_brief": "Weathered cloth with wind motif",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_clothing_or_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "PITS_ITEM_013",
+          "category": "clothing",
+          "name": "Fungal Gardener Garb",
+          "distribution_location": "garden",
+          "design_brief": "Original organic textile design",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_clothing_or_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "PITS_ITEM_014",
+          "category": "clothing",
+          "name": "Keeper's Vestments",
+          "distribution_location": "gate",
+          "design_brief": "Ceremonial robe with six district motifs",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_clothing_or_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "PITS_ITEM_015",
+          "category": "accessory",
+          "name": "Six Measures Amulet",
+          "distribution_location": "refuge",
+          "design_brief": "Quest-dependent fantasy accessory",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "attachment_or_rig_if_worn",
+            "native_item_record",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "PITS_ITEM_016",
+          "category": "accessory",
+          "name": "Salt Mirror Ring",
+          "distribution_location": "cistern",
+          "design_brief": "Reflective mineral jewelry",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "attachment_or_rig_if_worn",
+            "native_item_record",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "PITS_ITEM_017",
+          "category": "consumable",
+          "name": "Fungal Essence",
+          "distribution_location": "fungus",
+          "design_brief": "Fictional alchemical ingredient",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "native_consumable_record",
+            "effects_balance",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "PITS_ITEM_018",
+          "category": "consumable",
+          "name": "Protective Draught",
+          "distribution_location": "clinic",
+          "design_brief": "In-game fictional hazard protection",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "native_consumable_record",
+            "effects_balance",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "PITS_ITEM_019",
+          "category": "quest",
+          "name": "White Ledger",
+          "distribution_location": "lab",
+          "design_brief": "Containment record",
+          "required_artifacts": [
+            "mesh_or_supported_readable",
+            "texture",
+            "native_item_record",
+            "quest_binding",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "PITS_ITEM_020",
+          "category": "quest",
+          "name": "Regulator Key",
+          "distribution_location": "gate",
+          "design_brief": "Progression item for supported native locks",
+          "required_artifacts": [
+            "mesh_or_supported_readable",
+            "texture",
+            "native_item_record",
+            "quest_binding",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "PITS_ITEM_021",
+          "category": "book",
+          "name": "Atlas of the Six Measures",
+          "distribution_location": "refuge",
+          "design_brief": "Regional guide and fictional lore",
+          "required_artifacts": [
+            "mesh",
+            "texture",
+            "native_readable_record",
+            "authored_text",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "PITS_ITEM_022",
+          "category": "misc",
+          "name": "Abyss Crystal",
+          "distribution_location": "rim",
+          "design_brief": "Collectible mineral sample",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "native_misc_record",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "PITS_ITEM_023",
+          "category": "prop",
+          "name": "Assay Instrument",
+          "distribution_location": "lab",
+          "design_brief": "Animated or static laboratory prop",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "collision",
+            "native_static_or_container_record",
+            "placement",
+            "lod_if_required"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "PITS_ITEM_024",
+          "category": "prop",
+          "name": "Mineral District Lantern",
+          "distribution_location": "works",
+          "design_brief": "Original environmental lighting prop",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "collision",
+            "native_static_or_container_record",
+            "placement",
+            "lod_if_required"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        }
+      ]
+    },
+    {
+      "id": "baltimore",
+      "title": "Fallout: Baltimore",
+      "game": "fallout3",
+      "items": [
+        {
+          "id": "BALTIMORE_ITEM_001",
+          "category": "weapon",
+          "name": "Harbor Watch Carbine",
+          "distribution_location": "checkpoint",
+          "design_brief": "Fictional wasteland guard firearm with harbor markings",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "BALTIMORE_ITEM_002",
+          "category": "weapon",
+          "name": "Eastworks Sidearm",
+          "distribution_location": "yard",
+          "design_brief": "Industrial-styled in-game ranged item",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "BALTIMORE_ITEM_003",
+          "category": "weapon",
+          "name": "Switchyard Maul",
+          "distribution_location": "rail",
+          "design_brief": "Heavy industrial melee silhouette",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "BALTIMORE_ITEM_004",
+          "category": "weapon",
+          "name": "Breakwater Club",
+          "distribution_location": "bridge",
+          "design_brief": "Weathered waterfront melee item",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "BALTIMORE_ITEM_005",
+          "category": "weapon",
+          "name": "Rowhouse Defender",
+          "distribution_location": "refuge",
+          "design_brief": "Unique faction reward firearm",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "BALTIMORE_ITEM_006",
+          "category": "weapon",
+          "name": "The Last Tram",
+          "distribution_location": "station",
+          "design_brief": "Collectible transit-themed melee weapon",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "BALTIMORE_ITEM_007",
+          "category": "armor",
+          "name": "Harbor Watch Armor",
+          "distribution_location": "checkpoint",
+          "design_brief": "Patched protective gear with harbor colors",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "BALTIMORE_ITEM_008",
+          "category": "armor",
+          "name": "Eastworks Coverall Armor",
+          "distribution_location": "plant",
+          "design_brief": "Industrial work protection",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "BALTIMORE_ITEM_009",
+          "category": "armor",
+          "name": "Transit Salvager Gear",
+          "distribution_location": "subway",
+          "design_brief": "Utility-focused exploration armor",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "BALTIMORE_ITEM_010",
+          "category": "clothing",
+          "name": "Dockworker Outfit",
+          "distribution_location": "market",
+          "design_brief": "Layered waterfront clothing",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_clothing_or_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "BALTIMORE_ITEM_011",
+          "category": "clothing",
+          "name": "Rowhouse Steward Coat",
+          "distribution_location": "refuge",
+          "design_brief": "Practical neighborhood attire",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_clothing_or_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "BALTIMORE_ITEM_012",
+          "category": "clothing",
+          "name": "Eastworks Mechanic Coveralls",
+          "distribution_location": "yard",
+          "design_brief": "Oil-stained work clothes",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_clothing_or_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "BALTIMORE_ITEM_013",
+          "category": "clothing",
+          "name": "Transit Attendant Uniform",
+          "distribution_location": "station",
+          "design_brief": "Prewar-inspired civilian uniform",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_clothing_or_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "BALTIMORE_ITEM_014",
+          "category": "clothing",
+          "name": "Harbor Diner Apron",
+          "distribution_location": "market",
+          "design_brief": "Civilian service outfit",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_clothing_or_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "BALTIMORE_ITEM_015",
+          "category": "accessory",
+          "name": "Industrial Face Shield",
+          "distribution_location": "plant",
+          "design_brief": "Wearable protective visor",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "attachment_or_rig_if_worn",
+            "native_item_record",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "BALTIMORE_ITEM_016",
+          "category": "accessory",
+          "name": "Transit Pass Holder",
+          "distribution_location": "station",
+          "design_brief": "Wearable or miscellaneous accessory depending on supported slots",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "attachment_or_rig_if_worn",
+            "native_item_record",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "BALTIMORE_ITEM_017",
+          "category": "consumable",
+          "name": "Harbor Market Meal",
+          "distribution_location": "market",
+          "design_brief": "Original regional food item",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "native_consumable_record",
+            "effects_balance",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "BALTIMORE_ITEM_018",
+          "category": "consumable",
+          "name": "Rowhouse Water Flask",
+          "distribution_location": "water",
+          "design_brief": "Local in-game drink",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "native_consumable_record",
+            "effects_balance",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "BALTIMORE_ITEM_019",
+          "category": "quest",
+          "name": "Transit Switch Key",
+          "distribution_location": "switch",
+          "design_brief": "Progression key",
+          "required_artifacts": [
+            "mesh_or_supported_readable",
+            "texture",
+            "native_item_record",
+            "quest_binding",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "BALTIMORE_ITEM_020",
+          "category": "quest",
+          "name": "Dock Cooperative Ledger",
+          "distribution_location": "warehouse",
+          "design_brief": "Cargo dispute evidence",
+          "required_artifacts": [
+            "mesh_or_supported_readable",
+            "texture",
+            "native_item_record",
+            "quest_binding",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "BALTIMORE_ITEM_021",
+          "category": "book",
+          "name": "Baltimore Transit Map",
+          "distribution_location": "station",
+          "design_brief": "Illustrated route guide with lore",
+          "required_artifacts": [
+            "mesh",
+            "texture",
+            "native_readable_record",
+            "authored_text",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "BALTIMORE_ITEM_022",
+          "category": "misc",
+          "name": "Old Fare Token",
+          "distribution_location": "subway",
+          "design_brief": "Collectible currency relic",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "native_misc_record",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "BALTIMORE_ITEM_023",
+          "category": "prop",
+          "name": "Harbor Cargo Pallet",
+          "distribution_location": "warehouse",
+          "design_brief": "Stackable industrial furnishing",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "collision",
+            "native_static_or_container_record",
+            "placement",
+            "lod_if_required"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "BALTIMORE_ITEM_024",
+          "category": "prop",
+          "name": "Rowhouse Utility Meter",
+          "distribution_location": "rowblock",
+          "design_brief": "Environmental storytelling prop",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "collision",
+            "native_static_or_container_record",
+            "placement",
+            "lod_if_required"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        }
+      ]
+    },
+    {
+      "id": "nautica",
+      "title": "Fallout: Nautica",
+      "game": "fallout4",
+      "items": [
+        {
+          "id": "NAUTICA_ITEM_001",
+          "category": "weapon",
+          "name": "Harbor Signal Sidearm",
+          "distribution_location": "beacon",
+          "design_brief": "Fictional maritime-themed ranged item; game-only visuals",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "NAUTICA_ITEM_002",
+          "category": "weapon",
+          "name": "Salvage Captain's Carbine",
+          "distribution_location": "slip",
+          "design_brief": "Weathered in-game firearm with nautical insignia",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "NAUTICA_ITEM_003",
+          "category": "weapon",
+          "name": "Breakwater Hook",
+          "distribution_location": "dock",
+          "design_brief": "Maritime fantasy-inspired melee silhouette",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "NAUTICA_ITEM_004",
+          "category": "weapon",
+          "name": "Boathouse Wrench",
+          "distribution_location": "boathouse",
+          "design_brief": "Mechanic's melee tool variant",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "NAUTICA_ITEM_005",
+          "category": "weapon",
+          "name": "Eastern Watch Rifle",
+          "distribution_location": "east",
+          "design_brief": "Distinctive coastal guard ranged item",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "NAUTICA_ITEM_006",
+          "category": "weapon",
+          "name": "The Common Tide",
+          "distribution_location": "wreck",
+          "design_brief": "Unique salvage storyline reward",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "native_weapon_record",
+            "equip_animation",
+            "collision",
+            "inventory_icon",
+            "balance"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "NAUTICA_ITEM_007",
+          "category": "armor",
+          "name": "Coastal Rescue Gear",
+          "distribution_location": "east",
+          "design_brief": "Layered protective maritime outfit",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "NAUTICA_ITEM_008",
+          "category": "armor",
+          "name": "Salvage Diving Suit",
+          "distribution_location": "wreck",
+          "design_brief": "Original sealed-suit silhouette; gameplay dependent on supported systems",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "NAUTICA_ITEM_009",
+          "category": "armor",
+          "name": "Harbor Patrol Armor",
+          "distribution_location": "dock",
+          "design_brief": "Weathered patrol equipment",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "NAUTICA_ITEM_010",
+          "category": "clothing",
+          "name": "Beacon Keeper Coat",
+          "distribution_location": "beacon",
+          "design_brief": "Heavy coastal outerwear",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_clothing_or_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "NAUTICA_ITEM_011",
+          "category": "clothing",
+          "name": "Fishing Community Outfit",
+          "distribution_location": "west",
+          "design_brief": "Weathered maritime work clothing",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_clothing_or_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "NAUTICA_ITEM_012",
+          "category": "clothing",
+          "name": "Inland Grower Clothes",
+          "distribution_location": "farm",
+          "design_brief": "Practical agricultural attire",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_clothing_or_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "NAUTICA_ITEM_013",
+          "category": "clothing",
+          "name": "Harbor Dispatcher Uniform",
+          "distribution_location": "dock",
+          "design_brief": "Civilian service uniform",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_clothing_or_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "NAUTICA_ITEM_014",
+          "category": "clothing",
+          "name": "Salvage Deckhand Outfit",
+          "distribution_location": "slip",
+          "design_brief": "Layered deck work clothing",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "rig_skin",
+            "body_fit",
+            "native_clothing_or_armor_record",
+            "equip_test",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "NAUTICA_ITEM_015",
+          "category": "accessory",
+          "name": "Coastal Navigation Compass",
+          "distribution_location": "beacon",
+          "design_brief": "Wearable or miscellaneous game accessory",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "attachment_or_rig_if_worn",
+            "native_item_record",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "NAUTICA_ITEM_016",
+          "category": "accessory",
+          "name": "Storm Goggles",
+          "distribution_location": "dunes",
+          "design_brief": "Protective eyewear silhouette",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "attachment_or_rig_if_worn",
+            "native_item_record",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "NAUTICA_ITEM_017",
+          "category": "consumable",
+          "name": "Island Trail Ration",
+          "distribution_location": "farm",
+          "design_brief": "Regional food item",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "native_consumable_record",
+            "effects_balance",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "NAUTICA_ITEM_018",
+          "category": "consumable",
+          "name": "Harbor Freshwater Flask",
+          "distribution_location": "cistern",
+          "design_brief": "Original in-game drink",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "native_consumable_record",
+            "effects_balance",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "NAUTICA_ITEM_019",
+          "category": "quest",
+          "name": "Missing Cargo Manifest",
+          "distribution_location": "warehouse",
+          "design_brief": "Evidence for cargo questline",
+          "required_artifacts": [
+            "mesh_or_supported_readable",
+            "texture",
+            "native_item_record",
+            "quest_binding",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "NAUTICA_ITEM_020",
+          "category": "quest",
+          "name": "Navigation Relay Key",
+          "distribution_location": "relay",
+          "design_brief": "Progression access token",
+          "required_artifacts": [
+            "mesh_or_supported_readable",
+            "texture",
+            "native_item_record",
+            "quest_binding",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "NAUTICA_ITEM_021",
+          "category": "book",
+          "name": "Beacon Keeper's Signal Book",
+          "distribution_location": "beacon",
+          "design_brief": "Illustrated navigation lore",
+          "required_artifacts": [
+            "mesh",
+            "texture",
+            "native_readable_record",
+            "authored_text",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "NAUTICA_ITEM_022",
+          "category": "misc",
+          "name": "Nantucket Ferry Token",
+          "distribution_location": "dock",
+          "design_brief": "Collectible prewar keepsake",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "native_misc_record",
+            "inventory_icon"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "NAUTICA_ITEM_023",
+          "category": "prop",
+          "name": "Coastal Signal Lantern",
+          "distribution_location": "beacon",
+          "design_brief": "Reusable environmental light prop",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "collision",
+            "native_static_or_container_record",
+            "placement",
+            "lod_if_required"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        },
+        {
+          "id": "NAUTICA_ITEM_024",
+          "category": "prop",
+          "name": "Salvage Cargo Chest",
+          "distribution_location": "slip",
+          "design_brief": "Original container model",
+          "required_artifacts": [
+            "mesh",
+            "uv",
+            "texture",
+            "material",
+            "collision",
+            "native_static_or_container_record",
+            "placement",
+            "lod_if_required"
+          ],
+          "status": "design_only",
+          "source_policy": "original Chimster-authored assets; locally owned vanilla references only if permitted; no redistribution of retail assets",
+          "native_status": "unbuilt"
+        }
+      ]
+    }
+  ]
+}
