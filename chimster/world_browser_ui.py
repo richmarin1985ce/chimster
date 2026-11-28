@@ -1,6 +1,6 @@
 """Desktop Cell View: worldspaces, cells, placements and a bounded grid."""
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+from tkinter import ttk, filedialog, messagebox, simpledialog
 from pathlib import Path
 from pprint import pformat
 from .world_browser import Browser, label
@@ -16,6 +16,7 @@ def mount(parent, game, open_preview=None):
     world_choice = tk.StringVar()
     radius = tk.StringVar(value="0")
     state["models"] = None
+    state["draft"] = None
     def choose_models():
         folder = filedialog.askdirectory(title="Choose game Data directory with loose meshes")
         if folder:
@@ -33,6 +34,7 @@ def mount(parent, game, open_preview=None):
                 state["paths"].append(p)
         update_paths()
     def update_paths():
+        state["draft"] = None
         plugins.delete(0, "end")
         for p in state["paths"]:
             plugins.insert("end", Path(p).name)
@@ -65,6 +67,7 @@ def mount(parent, game, open_preview=None):
             messagebox.showerror("Worldspace browser", str(exc))
             return
         state["index"] = index
+        state["draft"] = None
         state["worlds"] = [None] + [r["key"] for r in index.matching(index.worlds.values(), "")]
         worlds.configure(values=["Interiors / unassigned"] +
                          [index.name(index.worlds[k]) + " [" + label(k) + "]" for k in state["worlds"][1:]])
@@ -248,6 +251,50 @@ def mount(parent, game, open_preview=None):
     ttk.Button(nav,text='Load 3D',command=render_cell).pack(side='left')
     cells.bind('<Double-1>',lambda e:render_cell())
     objects.bind('<Double-1>',render_object)
+    def edit_draft(action):
+        index=state["index"]
+        if index is None:return
+        from .world_draft import Draft
+        draft=state["draft"]
+        if draft is None:
+            draft=Draft(index)
+            state["draft"]=draft
+        key=state["cell"]
+        try:
+            if action in ("new","rename"):
+                value=simpledialog.askstring("Draft cell","Editor ID",parent=parent)
+                if not value:return
+                if action=="new":
+                    grid=(int(gx.get()),int(gy.get())) if state["world"] is not None else None
+                    key=draft.create(value,state["world"],grid)
+                else:draft.rename(key,value)
+            elif action=="place":
+                if key is None:return
+                base_name=simpledialog.askstring("Place static","Static editor ID (exact)",parent=parent)
+                if not base_name:return
+                found=[r for r in index.active.values() if r["signature"]=="STAT" and r["editor_id"].casefold()==base_name.casefold()]
+                if len(found)!=1:raise ValueError("Static editor ID missing or ambiguous")
+                default=index.active[key].get("grid")
+                default=f"{default[0]*4096+2048},{default[1]*4096+2048},0" if default is not None else "0,0,0"
+                coords=simpledialog.askstring("Place static","World X,Y,Z in game units",initialvalue=default,parent=parent)
+                if coords is None:return
+                draft.place(key,found[0]["key"],tuple(float(v) for v in coords.split(",")))
+            elif action=="undo":draft.undo()
+            elif action=="redo":draft.redo()
+            elif action=="export":
+                p=filedialog.asksaveasfilename(defaultextension=".json",filetypes=[("Draft operations","*.json")])
+                if p:draft.export(p)
+                return
+            state["index"]=draft.index()
+            refresh_cells()
+            if key is not None:select_key(key)
+            status.set(f"Draft: {len(draft.operations)} staged operations; source plugins unchanged")
+        except (OSError,ValueError,TypeError,KeyError) as exc:
+            messagebox.showerror("World edit draft",str(exc),parent=parent)
+    editbar=ttk.Frame(parent)
+    editbar.pack(fill="x",before=pane)
+    for title,action in (("New cell","new"),("Rename","rename"),("Place static","place"),("Undo","undo"),("Redo","redo"),("Export draft","export")):
+        ttk.Button(editbar,text=title,command=lambda a=action:edit_draft(a)).pack(side="left")
     def profile_changed(*_):
         update_paths()
     worlds.bind("<<ComboboxSelected>>", select_world)
