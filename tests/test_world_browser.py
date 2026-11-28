@@ -286,5 +286,42 @@ class WorldBrowserTests(unittest.TestCase):
 
 
 
+    def test_parent_environment_cycle_and_preview(self):
+        from chimster.world_draft import Draft
+        from chimster.world_environment import effective
+        draft=Draft(Browser.open([]))
+        parent=draft.create_world("ParentWorld","Parent",environment={"heights":(800,400)})
+        child=draft.create_world("ChildWorld","Child")
+        draft.set_environment(child,{"parent":(parent.origin,parent.local),"inheritance":(1,)})
+        resolved=effective(draft.index(),child)
+        self.assertEqual(resolved["values"]["heights"],(800,400))
+        self.assertEqual(resolved["providers"]["heights"],(parent.origin,parent.local))
+        count=len(draft.operations)
+        with self.assertRaises(ValueError):
+            draft.set_environment(parent,{"parent":(child.origin,child.local),"inheritance":(1,)})
+        self.assertEqual(len(draft.operations),count)
+        draft.set_environment(child,{"parent":None,"inheritance":(0,),"map_texture":"maps/world.dds"})
+        self.assertEqual(effective(draft.index(),child)["values"]["map_texture"],"maps/world.dds")
+
+    def test_climate_weather_weights_and_codec(self):
+        from chimster.world_draft import Draft
+        from chimster.world_climate import encode,decode
+        from chimster.native_parser import parse,subrecords
+        from chimster.record_graph import Slots
+        self.base.write_bytes(self.base.read_bytes()+record(b"WTHR",0x804,edid("Sunny")))
+        draft=Draft(Browser.open([self.base]))
+        with self.assertRaises(ValueError):
+            draft.create_climate("Invalid",{"weather":[(("base.esm",0x804),90,None)]})
+        key=draft.create_climate("SunnyClimate",{"weather":[(("base.esm",0x804),100,None)]})
+        row=draft.index().active[key]
+        slots=Slots(draft.name,["base.esm"])
+        native=encode(row,slots)
+        node=parse("new-vegas",native)[0]
+        self.assertEqual(decode(subrecords("new-vegas",node),slots),row["climate_spec"])
+        draft.set_environment(self.world,{"climate":(key.origin,key.local)})
+        self.assertEqual(draft.index().worlds[self.world]["environment"]["climate"],(key.origin,key.local))
+
+
+
 if __name__ == "__main__":
     unittest.main()
