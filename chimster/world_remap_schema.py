@@ -5,7 +5,7 @@ from .fnv_patch import sub
 
 PATTERNS={
     b"WRLD":r"EDIDFULLPNAMDNAMONAMDATANAM0NAM9NNAMXNAM",
-    b"CELL":r"DATAXCLC",
+    b"CELL":r"(?:DATAXCLC|EDIDFULLDATA)",
     b"LAND":r"DATAVNMLVHGTVCLR(?:BTXT)*(?:ATXTVTXT)*",
     b"REFR":r"NAMEXSCLDATA",
     b"TXST":r"EDIDOBNDTX00TX01DNAM",
@@ -31,6 +31,10 @@ def rewrite_world(signature,parts,remap):
     tags="".join(tag.decode("ascii") for tag,_ in parts)
     if not re.fullmatch(PATTERNS[signature],tags):
         raise ValueError("unknown generated world layout")
+    if signature==b"CELL":
+        values=dict(parts)
+        if values[b"DATA"]!=(b"\x01" if tags=="EDIDFULLDATA" else b"\0"):
+            raise ValueError("unsupported cell flags")
     output=[];changed=0
     for tag,raw in parts:
         length=LENGTHS[signature].get(tag)
