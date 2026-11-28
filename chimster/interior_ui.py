@@ -96,9 +96,19 @@ def mount(parent):
         p=filedialog.asksaveasfilename(defaultextension=".json")
         if p:
             with Path(p).open("x",encoding="utf-8") as f:json.dump(h.current,f,indent=2)
+    def settings():
+        win=tk.Toplevel(parent);win.title("Portable cell systems");cid=active.get();c=current()
+        editor=tk.Text(win,width=78,height=22);editor.pack(fill="both",expand=True)
+        editor.insert("1.0",json.dumps({k:c[k] for k in ("activation_chains","environment","visibility") if k in c},indent=2))
+        def apply_settings():
+            h.settings(cid,json.loads(editor.get("1.0","end-1c")));draw();win.destroy()
+        ttk.Button(win,text="Apply",command=lambda:guard(apply_settings)).pack()
     def diagnose():
         from .interior_diagnostics import audit
         report=audit(h.current)
+        from .interior_occlusion import audit as visibility_audit
+        c=current()
+        if "visibility" in c:report["visibility"]=visibility_audit(c["layout"],c["visibility"])
         win=tk.Toplevel(parent);win.title("Connectivity diagnostics")
         out=tk.Text(win,width=85,height=28,wrap="word");out.pack(fill="both",expand=True);out.insert("1.0",json.dumps(report,indent=2));out.configure(state="disabled")
     def export():
@@ -106,9 +116,11 @@ def mount(parent):
         path=filedialog.asksaveasfilename(defaultextension=".esp")
         if not path:return
         masters=filedialog.askopenfilenames(title="Optional masters in load order")
+        if any(any(k in c for k in ("activation_chains","environment","visibility")) for c in h.current["cells"]):
+            if not messagebox.askyesno("Portable systems","Activation, lighting/acoustic and occlusion settings remain project-only and are not emitted into the ESP. Continue?"):return
         result=native(h.current,path,masters)
         status.set(json.dumps(result))
-    for label,fn in (("Open",open_project),("Save new",save),("Room",add_room),("Portal",add_portal),("Place",add_placement),("Bind door",bind),("Apply properties",apply),("Undo",lambda:(h.undo(),draw())),("Redo",lambda:(h.redo(),draw())),("Diagnostics",diagnose),("Export FNV",export)):
+    for label,fn in (("Open",open_project),("Save new",save),("Room",add_room),("Portal",add_portal),("Place",add_placement),("Bind door",bind),("Apply properties",apply),("Undo",lambda:(h.undo(),draw())),("Redo",lambda:(h.redo(),draw())),("Cell systems",settings),("Diagnostics",diagnose),("Export FNV",export)):
         ttk.Button(bar,text=label,command=lambda fn=fn:guard(fn)).pack(side="left")
     def pick(e):
         items=canvas.find_overlapping(e.x-3,e.y-3,e.x+3,e.y+3)
