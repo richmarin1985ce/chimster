@@ -35,6 +35,7 @@ def build_parser():
  a=s.add_parser('git-branches'); a.add_argument('root'); a.add_argument('--create')
  a=s.add_parser('lod'); l=a.add_subparsers(dest='lop',required=True)
  b=l.add_parser('tree'); b.add_argument('output'); b.add_argument('--seed',type=int,default=42); b.add_argument('--size',type=int,default=128); b.add_argument('--views',type=int,choices=[1,2,4],default=2)
+ b=l.add_parser('vegetation-source'); b.add_argument('game',choices=['oblivion','fallout3','new-vegas','skyrim','skyrim-se','fallout4']); b.add_argument('model'); b.add_argument('output'); b.add_argument('--name',default='Vegetation'); b.add_argument('--data'); b.add_argument('--archive',action='append',default=[]); b.add_argument('--size',type=int,choices=[32,64,128,256],default=128); b.add_argument('--views',type=int,choices=[1,2,4],default=2)
  b=l.add_parser('vegetation-native'); b.add_argument('output'); b.add_argument('--name',default='Vegetation'); b.add_argument('--seed',type=int,default=42); b.add_argument('--species',choices=['tree','shrub','grass'],default='tree'); b.add_argument('--size',type=int,choices=[64,128,256],default=128); b.add_argument('--views',type=int,choices=[1,2,4],default=2); b.add_argument('--scale',type=float,default=128)
  b=l.add_parser('nif'); b.add_argument('output'); b.add_argument('--seed',type=int,default=42); b.add_argument('--level',type=int,choices=[0,1,2],default=2); b.add_argument('--scale',type=float,default=1)
  b=l.add_parser('legacy-billboard'); b.add_argument('output'); b.add_argument('--seed',type=int,default=42); b.add_argument('--size',type=int,default=128); b.add_argument('--views',type=int,choices=[1,2,4],default=2); b.add_argument('--scale',type=float,default=1)
@@ -709,6 +710,10 @@ def main(argv=None):
    from .lod_tools import workflow,openmw_settings
    from pathlib import Path
    if n.lop=='tree':result=build_tree(Recipe(seed=n.seed),n.output,n.size,n.views)
+   elif n.lop=='vegetation-source':
+    from .world_lod_vegetation import build_source
+    from .world_lod_object_builtin import Assets
+    result=build_source(n.game,n.model,Assets(n.data,n.archive),n.output,n.name,n.views,n.size)
    elif n.lop=='vegetation-native':
     from .world_lod_vegetation import build
     result=build(Recipe(seed=n.seed,species=n.species),n.output,n.name,n.scale,n.views,n.size)
