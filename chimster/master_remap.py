@@ -1,4 +1,4 @@
-"""Conservative master-table permutation for a fully known top-level FNV subset."""
+"""Conservative master-table changes for a fully known top-level FNV subset."""
 from pathlib import Path
 import struct,hashlib
 from .fnv_records import HEADER,scan,subs,text
@@ -13,19 +13,29 @@ SCHEMAS={
  b"MISC":(b"EDID",b"OBND",b"FULL",b"MODL",b"DATA"),
  b"STAT":(b"EDID",b"OBND",b"MODL"),
 }
-def reorder(source,output,masters):
+def reorder(source,output,masters,*,allow_set_change=False):
     p=Path(source).resolve(strict=True);out=Path(output)
     if p.name!=out.name or out.exists() or out.is_symlink() or p==out.resolve():raise ValueError("new staging directory, same filename required")
     if p.stat().st_size>128*1024*1024:raise ValueError("plugin too large")
     raw=p.read_bytes();report=scan(p);old=[plugin_name(x) for x in report["masters"]]
     b=Bindings(masters,out)
-    if set(old)!=set(b.names) or len(old)!=len(b.names):raise ValueError("only a permutation of existing masters is supported")
+    added=sorted(set(b.names)-set(old));removed=sorted(set(old)-set(b.names))
+    if (added or removed) and not allow_set_change:raise ValueError("only a permutation of existing masters is supported without explicit opt-in")
     slots=old+[plugin_name(p.name)];dest=b.names+[plugin_name(p.name)]
     local_ids={(x["origin"],x["local_id"]) for x in report["records"] if not x["flags"]&0x20}
+    if len(local_ids)!=len(report["records"]):raise ValueError("duplicate or deleted record identity")
+    for row in report["records"]:
+        if row["origin"]!=slots[-1]:
+            origin=(row["origin"],row["local_id"])
+            master=b.records.get(origin)
+            if row["origin"] not in b.names or master is None or master["flags"]&0x20 or master["signature"]!=row["signature"]:
+                raise ValueError("missing or incompatible override origin: "+str(origin))
     def remap(v):
         if v==0:return 0
         if v>>24>=len(slots) or not v&0xffffff:raise ValueError("invalid FormID")
-        return (dest.index(slots[v>>24])<<24)|(v&0xffffff)
+        origin=slots[v>>24]
+        if origin not in dest:raise ValueError("removed master still referenced: "+origin)
+        return (dest.index(origin)<<24)|(v&0xffffff)
     def remap_link(v):
         if not v:return 0
         dest_id=remap(v);key=(slots[v>>24],v&0xffffff)
@@ -38,6 +48,9 @@ def reorder(source,output,masters):
     header=list(subs(raw[24:24+n]));tags=[k for k,_ in header]
     if tags[:2]!=[b"HEDR",b"CNAM"] or tags[2:]!=[k for _ in old for k in (b"MAST",b"DATA")]:raise ValueError("unsupported TES4 header schema")
     if flags or form:raise ValueError("only ordinary ESP supported")
+    if len(header[0][1])!=12:raise ValueError("invalid HEDR")
+    text(header[1][1])
+    if any(len(v)!=8 for k,v in header[2:] if k==b"DATA"):raise ValueError("invalid master DATA")
     body=b"".join(sub(k,v) for k,v in header[:2])+b.header()
     result=[raw[:4]+struct.pack("<I",len(body))+raw[8:24]+body];i=24+n
     links=0
@@ -86,12 +99,16 @@ def reorder(source,output,masters):
         records=b"".join(records);result.append(raw[i:i+4]+struct.pack("<I",24+len(records))+raw[i+8:i+24]+records);i=end
     if hashlib.sha256(p.read_bytes()).digest()!=hashlib.sha256(raw).digest():raise ValueError("source changed")
     b.check()
-    with out.open("xb") as f:f.write(b"".join(result))
+    created=False
     try:
+        with out.open("xb") as f:
+            created=True
+            f.write(b"".join(result))
         after=scan(out)
         def identities(r):return sorted((x["origin"],x["local_id"],x["signature"]) for x in r["records"])
         if identities(report)!=identities(after) or [plugin_name(x) for x in after["masters"]]!=b.names:raise ValueError("remap identity mismatch")
         b.check()
     except Exception:
-        out.unlink();raise
-    return {"output":str(out),"records":len(report["records"]),"changed_list_references":links,"changed_embedded_references":links,"masters":after["masters"],"scope":"known generated top-level subset only; no master addition/removal, opaque fields, nested groups or arbitrary local renumbering"}
+        if created:out.unlink()
+        raise
+    return {"output":str(out),"records":len(report["records"]),"changed_list_references":links,"changed_embedded_references":links,"masters":after["masters"],"added_masters":added,"removed_masters":removed,"load_order_review_required":bool(added or removed or old!=b.names),"scope":"known generated top-level subset only; no opaque fields, nested groups or arbitrary local renumbering; dependency changes can alter winning overrides and runtime behavior"}
