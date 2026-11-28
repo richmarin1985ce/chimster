@@ -88,8 +88,8 @@ def export_project(project,output):
     raw=read_bounded(root/"source.spt")
     meta=json.loads(read_bounded(root/"manifest.json",4*1024*1024))
     changes=json.loads(read_bounded(root/"edits.json",1024*1024))
-    if meta.get("schema")!=SCHEMA or meta.get("source_sha256")!=digest(raw) or meta.get("source_bytes")!=len(raw):raise ValueError("Project source integrity mismatch")
     if not isinstance(meta,dict):raise ValueError("Invalid project manifest")
+    if meta.get("schema")!=SCHEMA or meta.get("source_sha256")!=digest(raw) or meta.get("source_bytes")!=len(raw):raise ValueError("Project source integrity mismatch")
     if not isinstance(changes,dict) or set(changes)!={"scalars","textures"} or any(not isinstance(v,dict) for v in changes.values()):raise ValueError("Invalid edits schema")
     original=raw;info=inspect_source(raw)
     if changes["scalars"] or changes["textures"]:
