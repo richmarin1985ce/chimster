@@ -13,7 +13,7 @@ def launch():
  sections={
   'Project':('Project','Core management','Game compatibility','Record projects','Action planner'),
   'Records':('Native records','Record editor','Plugin inspector','Load order'),
-  'World':('3D viewport','Terrain editor','Worldspace validator','Landscape budget'),
+  'World':('3D viewport','Terrain editor','Interior editor','Navmesh editor','Worldspace validator','Landscape budget'),
   'Narrative':('Quest editor','Dialogue views','Books & notes','Localization'),
   'Assets':('Texture Forge','Voice containers'),
   'Gameplay':('Minigame editor',),
