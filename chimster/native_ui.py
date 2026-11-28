@@ -80,10 +80,12 @@ def mount(parent, game=None):
         dialog.title("Native validation")
         ttk.Label(dialog,text=f'{s.profile}: {report["records"]} records, {len(report["issues"])} diagnostics').pack(anchor="w")
         choice=tk.StringVar(value="All")
-        ttk.Combobox(dialog,textvariable=choice,state="readonly",values=["All",*sorted(report["counts"])]).pack(fill="x")
+        ttk.Combobox(dialog,textvariable=choice,state="readonly",values=["All","Errors","Warnings",*sorted(report["counts"])]).pack(fill="x")
         frame=ttk.Frame(dialog);frame.pack(fill="both",expand=True)
-        results=ttk.Treeview(frame,columns=("detail",),show="tree headings")
+        results=ttk.Treeview(frame,columns=("severity","detail"),show="tree headings")
         results.heading("#0",text="Diagnostic")
+        results.heading("severity",text="Severity")
+        results.column("severity",width=90,stretch=False)
         results.heading("detail",text="Details")
         scroll=ttk.Scrollbar(frame,orient="vertical",command=results.yview)
         results.configure(yscrollcommand=scroll.set)
@@ -92,8 +94,9 @@ def mount(parent, game=None):
         def populate(*_):
             results.delete(*results.get_children());entries.clear()
             for issue in report["issues"]:
-                if choice.get()!="All" and choice.get()!=issue[0]:continue
-                item=results.insert("","end",text=issue[0],values=(str(issue[1:]),))
+                severity=s.diagnostic_severity(issue[0])
+                if choice.get() not in ("All",issue[0],severity.title()+"s"):continue
+                item=results.insert("","end",text=issue[0],values=(severity,str(issue[1:])))
                 entries[item]=issue
         def navigate():
             if state["session"] is not s or s.revision!=report["revision"]:
