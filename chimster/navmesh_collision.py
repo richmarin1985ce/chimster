@@ -191,7 +191,18 @@ def generate_collision(spec,*,grid_origin=None,window=None):
                 # The swept body travels at the higher edge elevation. Clip collision
                 # polygons to a conservative rectangular aperture around the seam.
                 # Reject overhead or upright obstruction anywhere in that aperture.
-                if 2*radius>s+EPS:
+                # A wide agent may use multiple contiguous seam cells. Require
+                # matching supported floor edges over the entire aperture.
+                width_ok=True
+                extent=math.ceil(max(0.,radius/s-.5))
+                if extent>0:
+                    for offset in range(-extent,extent+1):
+                        if offset==0:continue
+                        ax=x+(offset if dy else 0);ay=y+(offset if dx else 0)
+                        left=candidates.get((ax,ay),[]);right=candidates.get((ax+dx,ay+dy),[])
+                        if not any(max(abs(u[a]-z[a]) for a in ea)<=EPS and max(abs(v[b]-w[b]) for b in eb)<=EPS for u in left for v in right):
+                            width_ok=False;break
+                if not width_ok:
                     reject["step_width"]+=1;continue
                 axis=0 if dx else 1;along=1-axis
                 seam=(ox+(x+1)*s) if dx else (oy+(y+1)*s)
