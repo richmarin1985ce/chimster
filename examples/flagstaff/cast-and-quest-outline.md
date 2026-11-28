@@ -16,11 +16,11 @@ With Caesar campaigning west, the provincial capital's administrators face warti
 ## Faction structure
 Independent chartered caravan houses (provisional institution), ranchers' informal association, Legion supply administration, captive solidarity networks and independent roadside communities. Neither merchant affluence nor Legion road safety implies emancipation or equality. The Enclave reconnaissance cell is hidden, fragmentary and internally divided; avoid making it the main antagonist or deciding Chicago canon.
 ## Main quest scaffold
-CR_MQ01 The Price of Passage — kidnapping, confiscation receipt, first decisions in the slave pit.
-CR_MQ02 Open Account — escape through multiple play styles, establish cover or status, recover gear and determine whether others escape.
-CR_MQ03 A Road of Accounts — work or bargain with competing businesses, trace a chain of obligations.
-CR_MQ04 The Capital at War — contend with provisioning orders, regional shortages and legitimacy of local rule.
-CR_MQ05 The Long Distance — investigate cryptic eastbound road surveys and discover the optional intelligence subplot.
-CR_MQ06 Terms of Passage — player-driven resolution of capital politics and road access; consequences based on prior actions.
-CR_MQ07 Mile Zero — return to Mojave when ready, independent conditional slides and optional endgame interoperability.
+CR_MQ01 The Roman Holiday — kidnapping, confiscation receipt, first decisions in the slave pit.
+CR_MQ02 Don't Fence Me In — escape through multiple play styles, establish cover or status, recover gear and determine whether others escape.
+CR_MQ03 All Roads Lead to Rome — work or bargain with competing businesses, trace a chain of obligations.
+CR_MQ04 The Best Things in Life Are Free — contend with provisioning orders, regional shortages and legitimacy of local rule.
+CR_MQ05 Long Distance Call — investigate cryptic eastbound road surveys and discover the optional intelligence subplot.
+CR_MQ06 The Price of Civilization — player-driven resolution of capital politics and road access; consequences based on prior actions.
+CR_MQ07 East of the Sun — return to Mojave when ready, independent conditional slides and optional endgame interoperability.
 Side quests should allow solutions by Speech, Barter, Survival, Science, Repair, Medicine, Sneak and combat where appropriate, with some fail-forward outcomes. Major endings should consider captivity and liberation, commerce and coercion, military supply, and survival of individual communities. Do not overwrite vanilla faction endings. Optional cross-plugin hooks require explicit compatibility testing.
