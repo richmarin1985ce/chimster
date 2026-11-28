@@ -28,18 +28,44 @@ def header(blocks,names,stream):
     raw+=pack("II",len(names),max(map(len,names)))+b"".join(string(s) for s in names)+pack("I",0)
     return raw+b"".join(b for t,b in blocks)+pack("Ii",1,0)
 
-def shader(tex,stream,kind,cutout,colored=False):
+def default_tail(stream):
+    raw=pack("4f",0,0,0,1)
+    if stream==130:raw+=pack("i",-1)
+    raw+=pack("I3f4f",3,1,0,1 if stream==130 else 16,1,1,1,0)
+    if stream==130:raw+=pack("11f",0,3.402823466e38,0,1,5,*([-1]*6))
+    else:raw+=pack("2f",.3,2)
+    return raw
+
+def validate_tail(tail,stream):
+    r=Reader(tail)
+    emission=r.get("4f")
+    if stream==130 and r.get("i")[0]!=-1:raise ValueError("External root material unsupported")
+    clamp,alpha,refract,gloss,*spec=r.get("I3f4f")
+    if clamp!=3 or alpha!=1 or refract!=0:raise ValueError("Unsupported clamp, opacity or refraction")
+    # Only exact known-length static shader tails can be preserved.
+    values=list(emission)+[alpha,refract,gloss,*spec]
+    if stream==130:
+        subsurface,rim=r.get("2f");values.extend((subsurface,rim))
+        if rim>=3.4028234e38:values.extend(r.get("f"))
+        values.extend(r.get("8f"))
+    else:values.extend(r.get("2f"))
+    if r.i!=len(tail) or not all(isfinite(v) for v in values):raise ValueError("Unsupported shader tail")
+    return tail
+
+def shader(tex,stream,kind,cutout,colored=False,metadata=()):
     typ=9 if kind=="terrain" else 13 if kind=="object" else 0
     f1=0x80000100|(0x4000 if kind=="terrain" else 0)
     f2=1|({"terrain":2,"object":4,"companion":0}[kind])|(16 if cutout else 0)|(32 if colored else 0)
-    raw=pack("I",typ)+net()+pack("II4fi4f",f1,f2,0,0,1,1,tex,0,0,0,1)
-    if stream==130:raw+=pack("i",-1)
-    raw+=pack("I3f4f",3,1,0,1 if stream==130 else 16,1,1,1,0)
-    if stream==130:
-        # Subsurface, rim, backlight, grayscale, Fresnel, six wetness parameters.
-        raw+=pack("11f",0,3.402823466e38,0,1,5,*([-1]*6))
-    else:raw+=pack("2f",.3,2)
-    return raw
+    tail=default_tail(stream)
+    if metadata:
+        source_stream,source_f1,source_f2,tailhex,threshold=metadata
+        if source_stream!=stream:raise ValueError("Shader metadata stream mismatch")
+        tail=validate_tail(bytes.fromhex(tailhex),stream)
+        # Preserve static appearance flags, not gameplay/dynamic animation flags.
+        f1|=source_f1&0x00400309
+        f2|=source_f2&0x10
+    if stream==130 and cutout:f2|=1<<25
+    return pack("I",typ)+net()+pack("II4fi",f1,f2,0,0,1,1,tex)+tail
 
 def packed_geometry(mesh,raw,center,stream,shader_id,alpha_id,name):
     # The classic geometry builder supplies validated normals and tangent frames.
@@ -83,9 +109,12 @@ def encode_groups(groups,profile,kind="terrain"):
         else:
             shape=packed_geometry(mesh,data,center,stream,sid,aid,len(names)-1)
             blocks.append(("BSTriShape",shape))
-        blocks.extend([("BSLightingShaderProperty",shader(tid,stream,kind,cutout,bool(mesh.colors))),
+        blocks.extend([("BSLightingShaderProperty",shader(tid,stream,kind,cutout,bool(mesh.colors),getattr(mesh,"lod_shader",()))),
                        ("BSShaderTextureSet",pack("I",9)+b"".join(string(p) for p in (d,n,"","","","","","","")))])
-        if cutout:blocks.append(("NiAlphaProperty",net()+pack("HB",0x1200,128)))
+        if cutout:
+            threshold=getattr(mesh,"lod_alpha_threshold",128)
+            if type(threshold)!=int or not 0<=threshold<=255:raise ValueError("Invalid alpha threshold")
+            blocks.append(("NiAlphaProperty",net()+pack("HB",0x1200,threshold)))
     lo=tuple(min(p[i] for p in bounds) for i in range(3));hi=tuple(max(p[i] for p in bounds) for i in range(3))
     center=tuple((a+b)/2 for a,b in zip(lo,hi));extent=tuple((b-a)/2 for a,b in zip(lo,hi))
     i=len(blocks)
@@ -213,20 +242,26 @@ def read_static_groups(raw,profile):
     def material(sid,aid):
         r=Reader(ref(sid,{"BSLightingShaderProperty"}))
         typ,shader_name,extra,controller=r.get("IiIi")
-        if typ not in (0,9,13) or extra or controller!=-1 or shader_name!=-1:raise ValueError("Unsupported named, animated or complex material")
+        if typ not in (0,9,12,13,15) or extra or controller!=-1 or shader_name!=-1:raise ValueError("Unsupported named, animated or complex material")
         f1,f2,u,v,s,t,tid=r.get("II4fi")
-        if (u,v,s,t)!=(0,0,1,1) or f1&~0x80404301 or f2&~0x8037:raise ValueError("Unsupported shader flags or UV transform")
+        allowed1=0x82404309 if stream<130 else 0x80404309
+        allowed2=0xa0008037 if stream<130 else 0x22008037
+        if not all(isfinite(a) and abs(a)<=1024 for a in (u,v,s,t)) or not s or not t or f1&~allowed1 or f2&~allowed2:raise ValueError("Unsupported shader flags or UV transform")
+        tail=validate_tail(r.take(len(r.raw)-r.i),stream)
         # No alpha blending, parallax, environment mapping or vertex-color loss.
         q=Reader(ref(tid,{"BSShaderTextureSet"}));n,=q.get("I")
         if not 2<=n<=10:raise ValueError("Texture set count")
         paths=[q.string().decode("ascii").replace("\\","/") for _ in range(n)]
         if not paths[0] or not paths[1] or any(paths[2:]) or q.i!=len(q.raw):raise ValueError("Unsupported additional texture layers")
-        cut=aid!=-1
+        cut=aid!=-1;threshold=128
         if cut:
             a=Reader(ref(aid,{"NiAlphaProperty"}))
             _,extra,controller=a.get("iIi");flags,threshold=a.get("HB")
-            if extra or controller!=-1 or flags!=0x1200 or threshold!=128:raise ValueError("Unsupported alpha test")
-        return paths[0],paths[1],cut
+            if extra or controller!=-1 or flags&1 or flags&0x1e00!=0x1200 or a.i!=len(a.raw):raise ValueError("Unsupported alpha test")
+        if stream==130 and f2&(1<<25) and not cut:raise ValueError("Alpha test flag without alpha property")
+        appearance1=f1&0x00400309;appearance2=f2&0x10
+        metadata=(stream,appearance1,appearance2,tail.hex(),threshold)
+        return (paths[0],paths[1],cut),metadata,(u,v,s,t)
     seen=set();groups={}
     def visit(i,chain=()):
         if i in seen or len(chain)>32 or not 0<=i<len(blocks):raise ValueError("Invalid source graph")
@@ -255,7 +290,9 @@ def read_static_groups(raw,profile):
             if stream==100 and r.get("I")[0]!=0:raise ValueError("Particle data unsupported")
         else:raise ValueError("Unsupported source shape "+kind)
         if r.i!=len(data):raise ValueError("Unsupported source shape tail")
-        key=material(sid,aid);target=groups.setdefault(key,Mesh());offset=len(target.vertices)
+        key,metadata,uv_transform=material(sid,aid)
+        target=groups.setdefault((*key,metadata),Mesh());offset=len(target.vertices)
+        target.lod_shader=metadata;target.lod_alpha_threshold=metadata[-1]
         if offset+len(mesh.vertices)>100000 or len(target.faces)+len(mesh.faces)>100000:raise ValueError("Source geometry budget")
         validate_mesh(mesh)
         for p in mesh.vertices:
@@ -264,8 +301,9 @@ def read_static_groups(raw,profile):
         if mesh.colors or target.colors:
             if not target.colors:target.colors=[(1.,)*4]*offset
             target.colors.extend(mesh.colors or [(1.,)*4]*len(mesh.vertices))
-        target.uv.extend(mesh.uv);target.faces.extend((tuple(v+offset for v in f),"lod") for f,_ in mesh.faces)
+        ou,ov,su,sv=uv_transform
+        target.uv.extend((u*su+ou,1-((1-v)*sv+ov)) for u,v in mesh.uv);target.faces.extend((tuple(v+offset for v in f),"lod") for f,_ in mesh.faces)
     visit(0)
     if not groups:raise ValueError("No supported source geometry")
     for mesh in groups.values():validate_mesh(mesh)
-    return [(m,*key) for key,m in sorted(groups.items())]
+    return [(m,*key[:3]) for key,m in sorted(groups.items())]
