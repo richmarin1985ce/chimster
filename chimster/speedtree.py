@@ -66,7 +66,7 @@ def parse(raw):
 def edit_scalars(raw,changes):
     """Only edit uniquely identified, validated scalar payloads. Preserve all other bytes."""
     before=parse(raw)
-    if not before["complete"]:raise ValueError("Cannot edit partially parsed SPT")
+    if not before["complete"] or before["fields"]["signature"]!="__IdvSpt_02_":raise ValueError("Cannot edit unsupported or partially parsed SPT")
     allowed={"seed":2005,"size":2006,"size_variance":2007,"near_distance":2003,"far_distance":2001}
     out=bytearray(raw)
     for name,value in changes.items():
