@@ -67,11 +67,40 @@ def mount(parent, game=None):
     def validate():
         s=state["session"]
         if s is None:raise ValueError("Open a plugin first")
-        issues=s.validate()
-        counts={}
-        for issue in issues:counts[issue[0]]=counts.get(issue[0],0)+1
-        show({"profile":s.profile,"records":len(s.rows),"counts":counts,"issues":issues,
-              "note":"No diagnostics does not certify engine compatibility."})
+        report=s.validation_summary()
+        dialog=tk.Toplevel(parent)
+        dialog.title("Native validation")
+        ttk.Label(dialog,text=f'{s.profile}: {report["records"]} records, {len(report["issues"])} diagnostics').pack(anchor="w")
+        choice=tk.StringVar(value="All")
+        ttk.Combobox(dialog,textvariable=choice,state="readonly",values=["All",*sorted(report["counts"])]).pack(fill="x")
+        frame=ttk.Frame(dialog);frame.pack(fill="both",expand=True)
+        results=ttk.Treeview(frame,columns=("detail",),show="tree headings")
+        results.heading("#0",text="Diagnostic")
+        results.heading("detail",text="Details")
+        scroll=ttk.Scrollbar(frame,orient="vertical",command=results.yview)
+        results.configure(yscrollcommand=scroll.set)
+        scroll.pack(side="right",fill="y");results.pack(fill="both",expand=True)
+        entries={}
+        def populate(*_):
+            results.delete(*results.get_children());entries.clear()
+            for issue in report["issues"]:
+                if choice.get()!="All" and choice.get()!=issue[0]:continue
+                item=results.insert("","end",text=issue[0],values=(str(issue[1:]),))
+                entries[item]=issue
+        def navigate():
+            if state["session"] is not s or s.revision!=report["revision"]:
+                raise ValueError("Validation report is stale; run validation again")
+            if not results.selection():return
+            issue=entries[results.selection()[0]]
+            path=issue[2][0] if issue[0]=="duplicate-identity" else issue[1]
+            for item,record_path in state["paths"].items():
+                if record_path==path:
+                    tree.selection_set(item);tree.see(item);inspect();return
+        choice.trace_add("write",populate)
+        ttk.Button(dialog,text="Go to record",command=guard(navigate)).pack(anchor="w")
+        results.bind("<Double-1>",lambda event:guard(navigate)())
+        ttk.Label(dialog,text="Incomplete schemas are coverage warnings, not proof of corruption.").pack(anchor="w")
+        populate()
     def load_masters():
         s=state["session"]
         if s is None:raise ValueError("Open a plugin first")
