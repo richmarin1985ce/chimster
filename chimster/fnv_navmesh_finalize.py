@@ -78,14 +78,14 @@ def finalize(mesh,cell,version,*,divisor,count_width,doors=(),external=(),cover=
         if len(prefix)!=4:raise ValueError("explicit external prefix required")
         used.add((i,j));adjacency[i][j]=len(ex);flags[i]|=1<<j
         ex.append(struct.pack("<4sIH",prefix,target,tri))
-    dp=[];seen=set()
+    dp=[];seen=set();door_triangles=set()
     for d in doors:
         target,i=d["reference"],d["triangle"];uint(target);uint(i,16)
         if not target or i>=len(ts) or target in seen:raise ValueError("invalid duplicate door binding")
         tail=bytes.fromhex(d["tail_hex"])
         if len(tail)!=2:raise ValueError("explicit door tail required")
-        seen.add(target);flags[i]|=0x400;dp.append(struct.pack("<IH2s",target,i,tail))
-    if any(bool(f&0x400)!=(i in {d["triangle"] for d in doors}) for i,f in enumerate(flags)):raise ValueError("door flag mismatch")
+        seen.add(target);door_triangles.add(i);flags[i]|=0x400;dp.append(struct.pack("<IH2s",target,i,tail))
+    if any(bool(f&0x400)!=(i in door_triangles) for i,f in enumerate(flags)):raise ValueError("door flag mismatch")
     cover=list(cover)
     if len(set(cover))!=len(cover) or any(type(i) is not int or not 0<=i<len(ts) for i in cover):raise ValueError("invalid cover triangle")
     spatial=grid(vs,ts,divisor,count_width=count_width)
@@ -103,3 +103,16 @@ def finalize(mesh,cell,version,*,divisor,count_width,doors=(),external=(),cover=
             "payload_sha256":hashlib.sha256(b"".join(k+struct.pack("<I",len(v))+v for k,v in parts)).hexdigest(),
             "review_required":["independent NVGD convention and membership","reciprocal external NAVM edges","XNDP door backlink and NAVI registration","GECK/xEdit and engine traversal"],
             "status":"native NAVM candidate; not a finalized playable ESP"}
+
+def compare_grid(parts,count_width):
+    """Compare grid membership against a locally obtained native reference."""
+    parts=list(parts);report,_=inspect(parts);values=dict(parts)
+    if b"NVGD" not in values:raise ValueError("native reference lacks grid")
+    actual=read_grid(values[b"NVGD"],len(report["triangles"]),count_width)
+    candidate=grid(report["vertices"],report["triangles"],actual["divisor"],count_width=count_width)
+    rebuilt=read_grid(candidate,len(report["triangles"]),count_width)
+    mismatch=[i for i,(a,b) in enumerate(zip(actual["cells"],rebuilt["cells"])) if set(a)!=set(b)]
+    return {"exact_bytes":candidate==values[b"NVGD"],"different_cells":mismatch,
+            "matching_cell_sets":not mismatch,"reference_header":{k:v for k,v in actual.items() if k!="cells"},
+            "candidate_header":{k:v for k,v in rebuilt.items() if k!="cells"},
+            "scope":"comparison of one local native reference, not engine certification"}
