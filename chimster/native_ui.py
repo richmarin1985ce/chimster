@@ -3,22 +3,22 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from pathlib import Path
 from pprint import pformat
-from .native_profiles import PROFILES, capability_manifest
+from .native_profiles import PROFILES, capability_manifest, canonical_profile, active_profiles
 from .native_parser import parse, subrecords
 from .native_editor import NativeSession
 from .record_graph import Slots, Identity
 
 def mount(parent, game=None):
-    aliases={"newvegas":"new-vegas","skyrimse":"skyrim-se","oblivionremastered":"oblivion-remastered"}
-    profile=tk.StringVar(value=aliases.get(game.get(),game.get()) if game is not None else "new-vegas")
+    profile=tk.StringVar(value="new-vegas")
     if game is not None:
         def sync(*_):
-            value=aliases.get(game.get(),game.get())
-            if value in PROFILES:profile.set(value)
-        game.trace_add("write",sync)
+            try:value=canonical_profile(game.get())
+            except ValueError:return
+            if value in active_profiles():profile.set(value)
+        game.trace_add("write",sync);sync()
     state={"session":None,"source":None,"paths":{},"undo":[],"redo":[]}
     bar=ttk.Frame(parent);bar.pack(fill="x")
-    ttk.Combobox(bar,textvariable=profile,values=list(PROFILES),state="readonly").pack(side="left")
+    ttk.Combobox(bar,textvariable=profile,values=active_profiles(),state="readonly").pack(side="left")
     pane=ttk.Panedwindow(parent,orient="horizontal");pane.pack(fill="both",expand=True)
     left=ttk.Frame(pane);right=ttk.Frame(pane);pane.add(left,weight=1);pane.add(right,weight=2)
     tree=ttk.Treeview(left,show="tree")
