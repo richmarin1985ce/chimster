@@ -338,7 +338,10 @@ def main(argv=None):
    from .navmesh_rooms import build
    from .quest_editor import load
    spec=load(n.project)
-   if n.rooms:mesh=build(spec,n.spacing,{"radius":n.radius,"height":n.height})
+   if 'vertices' in spec and 'triangles' in spec:
+    from .navmesh_collision import generate_collision
+    mesh=generate_collision(spec)
+   elif n.rooms:mesh=build(spec,n.spacing,{"radius":n.radius,"height":n.height})
    else:mesh=generate(spec)
    from pathlib import Path
    with Path(n.output).open("x",encoding="utf-8") as stream:json.dump(mesh,stream)
