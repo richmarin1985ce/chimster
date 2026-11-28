@@ -21,21 +21,26 @@ class Session:
         self.mesh=deepcopy(checked(mesh))
         self.materials={}
         self.past=[];self.future=[]
+        self.collision=None;self.collision_stale=False
     def groups(self):
         return sorted({m for _,m in self.mesh.faces})
-    def commit(self,mesh,materials):
+    def commit(self,mesh,materials,*,collision_update=False,collision=None):
         checked(mesh)
-        self.past.append((self.mesh,self.materials))
+        self.past.append((self.mesh,self.materials,self.collision,self.collision_stale))
         self.past=self.past[-5:];self.future.clear()
+        if collision_update:
+            self.collision=deepcopy(collision);self.collision_stale=False
+        elif self.collision is not None and (mesh.vertices!=self.mesh.vertices or [t for t,_ in mesh.faces]!=[t for t,_ in self.mesh.faces]):
+            self.collision_stale=True
         self.mesh,self.materials=mesh,materials
     def undo(self):
         if self.past:
-            self.future.append((self.mesh,self.materials))
-            self.mesh,self.materials=self.past.pop()
+            self.future.append((self.mesh,self.materials,self.collision,self.collision_stale))
+            self.mesh,self.materials,self.collision,self.collision_stale=self.past.pop()
     def redo(self):
         if self.future:
-            self.past.append((self.mesh,self.materials))
-            self.mesh,self.materials=self.future.pop()
+            self.past.append((self.mesh,self.materials,self.collision,self.collision_stale))
+            self.mesh,self.materials,self.collision,self.collision_stale=self.future.pop()
     def transform(self,scale=1,yaw=0,ground=False):
         if not all(isfinite(v) for v in (scale,yaw)) or not 0<scale<=100000:
             raise ValueError("Invalid transform")
@@ -127,12 +132,33 @@ class Session:
         m=deepcopy(self.mesh)
         for i in ids:m.uv[i]=tuple(m.uv[i][k]*scale[k]+offset[k] for k in range(2))
         self.commit(m,deepcopy(self.materials))
+    def gizmo(self,mode,indices,operation,axis,amount):
+        from .asset_gizmo import transformed
+        ids=self.selection_vertices(mode,indices)
+        self.commit(transformed(self.mesh,ids,operation,axis,amount),deepcopy(self.materials))
+    def set_collision(self,recipe):
+        from .collision_materials import validate
+        if recipe is not None:validate(recipe,"newvegas")
+        self.commit(self.mesh,self.materials,collision_update=True,collision=recipe)
+    def add_collision_box(self,mode,indices,name,material="stone",padding=.01):
+        if not isfinite(padding) or padding<0:raise ValueError("Invalid padding")
+        ids=self.selection_vertices(mode,indices)
+        points=[self.mesh.vertices[i] for i in ids]
+        lo=[min(p[k] for p in points)-padding for k in range(3)]
+        hi=[max(p[k] for p in points)+padding for k in range(3)]
+        recipe=deepcopy(self.collision) if self.collision else {"kind":"compound_aabb","list_material":"stone","boxes":[]}
+        if self.collision_stale:raise ValueError("Review existing collision before adding a box")
+        recipe["boxes"].append({"id":name,"min":lo,"max":hi,"material":material})
+        self.set_collision(recipe)
     def report(self):
         return {**self.mesh.stats(),"bounds":bounds(self.mesh),"materials":self.groups(),
                 "bindings":deepcopy(self.materials)}
     def export_obj(self,path):
         write_obj(self.mesh,path)
-    def export_nif(self,path,game,scale,helper=None,box_collision=False):
+    def export_nif(self,path,game,scale,helper=None,box_collision=False,compound=False):
+        if compound and (self.collision is None or self.collision_stale or box_collision):
+            raise ValueError("Review compound collision before export; choose one collision mode")
+        if compound and game not in ("fallout3","newvegas"):raise ValueError("Compound collision is FO3/FNV only")
         if game in ("morrowind","openmw"):
             if box_collision or any(v["normal"] for v in self.materials.values()):
                 raise ValueError("Legacy exporter does not support these options")
@@ -147,4 +173,5 @@ class Session:
             raise ValueError("Select a trusted native NIF helper")
         from .modern_nif import export
         materials={k:{"cutout":k.endswith("__cutout"),**self.materials.get(k,{})} for k in self.groups()}
+        if compound:return export(self.mesh,game,path,helper,materials,scale,compound_collision=self.collision)
         return export(self.mesh,game,path,helper,materials,scale,box_collision)
