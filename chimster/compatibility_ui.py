@@ -167,9 +167,15 @@ def mount(parent,game=None):
         from .archive_validation import audit
         source=filedialog.askopenfilename(filetypes=[("Archives","*.bsa *.ba2")])
         if source:return audit(source)
+    def compare_archive():
+        from .archive_external_validation import compare
+        source=filedialog.askopenfilename(filetypes=[("Archives","*.bsa *.ba2")])
+        if not source:return
+        reference=filedialog.askdirectory(title="Select independently extracted reference assets")
+        if reference:return compare(source,reference)
     actions=ttk.Frame(parent);actions.pack(fill="x")
     for label,fn in [
-        ("Package archive",package_archive),("Validate archive",validate_archive),("Export member",export_member),("Packed assets",packed_assets),("Asset lookup",assets),("Archive conflicts",precedence),("Installation",root),("Capabilities",lambda:capabilities(profile.get())),
+        ("Package archive",package_archive),("Validate archive",validate_archive),("Compare reference",compare_archive),("Export member",export_member),("Packed assets",packed_assets),("Asset lookup",assets),("Archive conflicts",precedence),("Installation",root),("Capabilities",lambda:capabilities(profile.get())),
         ("Plugin",lambda:choose(lambda p,d:audit(profile.get(),d))),
         ("Dependencies",dependencies),("Archive header",lambda:choose(lambda p,d:archive(d),36)),
         ("NIF header",lambda:choose(lambda p,d:nif(d),256)),
