@@ -5,7 +5,9 @@ import struct
 from .classic_bsa_hash import native_hash
 from .compatibility_asset_lookup import normalize
 
-def build(entries,limit=256*1024*1024):
+def build(entries,limit=256*1024*1024,*,version=103):
+    if version not in (103,104,105):raise ValueError('Unsupported BSA version')
+    stride=24 if version==105 else 16
     groups={};seen=set();total=36
     for name,data in entries:
         key=normalize(name)
@@ -19,7 +21,7 @@ def build(entries,limit=256*1024*1024):
         seen.add((fh,nh))
         if fh not in groups:
             groups[fh]=(f,[])
-            total+=16+1+len(f)
+            total+=stride+1+len(f)
         if groups[fh][0]!=f:raise ValueError("Folder hash collision")
         groups[fh][1].append((nh,n,data))
         total+=16+len(n)+len(data)
@@ -27,14 +29,14 @@ def build(entries,limit=256*1024*1024):
     ordered=sorted(groups.items())
     folder_len=sum(len(f) for _,(f,_) in ordered)
     name_len=sum(len(n) for _,(_,rows) in ordered for _,n,_ in rows)
-    cursor=36+16*len(ordered)
+    cursor=36+stride*len(ordered)
     pos=cursor+len(ordered)+folder_len+16*len(seen)+name_len
     headers=[];blocks=[];names=[];payload=[]
     for fh,(f,rows) in ordered:
-        headers.append(struct.pack("<QII",fh,len(rows),cursor+name_len))
+        headers.append(struct.pack("<QIIQ",fh,len(rows),0,cursor+name_len) if version==105 else struct.pack("<QII",fh,len(rows),cursor+name_len))
         blocks.append(bytes([len(f)])+f)
         cursor+=1+len(f)+16*len(rows)
         for nh,n,data in sorted(rows):
             blocks.append(struct.pack("<QII",nh,len(data),pos))
             names.append(n);payload.append(data);pos+=len(data)
-    return struct.pack("<4s8I",b"BSA\0",103,36,3,len(ordered),len(seen),folder_len,name_len,0)+b"".join(headers+blocks+names+payload)
+    return struct.pack("<4s8I",b"BSA\0",version,36,3,len(ordered),len(seen),folder_len,name_len,0)+b"".join(headers+blocks+names+payload)
