@@ -17,7 +17,10 @@ def index_masters(profile,directory,roots):
     loaded=set()
     active=set()
     issues=[]
-    def visit(name):
+    provenance={}
+    ambiguous=set()
+    def visit(name,depth=0):
+        if depth>254:raise ValueError("master nesting limit")
         name=plugin_name(name)
         if name in active:
             issues.append(("cycle",name));return
@@ -31,7 +34,7 @@ def index_masters(profile,directory,roots):
                 raise ValueError("wrong header")
             masters=[raw.rstrip(b"\0").decode("cp1252") for tag,raw in subrecords(profile,nodes[0]) if tag==b"MAST"]
             slots=Slots(name,masters)
-            for master in masters:visit(master)
+            for master in masters:visit(master,depth+1)
             local={}
             local_records={}
             def walk(records):
@@ -40,6 +43,9 @@ def index_masters(profile,directory,roots):
                     elif node.signature!=b"TES4":
                         key=slots.decode(struct.unpack_from("<I",node.header,12)[0])
                         if key is not None:
+                            if key in local:
+                                issues.append(("duplicate-identity",name,str(key)))
+                                ambiguous.add(key)
                             deleted=bool(struct.unpack_from("<I",node.header,8)[0]&0x20)
                             local[key]=None if deleted else node.signature.decode("ascii")
                             if deleted:local_records[key]=None
@@ -49,6 +55,12 @@ def index_masters(profile,directory,roots):
                                     local_records[key]={"edges":[],"opaque":[-1]}
                                     issues.append(("unreadable-record",name,str(key),str(exc)))
             walk(nodes)
+            for key,kind in local.items():
+                previous=types.get(key)
+                if previous is not None and kind is not None and previous!=kind:
+                    issues.append(("override-type-conflict",name,str(key),previous,kind))
+                    ambiguous.add(key)
+                provenance.setdefault(key,[]).append((name,kind))
             types.update(local)
             records.update(local_records)
             loaded.add(name)
@@ -56,4 +68,4 @@ def index_masters(profile,directory,roots):
             issues.append(("unreadable-master",name,str(exc)))
         finally:active.remove(name)
     for name in roots:visit(name)
-    return {k:v for k,v in types.items() if v is not None},{"loaded":sorted(loaded),"issues":issues,"records":{k:v for k,v in records.items() if v is not None}}
+    return {k:v for k,v in types.items() if v is not None and k not in ambiguous},{"loaded":sorted(loaded),"issues":issues,"records":{k:v for k,v in records.items() if v is not None and k not in ambiguous},"provenance":provenance,"ambiguous":sorted(ambiguous)}
