@@ -1,0 +1,11 @@
+# Asset Forge
+
+The desktop Asset Forge tab combines the existing rock, flora and modular building generators, triangulated OBJ import, shaded CPU preview, material assignments, transformations, vertex-cluster LOD simplification and native export routes.
+
+## Native mesh import (experimental)
+Rebuild the optional GPL native helper against the pinned nifly source as described in native/nifbridge/README.md. Use Import NIF, explicitly select the trusted helper, and inspect the preview. The helper's extract-mesh command accepts FO3/FNV, Skyrim LE/SE/VR and FO4/VR file families, restricted to direct root static triangle shapes with identity transforms and UVs. Geometry and UVs, diffuse and normal texture references and the exact supported alpha-test property are carried into the portable mesh; shape IDs are generated. Unknown blocks, skinning, nested/nonidentity shape transforms, unsupported alpha properties and invalid indices are rejected. The original NIF is never modified. Re-export creates a new file and is NOT a lossless native edit: shaders, BGSM/BGEM, collision, custom normals, extra data, names, animations and other native properties are not preserved. Legacy Morrowind/Oblivion native import remains pending.
+
+## Topology
+Select vertex, edge or face mode. Click a small preview or enter comma/space-separated zero-based indices. Edges are sorted pairs of shared vertex indices; indices can change after topology edits. Move applies a numeric XYZ displacement to selected vertices or the vertices of selected edges/faces. Split edge divides all incident triangles with midpoint UVs and preserves face winding and material IDs. Delete faces compacts unused vertices, refusing empty meshes; assign faces uses existing material groups. Five-step undo is shared with transforms and LOD operations. Coincident but separate vertices at UV seams remain distinct. Click picking is approximate orthographic screen-space selection, not full depth-buffer picking; large meshes require indexed selection. No extrusion, welding, arbitrary UV editing or drag gizmos yet.
+
+Regression fixtures cover exchange validation, movement, edge splits, deletion, reassignment and undo. Native helper compilation, GUI interaction and retail engine tests remain unverified.
