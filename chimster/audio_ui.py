@@ -7,10 +7,12 @@ from .audio import pack_fuz,unpack_fuz
 def mount(parent):
     ttk.Label(parent,text="Voice containers — existing encoded audio and lip-sync data").pack(anchor="w")
     values={k:tk.StringVar() for k in ("FUZ source","Audio source","Lip source")}
+    from .drop_import import path_field
     for name,v in values.items():
         row=ttk.Frame(parent);row.pack(fill="x")
         ttk.Label(row,text=name,width=16).pack(side="left")
-        ttk.Entry(row,textvariable=v).pack(side="left",fill="x",expand=True)
+        field=ttk.Entry(row,textvariable=v);field.pack(side="left",fill="x",expand=True)
+        path_field(field,v,{"FUZ source":(".fuz",),"Audio source":(".xwm",),"Lip source":(".lip",)}[name])
         def choose(v=v):
             p=filedialog.askopenfilename()
             if p:v.set(p)
@@ -66,7 +68,9 @@ def mount_voice_manager(parent):
     for name,v in values.items():
         row=ttk.Frame(frame);row.pack(fill="x")
         ttk.Label(row,text=name,width=14).pack(side="left")
-        ttk.Entry(row,textvariable=v).pack(side="left",fill="x",expand=True)
+        field=ttk.Entry(row,textvariable=v);field.pack(side="left",fill="x",expand=True)
+        if name=="Manifest":path_field(field,v,(".json",))
+        elif name=="Voice root":path_field(field,v,directory=True)
         def choose(name=name,v=v):
             p=filedialog.askdirectory() if name in ("Voice root","Output root") else filedialog.askopenfilename()
             if p:v.set(p)
