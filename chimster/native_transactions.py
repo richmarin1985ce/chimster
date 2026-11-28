@@ -19,6 +19,10 @@ def apply(profile,data,operations,expected_revision,validate=None):
             from .tes3_ai_packages import manage
             candidate=manage(candidate,**args,revision=revision(candidate))
             continue
+        if kind=="native_misc":
+            from .native_templates import misc
+            candidate=misc(profile,candidate,revision(candidate),**args)
+            continue
         if kind in ("native_create","native_duplicate"):
             from .native_create import insert,duplicate
             candidate=(insert if kind=="native_create" else duplicate)(profile,candidate,**args,revision=revision(candidate))
