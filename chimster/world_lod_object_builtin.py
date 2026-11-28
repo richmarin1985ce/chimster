@@ -28,9 +28,12 @@ class Assets:
         if self.root is None and not self.layers:raise ValueError("Select source game assets")
     def get(self,model):
         name=model.replace("\\","/")
-        if not name.lower().startswith(("meshes/","textures/")):name="meshes/"+name
+        if name.lower().endswith(".spt"):
+            from .speedtree import model_path
+            name=model_path(name)
+        elif not name.lower().startswith(("meshes/","textures/","trees/billboards/")):name="meshes/"+name
         pieces=name.split("/")
-        if any(not p or p in (".","..") or ":" in p or "\0" in p for p in pieces) or not name.lower().endswith((".nif",".dds")):raise ValueError("Unsafe asset path")
+        if any(not p or p in (".","..") or ":" in p or "\0" in p for p in pieces) or not name.lower().endswith((".nif",".dds",".spt")):raise ValueError("Unsafe asset path")
         key=normalize(name)
         if self.root is not None:
             path=self.root
