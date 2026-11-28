@@ -100,12 +100,20 @@ class NativeSession:
                     issues.append(("wrong-target-type",path,index,offset,target,actual,kinds))
         return issues
 
+    @staticmethod
+    def diagnostic_severity(code):
+        if code in ("incomplete-schema","unresolved-target","unidentified-record"):
+            return "warning"
+        return "error"
+
     def validation_summary(self):
         issues=self.validate()
         counts={}
         for issue in issues:
             counts[issue[0]]=counts.get(issue[0],0)+1
-        return {"records":len(self.rows),"issues":issues,"counts":counts,
+        severity_counts={"error":0,"warning":0}
+        for issue in issues:severity_counts[self.diagnostic_severity(issue[0])]+=1
+        return {"records":len(self.rows),"issues":issues,"counts":counts,"severity_counts":severity_counts,
                 "complete":not issues,"revision":self.revision}
 
     def remap_preview(self,path,destination):
