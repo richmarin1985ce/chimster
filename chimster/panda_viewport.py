@@ -35,13 +35,16 @@ def texture_bytes(image):
 def build_scene(scene, materials=None, settings=None):
     from panda3d.core import (NodePath, GeomNode, Geom, GeomTriangles,
         GeomVertexData, GeomVertexFormat, GeomVertexWriter, Texture,
-        SamplerState, AlphaTestAttrib, LODNode)
+        SamplerState, AlphaTestAttrib, LODNode, GeomVertexArrayFormat, InternalName, TextureStage, Material as PandaMaterial)
     from .gpu_viewport import vertex_data, default_material, variants, Settings
     settings=(settings or Settings()).validate()
     materials=dict(materials or {})
+    from .panda_materials import tangents,normal_pixels
+    from math import sqrt
     root=NodePath("chimster")
     assets={}
     textures={}
+    normal_maps={}
     def texture(image):
         key=id(image)
         if key not in textures:
@@ -50,15 +53,22 @@ def build_scene(scene, materials=None, settings=None):
             tex.set_ram_image_as(texture_bytes(image),"RGBA")
             tex.set_minfilter(SamplerState.FT_linear)
             tex.set_magfilter(SamplerState.FT_linear)
-            textures[key]=tex
-        return textures[key]
+            textures[key]=(image,tex)
+        return textures[key][1]
     def template(key,mesh):
         raw,groups=vertex_data(mesh)
-        data=GeomVertexData(key,GeomVertexFormat.get_v3n3t2(),Geom.UH_static)
+        fmt=GeomVertexFormat()
+        arr=GeomVertexArrayFormat()
+        for name,count,kind in ((InternalName.get_vertex(),3,Geom.C_point),(InternalName.get_normal(),3,Geom.C_normal),(InternalName.get_texcoord(),2,Geom.C_texcoord),(InternalName.get_tangent(),4,Geom.C_vector)):
+            arr.add_column(name,count,Geom.NT_float32,kind)
+        fmt.add_array(arr)
+        data=GeomVertexData(key,GeomVertexFormat.register_format(fmt),Geom.UH_static)
         data.set_num_rows(len(raw)//8)
         pos=GeomVertexWriter(data,"vertex")
         norm=GeomVertexWriter(data,"normal")
         uv=GeomVertexWriter(data,"texcoord")
+        tangent=GeomVertexWriter(data,InternalName.get_tangent())
+        for value in tangents(mesh,raw):tangent.add_data4f(*value)
         for j in range(0,len(raw),8):
             pos.add_data3f(*raw[j:j+3]);norm.add_data3f(*raw[j+3:j+6]);uv.add_data2f(*raw[j+6:j+8])
         model=NodePath(key)
@@ -73,6 +83,16 @@ def build_scene(scene, materials=None, settings=None):
             part.set_color_scale(*mat.tint,1)
             if mat.diffuse is not None:
                 part.set_texture(texture(mat.diffuse),1)
+            material_state=PandaMaterial(material)
+            material_state.set_base_color((1,1,1,1))
+            material_state.set_metallic(0.)
+            material_state.set_roughness(max(.08,min(1.,sqrt(2/(mat.gloss+2)))))
+            part.set_material(material_state)
+            if mat.normal is not None and mat.normal_strength:
+                key=(id(mat.normal),mat.directx,mat.normal_strength)
+                if key not in normal_maps:normal_maps[key]=normal_pixels(mat.normal,mat.directx,mat.normal_strength)
+                stage=TextureStage("normal");stage.set_mode(TextureStage.M_normal)
+                part.set_texture(stage,texture(normal_maps[key]))
             if mat.cutout>0:
                 part.set_attrib(AlphaTestAttrib.make(AlphaTestAttrib.M_greater_equal,mat.cutout))
             part.set_two_sided(True)
@@ -259,7 +279,7 @@ class Preview:
         key=(mode,effects)
         if key!=self.post_key:
             self.close_post();self.post_key=key
-            if mode!="native" and (mode!="filters" or effects.ao_strength):
+            if mode!="native" and (mode!="filters" or effects.ao_strength or effects.scatter_strength):
                 from .panda_post import PBR,NativeFilters
                 try:self.post=(PBR if mode=="pbr" else NativeFilters)(self,effects)
                 except Exception as exc:self.post_error=str(exc)[:160]

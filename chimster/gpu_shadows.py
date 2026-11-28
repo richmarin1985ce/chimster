@@ -108,7 +108,8 @@ class ShadowMaps:
         program["shadow_count"].value=len(self.targets) if enabled and self.state else 0
         program["shadow_near"].value=3;program["shadow_far"].value=4
         if not enabled or not self.state:return
-        for key,value in self.state.items():program[key].value=value
+        for key,value in self.state.items():
+            if key in program:program[key].value=value
         self.targets[0][0].use(3);self.targets[-1][0].use(4)
     def release_targets(self):
         for tex,fbo in self.targets:fbo.release();tex.release()

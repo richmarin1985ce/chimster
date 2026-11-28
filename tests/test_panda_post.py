@@ -51,3 +51,30 @@ class PostTests(unittest.TestCase):
             self.assertEqual(validate_glb(p),p.resolve())
             write({"asset":{"version":"2.0"},"images":[{"uri":"outside.png"}]})
             with self.assertRaises(ValueError):validate_glb(p)
+
+    def test_tangent_frames(self):
+        from chimster.flora import Mesh
+        from chimster.gpu_viewport import vertex_data,ImageMap
+        from chimster.panda_materials import tangents,normal_pixels
+        m=Mesh([(0,0,0),(1,0,0),(0,1,0)],[(0,0),(1,0),(0,1)],[((0,1,2),"m")])
+        raw,_=vertex_data(m)
+        self.assertEqual(tangents(m,raw),[(1.,0.,0.,1.)]*3)
+        image=ImageMap(1,1,bytes((128,220,220,255)))
+        self.assertLess(normal_pixels(image,True,1).rgba[1],128)
+        self.assertGreater(normal_pixels(image,False,1).rgba[1],128)
+
+    def test_native_filter_fallback(self):
+        import os
+        if not os.environ.get("CHIMSTER_TEST_PANDA_GL"):self.skipTest("Optional framebuffer test")
+        from panda3d.core import load_prc_file_data
+        load_prc_file_data("chimster-test","load-display p3headlessgl\naudio-library-name null")
+        from chimster.panda_viewport import Preview
+        from chimster.gpu_viewport import make_demo
+        from chimster.scene import Camera
+        from chimster.render_effects import Effects
+        scene,materials=make_demo();preview=Preview("filters")
+        try:
+            pixels=preview.render(scene,Camera(zoom=4),96,72,materials,effects=Effects(ao_strength=.4,scatter_strength=.4))
+            self.assertEqual(len(pixels),96*72*4)
+            self.assertTrue(preview.post is not None or preview.post_error)
+        finally:preview.close()

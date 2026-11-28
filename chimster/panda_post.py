@@ -43,11 +43,17 @@ class NativeFilters:
         self.preview=preview
         self.state=preview.root.get_state()
         self.filters=CommonFilters(preview.output,preview.camera)
+        self.caster=None
         try:
             preview.root.set_shader_auto()
             if effects.ao_strength:
                 if not self.filters.setAmbientOcclusion(numsamples=16,amount=2*effects.ao_strength,radius=.05):
                     raise RuntimeError("Native SSAO unavailable")
+            if effects.scatter_strength:
+                self.caster=preview.root.attach_new_node("sun-shaft-anchor")
+                self.caster.set_pos(preview.sun.get_pos())
+                if not self.filters.setVolumetricLighting(self.caster,numsamples=effects.volume_steps,density=.75,decay=.96,exposure=.08*effects.scatter_strength):
+                    raise RuntimeError("Native light shafts unavailable")
             if self.filters.finalQuad is not None:
                 shader=self.filters.finalQuad.get_shader()
                 if shader is None:raise RuntimeError("Native filters shader unavailable")
@@ -58,7 +64,9 @@ class NativeFilters:
             self.close()
             raise
     def update(self):
+        if self.caster is not None:self.caster.set_pos(self.preview.sun.get_pos())
         if self.filters.finalQuad is not None:self.filters.update()
     def close(self):
         self.filters.cleanup();self.filters.manager.ignore_all()
+        if self.caster is not None:self.caster.remove_node();self.caster=None
         self.preview.root.set_state(self.state)
