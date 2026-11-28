@@ -44,8 +44,8 @@ def launch(parent):
         for c in selected_cells():
             table.insert("","end",iid=str(c["frame"]),values=(c["frame"],format(value(c),".8g"),"pair (read-only)" if c["dup"] else "raw"))
         draw()
-    def open_file():
-        p=filedialog.askopenfilename(parent=win,filetypes=[("Native LIP","*.lip")])
+    def open_file(dropped=None):
+        p=dropped if dropped is not None else filedialog.askopenfilename(parent=win,filetypes=[("Native LIP","*.lip")])
         if not p:return
         data=lc.read(p);meta,cells,_=lc.decode(data)
         state.update(data=data,meta=meta,cells=cells,changes={})
@@ -80,3 +80,5 @@ def launch(parent):
     for label,fn in (("Open LIP",open_file),("Apply raw weight",apply),("Save new LIP",save),("Export CSV",csv_export)):
         ttk.Button(bar,text=label,command=guard(fn)).pack(side="left")
     slots.bind("<<ComboboxSelected>>",refresh);table.bind("<<TreeviewSelect>>",selected);canvas.bind("<Configure>",draw)
+    from .drop_import import editor_drop
+    editor_drop(win,[([".lip"],open_file,False)])
