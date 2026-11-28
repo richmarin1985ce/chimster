@@ -81,3 +81,46 @@ def split_neighbors(actual, preferred):
     if not preferred <= actual:
         raise ValueError('preferred connection is not an actual NAVM neighbor')
     return sorted(actual-preferred), sorted(preferred)
+
+
+def island(owner, location, vertices, triangles, *, reference, reference_vertices, reference_triangles,
+           grid=(0, 0), grid_order, preferred_value=0.0):
+    """Experimental island payload only, gated by a byte-exact local reference.
+
+    A reference must demonstrate that its island geometry is the native NAVM
+    geometry verbatim, including indexing and ordering. No assumption about
+    the engine's island classification or simplified island shapes is made.
+    """
+    def encode(owner, location, vertices, triangles, *, grid, preferred_value):
+        header = ordinary(owner, location, vertices, grid=grid, grid_order=grid_order,
+                          preferred_value=preferred_value)
+        vs = [struct.unpack('<3f', struct.pack('<3f', *p)) for p in vertices]
+        if not 1 <= len(triangles) <= 32768:
+            raise ValueError('invalid island triangle count')
+        seen = set()
+        for t in triangles:
+            if len(t) != 3 or len(set(t)) != 3 or any(type(i) is not int or not 0 <= i < len(vs) for i in t):
+                raise ValueError('invalid island triangle indices')
+            key = tuple(sorted(t))
+            if key in seen:
+                raise ValueError('duplicate island triangle')
+            seen.add(key)
+            a,b,c = [vs[i] for i in t]
+            u = [b[k]-a[k] for k in range(3)]; v = [c[k]-a[k] for k in range(3)]
+            if math.hypot(u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]) <= 1e-10:
+                raise ValueError('degenerate island triangle')
+        lo = [min(p[k] for p in vs) for k in range(3)]
+        hi = [max(p[k] for p in vs) for k in range(3)]
+        result = (struct.pack('<I',0x20) + header[4:28] + struct.pack('<6fHH',*lo,*hi,len(vs),len(triangles))
+                  + b''.join(struct.pack('<3f',*p) for p in vs)
+                  + b''.join(struct.pack('<3H',*t) for t in triangles) + header[28:])
+        decode(result,grid_order=grid_order)
+        return result
+    sample = decode(reference,grid_order=grid_order)
+    if sample['variant'] != 'island-candidate-layout' or sample['flags'] != 0x20:
+        raise ValueError('requires an ordinary island reference with no other flags')
+    reproduced = encode(sample['mesh'],sample['location'],reference_vertices,reference_triangles,
+                        grid=sample['grid'],preferred_value=sample['preferred_value'])
+    if reproduced != reference:
+        raise ValueError('local island reference does not match the candidate serialization convention')
+    return encode(owner,location,vertices,triangles,grid=grid,preferred_value=preferred_value)
