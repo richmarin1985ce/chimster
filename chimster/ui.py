@@ -13,7 +13,7 @@ def launch():
  sections={
   'Project':('Project','Core management','Game compatibility','Record projects','Action planner'),
   'Records':('Native records','Record editor','Plugin inspector','Load order'),
-  'World':('3D viewport','Terrain editor','Interior editor','Navmesh editor','Worldspace validator','Landscape budget'),
+  'World':('Worldspace browser','3D viewport','Terrain editor','Interior editor','Navmesh editor','Worldspace validator','Landscape budget'),
   'Narrative':('Quest editor','Dialogue views','Script editor','Books & notes','Localization'),
   'Assets':('Texture Forge','Voice containers'),
   'Gameplay':('Minigame editor',),
@@ -197,6 +197,9 @@ def launch():
  f=tab('3D viewport')
  from .viewport import mount
  mount(f)
+ f=tab('Worldspace browser')
+ from .world_browser_ui import mount as mount_world_browser
+ mount_world_browser(f,game)
  f=tab('Worldspace validator')
  ttk.Label(f,text='Add copied plugins in active load order, masters first. Read-only.').pack(anchor='w')
  pathlist=tk.Listbox(f,height=6);pathlist.pack(fill='x')
