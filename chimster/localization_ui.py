@@ -45,9 +45,9 @@ def mount(parent):
         store();selected=keys[lst.curselection()[0]];e=catalog["entries"][selected]
         original.configure(state="normal");original.delete("1.0","end");original.insert("1.0",e["source"]);original.configure(state="disabled")
         target.delete("1.0","end");target.insert("1.0",e["target"] or "")
-    def open_source():
+    def open_source(dropped=None):
         nonlocal source,catalog
-        p=filedialog.askopenfilename(filetypes=[("JSON","*.json")])
+        p=dropped if dropped is not None else filedialog.askopenfilename(filetypes=[("JSON","*.json")])
         if p:source=read_json(Path(p));catalog=None;refresh();state.set(Path(p).name+" loaded")
     def create():
         nonlocal catalog
@@ -87,3 +87,5 @@ def mount(parent):
     for label,fn in (("Open source",open_source),("New catalog",create),("Load catalog",load),("Save catalog",lambda:(ensure(),save(catalog))),("Reuse memory",lambda:memory_op(True)),("Validate",check),("Remember",lambda:memory_op(False)),("Export translation",lambda:(ensure(),save(loc.apply(catalog,source,encoding.get()))))):
         ttk.Button(bar,text=label,command=guard(fn)).pack(side="left")
     lst.bind("<<ListboxSelect>>",choose)
+    from .drop_import import editor_drop
+    editor_drop(parent,[([".json"],open_source,False)])
