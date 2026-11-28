@@ -76,3 +76,13 @@ Read-only sessions can preview but cannot apply. To grant a trusted local client
     chimster --mcp --project /path/to/project --allow-edit --allow-native-edit
 
 `fnv_record_apply_edit` consumes a matching single-use token and publishes the staged bytes as a new project revision. The same session undo/redo can restore the prior revision, provided no intervening edit occurred. This is a session grant rather than human approval of each edit. Game testing is still required; no claim of runtime compatibility or support for native editing in other games is made.
+
+## Authenticated local HTTP and editor context
+The stdio transport remains the default. An opt-in, read-only, IPv4 loopback HTTP endpoint implements handshake-era MCP JSON responses (2025-03-26 through 2025-11-25). Create a private bearer token file, then start the endpoint on a chosen port:
+
+    chimster --mcp --create-token /path/to/private-token
+    chimster --mcp --project /path/to/project --http 8765 --token-file /path/to/private-token
+
+A compatible local client uses `http://127.0.0.1:8765/mcp`, the token from the file in its Authorization: Bearer header, and the negotiated session/version headers. The token is not printed. Keep it private, stop the server when finished, and rotate by creating a new file and restarting. Host headers must match localhost or the bound loopback address and port; all browser Origin headers are rejected. Sessions expire after 15 minutes of inactivity, with at most eight retained sessions. HTTP does not offer writes, SSE, push subscriptions, public binds, TLS, OAuth or automatic tunnels. Do not expose it directly to the internet. Cloud clients require a separately reviewed authenticated TLS/OAuth gateway; this implementation is not a complete ChatGPT connector. The July 2026 stateless MCP protocol is not implemented.
+
+The `editor_context` tool and `chimster://editor/context` resource report the dashboard instance and selected artifact for the explicitly scoped project, without exposing other project paths. Stdio clients can subscribe to this resource for selection updates. This is not arbitrary GUI automation or access to unsaved panel content. Existing project revision synchronization remains unchanged.
