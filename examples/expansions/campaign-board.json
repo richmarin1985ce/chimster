@@ -514,6 +514,376 @@
             "repair equipment or barter"
           ],
           "status": "outline"
+        },
+        {
+          "id": "CR_SQ04",
+          "title": "The Price of a Ledger",
+          "kind": "side",
+          "requires": [
+            "CR_MQ03"
+          ],
+          "locations": [
+            "ledger",
+            "market"
+          ],
+          "actors": [
+            "livia",
+            "vesta"
+          ],
+          "objective": "Trace a fraudulent captive transfer and establish who owns the debt",
+          "resolutions": [
+            "expose charter fraud or bargain for release"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "CR_SQ05",
+          "title": "A Contract of Our Own",
+          "kind": "side",
+          "requires": [
+            "CR_SQ04"
+          ],
+          "locations": [
+            "court",
+            "refuge"
+          ],
+          "actors": [
+            "livia",
+            "ash"
+          ],
+          "objective": "Bring testimony to a civilian hearing; arrange protection for witnesses",
+          "resolutions": [
+            "public record or confidential settlement"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 45
+        },
+        {
+          "id": "CR_SQ06",
+          "title": "Free Passage",
+          "kind": "side",
+          "requires": [
+            "CR_SQ05"
+          ],
+          "locations": [
+            "crossroads",
+            "station"
+          ],
+          "actors": [
+            "ash",
+            "tallow"
+          ],
+          "objective": "Build a durable escape and resettlement route",
+          "resolutions": [
+            "negotiate safe stops or fund independent transport"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 45
+        },
+        {
+          "id": "CR_SQ07",
+          "title": "The Last Water Truck",
+          "kind": "side",
+          "requires": [
+            "CR_MQ02"
+          ],
+          "locations": [
+            "well",
+            "station"
+          ],
+          "actors": [
+            "nell",
+            "silvan"
+          ],
+          "objective": "Find why a rural water shipment never arrived",
+          "resolutions": [
+            "repair delivery vehicle or establish alternate supplier"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "CR_SQ08",
+          "title": "Brand of the House",
+          "kind": "side",
+          "requires": [
+            "CR_MQ03"
+          ],
+          "locations": [
+            "ranch",
+            "stockyard"
+          ],
+          "actors": [
+            "silvan",
+            "vesta"
+          ],
+          "objective": "Investigate disputed livestock brands and ownership",
+          "resolutions": [
+            "return stock or divide the disputed herd"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "CR_SQ09",
+          "title": "The Quartermaster's Table",
+          "kind": "side",
+          "requires": [
+            "CR_MQ04"
+          ],
+          "locations": [
+            "depot",
+            "clinic"
+          ],
+          "actors": [
+            "cassian",
+            "livia"
+          ],
+          "objective": "Audit diverted medical provisions",
+          "resolutions": [
+            "restore civilian allotments or expose falsified records"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "CR_SQ10",
+          "title": "Dead Letter Office",
+          "kind": "side",
+          "requires": [
+            "CR_MQ02"
+          ],
+          "locations": [
+            "motel",
+            "culvert"
+          ],
+          "actors": [
+            "tallow",
+            "nell"
+          ],
+          "objective": "Recover abandoned correspondence and find surviving addressees",
+          "resolutions": [
+            "deliver letters or preserve them anonymously"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "CR_SQ11",
+          "title": "Signal Across the Cinders",
+          "kind": "side",
+          "requires": [
+            "CR_MQ05"
+          ],
+          "locations": [
+            "relay",
+            "ridge"
+          ],
+          "actors": [
+            "finch"
+          ],
+          "objective": "Find a second survey signal and decide what to disclose",
+          "resolutions": [
+            "share selective findings or seal records"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "CR_SQ12",
+          "title": "An Honest Measure",
+          "kind": "side",
+          "requires": [
+            "CR_MQ03"
+          ],
+          "locations": [
+            "mill",
+            "market"
+          ],
+          "actors": [
+            "silvan",
+            "vesta"
+          ],
+          "objective": "Resolve merchants' dispute over rigged grain scales",
+          "resolutions": [
+            "demonstrate fraud or negotiate standard weights"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "CR_SQ13",
+          "title": "Cinder Road",
+          "kind": "side",
+          "requires": [
+            "CR_MQ02"
+          ],
+          "locations": [
+            "quarry",
+            "crossroads"
+          ],
+          "actors": [
+            "nell"
+          ],
+          "objective": "Clear an unstable road section without cutting off quarry workers",
+          "resolutions": [
+            "repair alternate road or reroute traffic"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "CR_SQ14",
+          "title": "A Bed for the Night",
+          "kind": "side",
+          "requires": [
+            "CR_MQ02"
+          ],
+          "locations": [
+            "motel",
+            "repair"
+          ],
+          "actors": [
+            "nell",
+            "ash"
+          ],
+          "objective": "Resolve conflict between travelers and fugitives sharing shelter",
+          "resolutions": [
+            "secure new shelter or negotiate protected rooms"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "CR_SQ15",
+          "title": "No One's Property",
+          "kind": "side",
+          "requires": [
+            "CR_MQ04"
+          ],
+          "locations": [
+            "labor",
+            "refuge"
+          ],
+          "actors": [
+            "ash",
+            "cassian"
+          ],
+          "objective": "Find a labor group facing transfer and establish their choice of destination",
+          "resolutions": [
+            "release via evidence or arrange voluntary transport"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "CR_SQ16",
+          "title": "A Better Bargain",
+          "kind": "side",
+          "requires": [
+            "CR_MQ04"
+          ],
+          "locations": [
+            "market",
+            "stockyard"
+          ],
+          "actors": [
+            "vesta",
+            "silvan"
+          ],
+          "objective": "Test a civilian supply agreement independent of coerced labor",
+          "resolutions": [
+            "secure voluntary suppliers or expose monopoly"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "CR_SQ17",
+          "title": "The Sound of Home",
+          "kind": "side",
+          "requires": [
+            "CR_MQ02"
+          ],
+          "locations": [
+            "museum",
+            "station"
+          ],
+          "actors": [
+            "nell"
+          ],
+          "objective": "Restore a roadside radio archive using salvaged recordings",
+          "resolutions": [
+            "broadcast local stories or preserve a listening room"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "CR_SQ18",
+          "title": "The Other Courier",
+          "kind": "side",
+          "requires": [
+            "CR_MQ03"
+          ],
+          "locations": [
+            "crossroads",
+            "culvert"
+          ],
+          "actors": [
+            "tallow"
+          ],
+          "objective": "Recover an overdue courier's route and finish or return their dispatch",
+          "resolutions": [
+            "deliver authenticated message or locate courier"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "CR_SQ19",
+          "title": "Witness for the Road",
+          "kind": "side",
+          "requires": [
+            "CR_SQ09"
+          ],
+          "locations": [
+            "court",
+            "depot"
+          ],
+          "actors": [
+            "cassian",
+            "livia"
+          ],
+          "objective": "Investigate reprisals against a supply witness",
+          "resolutions": [
+            "secure protection or publish evidence with consent"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 45
+        },
+        {
+          "id": "CR_SQ20",
+          "title": "The Road After Tomorrow",
+          "kind": "side",
+          "requires": [
+            "CR_MQ06"
+          ],
+          "locations": [
+            "repair",
+            "crossroads"
+          ],
+          "actors": [
+            "nell",
+            "ash"
+          ],
+          "objective": "Establish a lasting route after the political outcome",
+          "resolutions": [
+            "support independent stops or negotiate conditional access"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 45
         }
       ],
       "initial_slice": [
@@ -523,7 +893,21 @@
         "service",
         "repair"
       ],
-      "release_gate": "Native records, scripts, assets, navigation, independent retail runtime and save/load verification required."
+      "release_gate": "Native records, scripts, assets, navigation, independent retail runtime and save/load verification required.",
+      "production_target": {
+        "main_quests": 12,
+        "side_quests": 40,
+        "authored_locations": 50,
+        "main_hours": [
+          12,
+          18
+        ],
+        "total_hours": [
+          35,
+          50
+        ],
+        "note": "targets not measured playtime; count meaningful authored quests, no radiant padding"
+      }
     },
     {
       "id": "coldharbour",
@@ -1023,6 +1407,372 @@
             "survey or verify with witnesses"
           ],
           "status": "outline"
+        },
+        {
+          "id": "CH_SQ04",
+          "title": "The Unclaimed Toll",
+          "kind": "side",
+          "requires": [
+            "CH_MQ02"
+          ],
+          "locations": [
+            "bridge",
+            "market"
+          ],
+          "actors": [
+            "mira",
+            "dren"
+          ],
+          "objective": "Investigate a bridge demanding names instead of coin",
+          "resolutions": [
+            "void the toll or find an alternate path"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "CH_SQ05",
+          "title": "A Debt Without End",
+          "kind": "side",
+          "requires": [
+            "CH_SQ04"
+          ],
+          "locations": [
+            "count",
+            "court"
+          ],
+          "actors": [
+            "mira",
+            "ilvi"
+          ],
+          "objective": "Identify a self-renewing debt contract",
+          "resolutions": [
+            "invalidate it by precedent or transfer consented obligations"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 45
+        },
+        {
+          "id": "CH_SQ06",
+          "title": "The Last Signature",
+          "kind": "side",
+          "requires": [
+            "CH_SQ05"
+          ],
+          "locations": [
+            "archive",
+            "sanctum"
+          ],
+          "actors": [
+            "vedan",
+            "mira"
+          ],
+          "objective": "Establish a voluntary registry for freed captives",
+          "resolutions": [
+            "destroy compulsory records or preserve witness copies"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 45
+        },
+        {
+          "id": "CH_SQ07",
+          "title": "The Bell That Does Not Ring",
+          "kind": "side",
+          "requires": [
+            "CH_MQ01"
+          ],
+          "locations": [
+            "village",
+            "shrine"
+          ],
+          "actors": [
+            "nare"
+          ],
+          "objective": "Discover why a bell signals different events to different inhabitants",
+          "resolutions": [
+            "restore shared timing or silence the false signal"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "CH_SQ08",
+          "title": "A Boat With No River",
+          "kind": "side",
+          "requires": [
+            "CH_MQ03"
+          ],
+          "locations": [
+            "docks",
+            "canal"
+          ],
+          "actors": [
+            "sena"
+          ],
+          "objective": "Help a ferryman locate a usable channel",
+          "resolutions": [
+            "clear passage or negotiate land transport"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "CH_SQ09",
+          "title": "Borrowed Faces",
+          "kind": "side",
+          "requires": [
+            "CH_MQ03"
+          ],
+          "locations": [
+            "market",
+            "crypt"
+          ],
+          "actors": [
+            "ilvi"
+          ],
+          "objective": "Investigate identities assigned to strangers",
+          "resolutions": [
+            "return records to claimants or preserve anonymity"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "CH_SQ10",
+          "title": "The Ash Orchard",
+          "kind": "side",
+          "requires": [
+            "CH_MQ02"
+          ],
+          "locations": [
+            "terrace",
+            "well"
+          ],
+          "actors": [
+            "sena",
+            "nare"
+          ],
+          "objective": "Protect a rare source of refuge supplies",
+          "resolutions": [
+            "reroute water or cultivate another sheltered plot"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "CH_SQ11",
+          "title": "A Tower Twice Built",
+          "kind": "side",
+          "requires": [
+            "CH_MQ04"
+          ],
+          "locations": [
+            "tower",
+            "road"
+          ],
+          "actors": [
+            "orven"
+          ],
+          "objective": "Map a watchtower whose stairs lead to contradictory floors",
+          "resolutions": [
+            "mark stable path or seal unsafe route"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "CH_SQ12",
+          "title": "The Glass Worker",
+          "kind": "side",
+          "requires": [
+            "CH_MQ03"
+          ],
+          "locations": [
+            "quarry",
+            "foundry"
+          ],
+          "actors": [
+            "dren"
+          ],
+          "objective": "Free a worker bound to replace broken tools indefinitely",
+          "resolutions": [
+            "prove contract fulfilled or negotiate release"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "CH_SQ13",
+          "title": "A Witness in Silence",
+          "kind": "side",
+          "requires": [
+            "CH_MQ04"
+          ],
+          "locations": [
+            "cave",
+            "archive"
+          ],
+          "actors": [
+            "vedan"
+          ],
+          "objective": "Recover testimony from a fragment that changes when approached",
+          "resolutions": [
+            "record physical clues or interview displaced witnesses"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "CH_SQ14",
+          "title": "The Warden's Kin",
+          "kind": "side",
+          "requires": [
+            "CH_MQ04"
+          ],
+          "locations": [
+            "fort",
+            "cellar"
+          ],
+          "actors": [
+            "dren"
+          ],
+          "objective": "Resolve a warden's family obligation",
+          "resolutions": [
+            "secure refuge or arrange protected contact"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "CH_SQ15",
+          "title": "The Empty Seat",
+          "kind": "side",
+          "requires": [
+            "CH_MQ05"
+          ],
+          "locations": [
+            "court",
+            "fort"
+          ],
+          "actors": [
+            "thal",
+            "ilvi"
+          ],
+          "objective": "Investigate a tribunal with no judge",
+          "resolutions": [
+            "restore voluntary arbitration or expose its invalid judgments"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "CH_SQ16",
+          "title": "Iron Against Iron",
+          "kind": "side",
+          "requires": [
+            "CH_MQ05"
+          ],
+          "locations": [
+            "foundry",
+            "gate"
+          ],
+          "actors": [
+            "dren",
+            "thal"
+          ],
+          "objective": "Disable a redundant binding mechanism",
+          "resolutions": [
+            "repair release controls or bypass the gate"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "CH_SQ17",
+          "title": "A Map for Tomorrow",
+          "kind": "side",
+          "requires": [
+            "CH_SQ03"
+          ],
+          "locations": [
+            "road",
+            "docks"
+          ],
+          "actors": [
+            "orven"
+          ],
+          "objective": "Create a route guide for new arrivals",
+          "resolutions": [
+            "publish verified markers or recruit guides"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "CH_SQ18",
+          "title": "No Names Lost",
+          "kind": "side",
+          "requires": [
+            "CH_MQ06"
+          ],
+          "locations": [
+            "archive",
+            "refuge"
+          ],
+          "actors": [
+            "vedan",
+            "nare"
+          ],
+          "objective": "Decide how to preserve memory after the mechanism changes",
+          "resolutions": [
+            "archive testimony with consent or return records"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "CH_SQ19",
+          "title": "The Other Door",
+          "kind": "side",
+          "requires": [
+            "CH_MQ04"
+          ],
+          "locations": [
+            "crypt",
+            "cave"
+          ],
+          "actors": [
+            "orven",
+            "vedan"
+          ],
+          "objective": "Explore a false exit and rescue a stranded traveler",
+          "resolutions": [
+            "find stable return path or open a temporary passage"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 45
+        },
+        {
+          "id": "CH_SQ20",
+          "title": "The First Free Market",
+          "kind": "side",
+          "requires": [
+            "CH_MQ06"
+          ],
+          "locations": [
+            "market",
+            "refuge"
+          ],
+          "actors": [
+            "mira",
+            "sena"
+          ],
+          "objective": "Organize exchange without binding contracts",
+          "resolutions": [
+            "establish voluntary barter or separate community stalls"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 45
         }
       ],
       "initial_slice": [
@@ -1032,7 +1782,21 @@
         "shrine",
         "gate"
       ],
-      "release_gate": "Native records, scripts, assets, navigation, independent retail runtime and save/load verification required."
+      "release_gate": "Native records, scripts, assets, navigation, independent retail runtime and save/load verification required.",
+      "production_target": {
+        "main_quests": 12,
+        "side_quests": 40,
+        "authored_locations": 50,
+        "main_hours": [
+          12,
+          18
+        ],
+        "total_hours": [
+          35,
+          50
+        ],
+        "note": "targets not measured playtime; count meaningful authored quests, no radiant padding"
+      }
     },
     {
       "id": "hunting",
@@ -1529,6 +2293,377 @@
             "gather or exchange"
           ],
           "status": "outline"
+        },
+        {
+          "id": "HG_SQ04",
+          "title": "The Marked Trail",
+          "kind": "side",
+          "requires": [
+            "HG_MQ02"
+          ],
+          "locations": [
+            "trail",
+            "ravine"
+          ],
+          "actors": [
+            "bren",
+            "maelin"
+          ],
+          "objective": "Discover markers that lead missing hunters in circles",
+          "resolutions": [
+            "correct trail or use animal tracks"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "HG_SQ05",
+          "title": "A Hunt Refused",
+          "kind": "side",
+          "requires": [
+            "HG_SQ04"
+          ],
+          "locations": [
+            "lodge",
+            "hearth"
+          ],
+          "actors": [
+            "fara",
+            "len"
+          ],
+          "objective": "Protect a hunter who refuses a ritual obligation",
+          "resolutions": [
+            "negotiate exemption or shelter them"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 45
+        },
+        {
+          "id": "HG_SQ06",
+          "title": "A Pact Under Moonlight",
+          "kind": "side",
+          "requires": [
+            "HG_SQ05"
+          ],
+          "locations": [
+            "circle",
+            "packden"
+          ],
+          "actors": [
+            "siv",
+            "orr"
+          ],
+          "objective": "Broker a voluntary pact between packs and hunters",
+          "resolutions": [
+            "agree on safe territory or separate hunting grounds"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 45
+        },
+        {
+          "id": "HG_SQ07",
+          "title": "The Silver Bargain",
+          "kind": "side",
+          "requires": [
+            "HG_MQ03"
+          ],
+          "locations": [
+            "spring",
+            "hearth"
+          ],
+          "actors": [
+            "len"
+          ],
+          "objective": "Investigate conflicting accounts of transformation remedies",
+          "resolutions": [
+            "test fictional remedy or recover records"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "HG_SQ08",
+          "title": "The Broken Bow",
+          "kind": "side",
+          "requires": [
+            "HG_MQ02"
+          ],
+          "locations": [
+            "blind",
+            "watch"
+          ],
+          "actors": [
+            "corin",
+            "fara"
+          ],
+          "objective": "Resolve sabotage accusations at an abandoned blind",
+          "resolutions": [
+            "trace evidence or negotiate restitution"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "HG_SQ09",
+          "title": "Hunger Before Dawn",
+          "kind": "side",
+          "requires": [
+            "HG_MQ03"
+          ],
+          "locations": [
+            "mill",
+            "meadow"
+          ],
+          "actors": [
+            "tess",
+            "siv"
+          ],
+          "objective": "Find a food route without exposing refuge residents",
+          "resolutions": [
+            "hunt permitted quarry or trade supplies"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "HG_SQ10",
+          "title": "Cairns of the Missing",
+          "kind": "side",
+          "requires": [
+            "HG_MQ02"
+          ],
+          "locations": [
+            "cairn",
+            "grove"
+          ],
+          "actors": [
+            "maelin"
+          ],
+          "objective": "Identify memorials and notify surviving companions",
+          "resolutions": [
+            "recover tokens or record testimony"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "HG_SQ11",
+          "title": "The River's Terms",
+          "kind": "side",
+          "requires": [
+            "HG_MQ03"
+          ],
+          "locations": [
+            "ford",
+            "lake"
+          ],
+          "actors": [
+            "bren",
+            "tess"
+          ],
+          "objective": "Establish safe seasonal crossing",
+          "resolutions": [
+            "repair ford or mark elevated path"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "HG_SQ12",
+          "title": "The Root Below",
+          "kind": "side",
+          "requires": [
+            "HG_MQ03"
+          ],
+          "locations": [
+            "cave",
+            "hollow"
+          ],
+          "actors": [
+            "bren",
+            "len"
+          ],
+          "objective": "Explore a root network concealing a lost traveler",
+          "resolutions": [
+            "guide traveler out or open alternate chamber"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "HG_SQ13",
+          "title": "The Antler Crown",
+          "kind": "side",
+          "requires": [
+            "HG_MQ04"
+          ],
+          "locations": [
+            "ruins",
+            "sanctum"
+          ],
+          "actors": [
+            "orr",
+            "corin"
+          ],
+          "objective": "Recover a disputed ritual emblem",
+          "resolutions": [
+            "return to keepers or display as neutral relic"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "HG_SQ14",
+          "title": "A Wolf's Promise",
+          "kind": "side",
+          "requires": [
+            "HG_MQ04"
+          ],
+          "locations": [
+            "packden",
+            "ridge"
+          ],
+          "actors": [
+            "siv"
+          ],
+          "objective": "Resolve a promise between rival pack members",
+          "resolutions": [
+            "mediate boundary or complete a shared trial"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "HG_SQ15",
+          "title": "A Hunter's Debt",
+          "kind": "side",
+          "requires": [
+            "HG_MQ04"
+          ],
+          "locations": [
+            "watch",
+            "lodge"
+          ],
+          "actors": [
+            "fara",
+            "corin"
+          ],
+          "objective": "Resolve a debt preventing a hunter's departure",
+          "resolutions": [
+            "pay through service or expose invalid terms"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "HG_SQ16",
+          "title": "Moonless Night",
+          "kind": "side",
+          "requires": [
+            "HG_MQ04"
+          ],
+          "locations": [
+            "grove",
+            "spring"
+          ],
+          "actors": [
+            "len",
+            "maelin"
+          ],
+          "objective": "Investigate an unusual night encounter",
+          "resolutions": [
+            "track disturbances or defend shelter"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "HG_SQ17",
+          "title": "The Unseen Quarry",
+          "kind": "side",
+          "requires": [
+            "HG_MQ05"
+          ],
+          "locations": [
+            "meadow",
+            "blind"
+          ],
+          "actors": [
+            "orr",
+            "bren"
+          ],
+          "objective": "Complete a nonlethal tracking challenge",
+          "resolutions": [
+            "observe quarry or identify its safe route"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "HG_SQ18",
+          "title": "The Path of Two Shapes",
+          "kind": "side",
+          "requires": [
+            "HG_MQ05"
+          ],
+          "locations": [
+            "ridge",
+            "pass"
+          ],
+          "actors": [
+            "len",
+            "siv"
+          ],
+          "objective": "Explore transformation's traversal consequences",
+          "resolutions": [
+            "use either form or find ordinary route"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "HG_SQ19",
+          "title": "A Hearth for Strangers",
+          "kind": "side",
+          "requires": [
+            "HG_SQ06"
+          ],
+          "locations": [
+            "hearth",
+            "mill"
+          ],
+          "actors": [
+            "tess",
+            "fara"
+          ],
+          "objective": "Establish a neutral shelter after the pact",
+          "resolutions": [
+            "share supplies or organize rotating watch"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 45
+        },
+        {
+          "id": "HG_SQ20",
+          "title": "After the Chase",
+          "kind": "side",
+          "requires": [
+            "HG_MQ06"
+          ],
+          "locations": [
+            "lodge",
+            "circle"
+          ],
+          "actors": [
+            "orr",
+            "corin"
+          ],
+          "objective": "Resolve remaining ritual commitments",
+          "resolutions": [
+            "release participants or establish voluntary trials"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 45
         }
       ],
       "initial_slice": [
@@ -1538,7 +2673,21 @@
         "lodge",
         "arena"
       ],
-      "release_gate": "Native records, scripts, assets, navigation, independent retail runtime and save/load verification required."
+      "release_gate": "Native records, scripts, assets, navigation, independent retail runtime and save/load verification required.",
+      "production_target": {
+        "main_quests": 12,
+        "side_quests": 40,
+        "authored_locations": 50,
+        "main_hours": [
+          12,
+          18
+        ],
+        "total_hours": [
+          35,
+          50
+        ],
+        "note": "targets not measured playtime; count meaningful authored quests, no radiant padding"
+      }
     },
     {
       "id": "pits",
@@ -2037,6 +3186,371 @@
             "clear route or signal alternate"
           ],
           "status": "outline"
+        },
+        {
+          "id": "PT_SQ04",
+          "title": "The Salt Line",
+          "kind": "side",
+          "requires": [
+            "PT_MQ02"
+          ],
+          "locations": [
+            "salt",
+            "terrace"
+          ],
+          "actors": [
+            "mereth",
+            "hessa"
+          ],
+          "objective": "Find why boundary markers no longer correspond to hazards",
+          "resolutions": [
+            "resurvey and replace markers or establish safe route"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "PT_SQ05",
+          "title": "A Better Measure",
+          "kind": "side",
+          "requires": [
+            "PT_SQ04"
+          ],
+          "locations": [
+            "lab",
+            "cistern"
+          ],
+          "actors": [
+            "mereth",
+            "iven"
+          ],
+          "objective": "Resolve conflicting containment records",
+          "resolutions": [
+            "reconcile evidence or conduct fictional comparison"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 45
+        },
+        {
+          "id": "PT_SQ06",
+          "title": "The Sixth Standard",
+          "kind": "side",
+          "requires": [
+            "PT_SQ05"
+          ],
+          "locations": [
+            "clinic",
+            "refuge"
+          ],
+          "actors": [
+            "svala",
+            "mereth"
+          ],
+          "objective": "Establish a common safety protocol across districts",
+          "resolutions": [
+            "voluntary agreement or independent safeguards"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 45
+        },
+        {
+          "id": "PT_SQ07",
+          "title": "The Kiln's Shadow",
+          "kind": "side",
+          "requires": [
+            "PT_MQ03"
+          ],
+          "locations": [
+            "kiln",
+            "ash"
+          ],
+          "actors": [
+            "orl"
+          ],
+          "objective": "Investigate a failing kiln that blocks a route",
+          "resolutions": [
+            "repair vents or divert travel"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "PT_SQ08",
+          "title": "The Obsidian Span",
+          "kind": "side",
+          "requires": [
+            "PT_MQ03"
+          ],
+          "locations": [
+            "bridge",
+            "ash"
+          ],
+          "actors": [
+            "keld"
+          ],
+          "objective": "Restore passage over a hazardous channel",
+          "resolutions": [
+            "repair support or mark detour"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "PT_SQ09",
+          "title": "A Garden Sealed",
+          "kind": "side",
+          "requires": [
+            "PT_MQ02"
+          ],
+          "locations": [
+            "garden",
+            "fungus"
+          ],
+          "actors": [
+            "hessa"
+          ],
+          "objective": "Recover fictional plant records without spreading hazards",
+          "resolutions": [
+            "isolate chamber or establish remote sampling"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "PT_SQ10",
+          "title": "The Hollow Choir",
+          "kind": "side",
+          "requires": [
+            "PT_MQ03"
+          ],
+          "locations": [
+            "hollow",
+            "fungus"
+          ],
+          "actors": [
+            "hessa"
+          ],
+          "objective": "Trace strange resonance and recover trapped supplies",
+          "resolutions": [
+            "solve sound puzzle or open bypass"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "PT_SQ11",
+          "title": "A Pump Without Water",
+          "kind": "side",
+          "requires": [
+            "PT_MQ04"
+          ],
+          "locations": [
+            "pump",
+            "works"
+          ],
+          "actors": [
+            "tovan"
+          ],
+          "objective": "Diagnose abandoned pumping circuit",
+          "resolutions": [
+            "repair mechanism or isolate damaged branch"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "PT_SQ12",
+          "title": "The Last Furnace",
+          "kind": "side",
+          "requires": [
+            "PT_MQ04"
+          ],
+          "locations": [
+            "foundry",
+            "works"
+          ],
+          "actors": [
+            "orl",
+            "tovan"
+          ],
+          "objective": "Resolve worker dispute over restarting a furnace",
+          "resolutions": [
+            "restore controlled operation or convert to salvage"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "PT_SQ13",
+          "title": "Wind Above the Rim",
+          "kind": "side",
+          "requires": [
+            "PT_MQ04"
+          ],
+          "locations": [
+            "spire",
+            "ledge"
+          ],
+          "actors": [
+            "keld"
+          ],
+          "objective": "Find missing trail markers exposed to high winds",
+          "resolutions": [
+            "rebuild sheltered markers or route through cave"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "PT_SQ14",
+          "title": "The Empty Storehouse",
+          "kind": "side",
+          "requires": [
+            "PT_MQ02"
+          ],
+          "locations": [
+            "stores",
+            "clinic"
+          ],
+          "actors": [
+            "svala"
+          ],
+          "objective": "Investigate supplies recorded but not delivered",
+          "resolutions": [
+            "recover stock or organize substitute supplies"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "PT_SQ15",
+          "title": "The Gatekeeper's Exception",
+          "kind": "side",
+          "requires": [
+            "PT_MQ05"
+          ],
+          "locations": [
+            "gate",
+            "refuge"
+          ],
+          "actors": [
+            "naris",
+            "svala"
+          ],
+          "objective": "Arrange safe passage for a group stranded outside",
+          "resolutions": [
+            "negotiate conditional entry or build alternative shelter"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "PT_SQ16",
+          "title": "The White Mirror",
+          "kind": "side",
+          "requires": [
+            "PT_MQ03"
+          ],
+          "locations": [
+            "cistern",
+            "salt"
+          ],
+          "actors": [
+            "mereth"
+          ],
+          "objective": "Explore a reflective mineral chamber and interpret its markings",
+          "resolutions": [
+            "solve light puzzle or recover a guide"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "PT_SQ17",
+          "title": "A Place to Stand",
+          "kind": "side",
+          "requires": [
+            "PT_MQ05"
+          ],
+          "locations": [
+            "rim",
+            "shelter"
+          ],
+          "actors": [
+            "keld"
+          ],
+          "objective": "Survey safe ledges for evacuation",
+          "resolutions": [
+            "secure multiple routes or establish rope access"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "PT_SQ18",
+          "title": "The Keeper's Record",
+          "kind": "side",
+          "requires": [
+            "PT_MQ05"
+          ],
+          "locations": [
+            "gate",
+            "lab"
+          ],
+          "actors": [
+            "naris",
+            "iven"
+          ],
+          "objective": "Investigate contradictory regulator instructions",
+          "resolutions": [
+            "compare witnesses or recover original records"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "PT_SQ19",
+          "title": "The Refuge's Choice",
+          "kind": "side",
+          "requires": [
+            "PT_SQ06"
+          ],
+          "locations": [
+            "refuge",
+            "clinic"
+          ],
+          "actors": [
+            "svala",
+            "hessa"
+          ],
+          "objective": "Decide allocation of protective supplies among districts",
+          "resolutions": [
+            "negotiate sharing or establish local production"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 45
+        },
+        {
+          "id": "PT_SQ20",
+          "title": "A Measure of Tomorrow",
+          "kind": "side",
+          "requires": [
+            "PT_MQ06"
+          ],
+          "locations": [
+            "core",
+            "stores"
+          ],
+          "actors": [
+            "iven",
+            "tovan"
+          ],
+          "objective": "Establish maintenance plan after regulator decision",
+          "resolutions": [
+            "train volunteers or leave independent controls"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 45
         }
       ],
       "initial_slice": [
@@ -2046,7 +3560,21 @@
         "gate",
         "hazard"
       ],
-      "release_gate": "Native records, scripts, assets, navigation, independent retail runtime and save/load verification required."
+      "release_gate": "Native records, scripts, assets, navigation, independent retail runtime and save/load verification required.",
+      "production_target": {
+        "main_quests": 12,
+        "side_quests": 40,
+        "authored_locations": 50,
+        "main_hours": [
+          12,
+          18
+        ],
+        "total_hours": [
+          35,
+          50
+        ],
+        "note": "targets not measured playtime; count meaningful authored quests, no radiant padding"
+      }
     },
     {
       "id": "baltimore",
@@ -2545,6 +4073,376 @@
             "repair or share generator"
           ],
           "status": "outline"
+        },
+        {
+          "id": "BL_SQ04",
+          "title": "The Block Committee",
+          "kind": "side",
+          "requires": [
+            "BL_MQ02"
+          ],
+          "locations": [
+            "rowblock",
+            "refuge"
+          ],
+          "actors": [
+            "nia",
+            "cal"
+          ],
+          "objective": "Mediate a dispute over a shared rowhouse entrance and water access",
+          "resolutions": [
+            "repair communal access or negotiate separate routes"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "BL_SQ05",
+          "title": "The Water Vote",
+          "kind": "side",
+          "requires": [
+            "BL_SQ04"
+          ],
+          "locations": [
+            "school",
+            "water"
+          ],
+          "actors": [
+            "nia",
+            "ada"
+          ],
+          "objective": "Organize a neighborhood vote on distribution terms",
+          "resolutions": [
+            "shared utility or independent wells"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 45
+        },
+        {
+          "id": "BL_SQ06",
+          "title": "A City Connected",
+          "kind": "side",
+          "requires": [
+            "BL_SQ05"
+          ],
+          "locations": [
+            "station",
+            "switch"
+          ],
+          "actors": [
+            "nia",
+            "mara"
+          ],
+          "objective": "Establish a cross-neighborhood transit agreement",
+          "resolutions": [
+            "open route or rotating access"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 45
+        },
+        {
+          "id": "BL_SQ07",
+          "title": "The Crane at the Edge",
+          "kind": "side",
+          "requires": [
+            "BL_MQ02"
+          ],
+          "locations": [
+            "crane",
+            "yard"
+          ],
+          "actors": [
+            "ellis"
+          ],
+          "objective": "Recover cargo stranded at an inoperable crane",
+          "resolutions": [
+            "repair machinery or move cargo by ground"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "BL_SQ08",
+          "title": "The Last Tram",
+          "kind": "side",
+          "requires": [
+            "BL_MQ03"
+          ],
+          "locations": [
+            "station",
+            "rail"
+          ],
+          "actors": [
+            "ellis",
+            "del"
+          ],
+          "objective": "Investigate abandoned transit equipment",
+          "resolutions": [
+            "restore short shuttle route or salvage for roads"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "BL_SQ09",
+          "title": "The Arcade's Secret",
+          "kind": "side",
+          "requires": [
+            "BL_MQ02"
+          ],
+          "locations": [
+            "arcade",
+            "roof"
+          ],
+          "actors": [
+            "jo"
+          ],
+          "objective": "Find a merchant missing after a building collapse",
+          "resolutions": [
+            "rescue via roof or service entrance"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "BL_SQ10",
+          "title": "A Bridge Too Far",
+          "kind": "side",
+          "requires": [
+            "BL_MQ03"
+          ],
+          "locations": [
+            "bridge",
+            "ferry"
+          ],
+          "actors": [
+            "reed",
+            "del"
+          ],
+          "objective": "Find a safe alternative to an unstable crossing",
+          "resolutions": [
+            "organize ferry or negotiate detour"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "BL_SQ11",
+          "title": "The Clinic Ledger",
+          "kind": "side",
+          "requires": [
+            "BL_MQ02"
+          ],
+          "locations": [
+            "clinic",
+            "warehouse"
+          ],
+          "actors": [
+            "cal",
+            "jo"
+          ],
+          "objective": "Investigate missing medical deliveries",
+          "resolutions": [
+            "return supplies or establish secure procurement"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "BL_SQ12",
+          "title": "The Park After Rain",
+          "kind": "side",
+          "requires": [
+            "BL_MQ02"
+          ],
+          "locations": [
+            "park",
+            "rowblock"
+          ],
+          "actors": [
+            "nia"
+          ],
+          "objective": "Resolve competing uses for a flooded public space",
+          "resolutions": [
+            "drain selected paths or establish a garden"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "BL_SQ13",
+          "title": "Eastworks Night Shift",
+          "kind": "side",
+          "requires": [
+            "BL_MQ04"
+          ],
+          "locations": [
+            "plant",
+            "yard"
+          ],
+          "actors": [
+            "ada",
+            "ellis"
+          ],
+          "objective": "Identify why machinery fails during shifts",
+          "resolutions": [
+            "repair faulty circuit or change work arrangement"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "BL_SQ14",
+          "title": "The Basin's Keepers",
+          "kind": "side",
+          "requires": [
+            "BL_MQ04"
+          ],
+          "locations": [
+            "canal",
+            "crane"
+          ],
+          "actors": [
+            "mara"
+          ],
+          "objective": "Investigate blocked access to industrial basin",
+          "resolutions": [
+            "clear obstruction or negotiate shared dock"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "BL_SQ15",
+          "title": "No Fare Today",
+          "kind": "side",
+          "requires": [
+            "BL_MQ03"
+          ],
+          "locations": [
+            "checkpoint",
+            "subway"
+          ],
+          "actors": [
+            "del",
+            "reed"
+          ],
+          "objective": "Help travelers unable to pay a toll",
+          "resolutions": [
+            "negotiate passes or open alternate route"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "BL_SQ16",
+          "title": "Dry Dock Blues",
+          "kind": "side",
+          "requires": [
+            "BL_MQ04"
+          ],
+          "locations": [
+            "drydock",
+            "ferry"
+          ],
+          "actors": [
+            "ellis",
+            "mara"
+          ],
+          "objective": "Restore a maintenance bay for small craft",
+          "resolutions": [
+            "repair hoist or build alternate dock"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "BL_SQ17",
+          "title": "A School Again",
+          "kind": "side",
+          "requires": [
+            "BL_MQ02"
+          ],
+          "locations": [
+            "school",
+            "refuge"
+          ],
+          "actors": [
+            "cal",
+            "nia"
+          ],
+          "objective": "Turn a shelter room into a shared learning space",
+          "resolutions": [
+            "recover books or arrange volunteer teaching"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "BL_SQ18",
+          "title": "A Cargo of Promises",
+          "kind": "side",
+          "requires": [
+            "BL_MQ05"
+          ],
+          "locations": [
+            "market",
+            "warehouse"
+          ],
+          "actors": [
+            "mara",
+            "jo"
+          ],
+          "objective": "Audit rival supply agreements",
+          "resolutions": [
+            "publish terms or broker compensation"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "BL_SQ19",
+          "title": "The Quiet Hour",
+          "kind": "side",
+          "requires": [
+            "BL_MQ05"
+          ],
+          "locations": [
+            "roof",
+            "checkpoint"
+          ],
+          "actors": [
+            "del",
+            "cal"
+          ],
+          "objective": "Resolve a nighttime access restriction affecting medics",
+          "resolutions": [
+            "establish exemptions or alternate route"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 45
+        },
+        {
+          "id": "BL_SQ20",
+          "title": "The City's Next Morning",
+          "kind": "side",
+          "requires": [
+            "BL_MQ06"
+          ],
+          "locations": [
+            "switch",
+            "station"
+          ],
+          "actors": [
+            "ada",
+            "nia"
+          ],
+          "objective": "Restore a public service consistent with the ending",
+          "resolutions": [
+            "maintain shared system or build independent backup"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 45
         }
       ],
       "initial_slice": [
@@ -2554,7 +4452,21 @@
         "tunnel",
         "refuge"
       ],
-      "release_gate": "Native records, scripts, assets, navigation, independent retail runtime and save/load verification required."
+      "release_gate": "Native records, scripts, assets, navigation, independent retail runtime and save/load verification required.",
+      "production_target": {
+        "main_quests": 12,
+        "side_quests": 40,
+        "authored_locations": 50,
+        "main_hours": [
+          12,
+          18
+        ],
+        "total_hours": [
+          35,
+          50
+        ],
+        "note": "targets not measured playtime; count meaningful authored quests, no radiant padding"
+      }
     },
     {
       "id": "nautica",
@@ -3054,6 +4966,373 @@
             "follow signs or recover log"
           ],
           "status": "outline"
+        },
+        {
+          "id": "NA_SQ04",
+          "title": "The Harbor Bell",
+          "kind": "side",
+          "requires": [
+            "NA_MQ02"
+          ],
+          "locations": [
+            "beacon",
+            "dock"
+          ],
+          "actors": [
+            "otto",
+            "iris"
+          ],
+          "objective": "Recover missing navigation signal equipment",
+          "resolutions": [
+            "repair bell or establish alternate signal"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "NA_SQ05",
+          "title": "A Captain's Oath",
+          "kind": "side",
+          "requires": [
+            "NA_SQ04"
+          ],
+          "locations": [
+            "slip",
+            "market"
+          ],
+          "actors": [
+            "wade",
+            "iris"
+          ],
+          "objective": "Investigate a broken rescue agreement",
+          "resolutions": [
+            "reconcile testimony or renegotiate rescue duties"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 45
+        },
+        {
+          "id": "NA_SQ06",
+          "title": "The Common Tide",
+          "kind": "side",
+          "requires": [
+            "NA_SQ05"
+          ],
+          "locations": [
+            "west",
+            "crossroads"
+          ],
+          "actors": [
+            "mabel",
+            "wade"
+          ],
+          "objective": "Create a shared maritime aid pact",
+          "resolutions": [
+            "mutual aid agreement or independent routes"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 45
+        },
+        {
+          "id": "NA_SQ07",
+          "title": "The Dune House",
+          "kind": "side",
+          "requires": [
+            "NA_MQ02"
+          ],
+          "locations": [
+            "dunes",
+            "west"
+          ],
+          "actors": [
+            "june"
+          ],
+          "objective": "Find a storm-damaged shelter and stranded occupant",
+          "resolutions": [
+            "repair shelter or escort to town"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "NA_SQ08",
+          "title": "The Moor's Old Road",
+          "kind": "side",
+          "requires": [
+            "NA_MQ04"
+          ],
+          "locations": [
+            "moor",
+            "polpis"
+          ],
+          "actors": [
+            "mabel",
+            "silas"
+          ],
+          "objective": "Reopen a blocked inland road without harming water supply",
+          "resolutions": [
+            "clear selected route or mark detour"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "NA_SQ09",
+          "title": "The Wreck's Second Name",
+          "kind": "side",
+          "requires": [
+            "NA_MQ03"
+          ],
+          "locations": [
+            "wreck",
+            "warehouse"
+          ],
+          "actors": [
+            "bea"
+          ],
+          "objective": "Identify conflicting ownership records for cargo",
+          "resolutions": [
+            "return verified belongings or mediate distribution"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "NA_SQ10",
+          "title": "The Empty Lobster Pot",
+          "kind": "side",
+          "requires": [
+            "NA_MQ02"
+          ],
+          "locations": [
+            "cove",
+            "slip"
+          ],
+          "actors": [
+            "wade"
+          ],
+          "objective": "Investigate disappearing fishing gear",
+          "resolutions": [
+            "recover equipment or negotiate shared waters"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "NA_SQ11",
+          "title": "A Town of Roofs",
+          "kind": "side",
+          "requires": [
+            "NA_MQ02"
+          ],
+          "locations": [
+            "street",
+            "lane"
+          ],
+          "actors": [
+            "iris",
+            "june"
+          ],
+          "objective": "Help a town block establish storm shelters",
+          "resolutions": [
+            "repair common roof or organize alternate lodging"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "NA_SQ12",
+          "title": "A Lantern in the Marsh",
+          "kind": "side",
+          "requires": [
+            "NA_MQ02"
+          ],
+          "locations": [
+            "marsh",
+            "beacon"
+          ],
+          "actors": [
+            "otto"
+          ],
+          "objective": "Find lost trail markers and guide a traveler",
+          "resolutions": [
+            "restore lamps or mark safer path"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "NA_SQ13",
+          "title": "The Bunker's Water",
+          "kind": "side",
+          "requires": [
+            "NA_MQ04"
+          ],
+          "locations": [
+            "bunker",
+            "pond"
+          ],
+          "actors": [
+            "silas"
+          ],
+          "objective": "Inspect abandoned utilities for safe fictional supply use",
+          "resolutions": [
+            "repair pumps or reject contamination risk"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "NA_SQ14",
+          "title": "The Eastern Watch",
+          "kind": "side",
+          "requires": [
+            "NA_MQ05"
+          ],
+          "locations": [
+            "east",
+            "cliff"
+          ],
+          "actors": [
+            "ruth"
+          ],
+          "objective": "Locate a missing lookout and recover their log",
+          "resolutions": [
+            "rescue or establish alternate watch"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "NA_SQ15",
+          "title": "The Shore That Moves",
+          "kind": "side",
+          "requires": [
+            "NA_MQ03"
+          ],
+          "locations": [
+            "surf",
+            "dunes"
+          ],
+          "actors": [
+            "bea",
+            "june"
+          ],
+          "objective": "Survey a route altered by erosion",
+          "resolutions": [
+            "mark stable path or relocate cache"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "NA_SQ16",
+          "title": "A Cargo of Seeds",
+          "kind": "side",
+          "requires": [
+            "NA_MQ04"
+          ],
+          "locations": [
+            "farm",
+            "market"
+          ],
+          "actors": [
+            "silas",
+            "mabel"
+          ],
+          "objective": "Resolve disputed agricultural shipment",
+          "resolutions": [
+            "share seeds or negotiate exchange"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "NA_SQ17",
+          "title": "The Signal Book",
+          "kind": "side",
+          "requires": [
+            "NA_MQ05"
+          ],
+          "locations": [
+            "relay",
+            "beacon"
+          ],
+          "actors": [
+            "otto",
+            "ruth"
+          ],
+          "objective": "Reconstruct lost navigation schedules",
+          "resolutions": [
+            "recover pages or establish new signal protocol"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "NA_SQ18",
+          "title": "The Salt Cellar",
+          "kind": "side",
+          "requires": [
+            "NA_MQ03"
+          ],
+          "locations": [
+            "cistern",
+            "warehouse"
+          ],
+          "actors": [
+            "iris"
+          ],
+          "objective": "Investigate a damaged storage room and protect fresh water",
+          "resolutions": [
+            "repair barrier or relocate stock"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 30
+        },
+        {
+          "id": "NA_SQ19",
+          "title": "A Boat Called Home",
+          "kind": "side",
+          "requires": [
+            "NA_MQ05"
+          ],
+          "locations": [
+            "boathouse",
+            "slip"
+          ],
+          "actors": [
+            "wade",
+            "bea"
+          ],
+          "objective": "Resolve claim on a craft used as shelter",
+          "resolutions": [
+            "mediate ownership or arrange replacement housing"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 45
+        },
+        {
+          "id": "NA_SQ20",
+          "title": "The Last Ferry Out",
+          "kind": "side",
+          "requires": [
+            "NA_MQ06"
+          ],
+          "locations": [
+            "dock",
+            "exit"
+          ],
+          "actors": [
+            "ruth",
+            "iris"
+          ],
+          "objective": "Establish a reliable return crossing after faction outcome",
+          "resolutions": [
+            "maintain shared schedule or support independent service"
+          ],
+          "status": "outline",
+          "estimated_active_minutes": 45
         }
       ],
       "initial_slice": [
@@ -3064,7 +5343,21 @@
         "marsh",
         "beacon"
       ],
-      "release_gate": "Native records, scripts, assets, navigation, independent retail runtime and save/load verification required."
+      "release_gate": "Native records, scripts, assets, navigation, independent retail runtime and save/load verification required.",
+      "production_target": {
+        "main_quests": 12,
+        "side_quests": 40,
+        "authored_locations": 50,
+        "main_hours": [
+          12,
+          18
+        ],
+        "total_hours": [
+          35,
+          50
+        ],
+        "note": "targets not measured playtime; count meaningful authored quests, no radiant padding"
+      }
     }
   ]
 }
