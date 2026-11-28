@@ -7,7 +7,7 @@ import json,shutil
 from .world_models import resolve_model,archive_stamp
 from .archive_reader import directory,reader
 from .compatibility_asset_lookup import normalize
-from .fnv_lod_nif import read_static,encode_groups,encode,check
+from .fnv_lod_nif import read_static_groups,encode_groups,check
 from .world_lod_objects import sibling
 from .lod_assets import simplify
 from .flora import Mesh
@@ -92,14 +92,15 @@ def export(browser,world,output,assets,limit=512,previous=None,atlas=True):
                     try:raw=assets.get(path)
                     except FileNotFoundError:
                         raw=assets.get(model);generated=True
-                    mesh,material=read_static(raw)
+                    groups=read_static_groups(raw)
                     if generated:
-                        mesh=reduced(mesh)
+                        groups=[(reduced(mesh),d,n) for mesh,d,n in groups]
                         dest=output/path;dest.parent.mkdir(parents=True,exist_ok=True)
-                        raw=encode(mesh,*material,"companion");check(raw,len(mesh.faces))
+                        total=sum(len(mesh.faces) for mesh,_,_ in groups)
+                        raw=encode_groups(groups,"companion");check(raw,total)
                         with dest.open("xb") as f:f.write(raw)
-                        report["companions"].append({"path":path,"triangles":len(mesh.faces),"sha256":sha256(raw).hexdigest()})
-                    cache[key]=(mesh,material)
+                        report["companions"].append({"path":path,"triangles":total,"sha256":sha256(raw).hexdigest()})
+                    cache[key]=groups
                 except (ValueError,OSError,TypeError,UnicodeError) as exc:
                     cache[key]=str(exc)[:200]
             value=cache[key]
@@ -108,16 +109,20 @@ def export(browser,world,output,assets,limit=512,previous=None,atlas=True):
             rx,ry,yaw=ref.get("rotation",(0,0,0))
             if abs(rx)>1e-6 or abs(ry)>1e-6:
                 report["skipped"].append({"reference":label(ref["key"]),"reason":"Tilted placement not enabled"});continue
-            mesh,material=value;px,py,pz=ref["position"];scale=ref.get("scale",1)
+            px,py,pz=ref["position"];scale=ref.get("scale",1)
+            from math import isfinite
+            if not all(isfinite(v) for v in (px,py,pz,scale,yaw)) or not 0<scale<=100:
+                report["skipped"].append({"reference":label(ref["key"]),"reason":"Invalid transform"});continue
             x,y=floor(px/16384)*4,floor(py/16384)*4
             groups=tiles[x,y]
-            combined=groups.setdefault(material,Mesh())
-            if len(combined.vertices)+len(mesh.vertices)>65535 or len(combined.faces)+len(mesh.faces)>65535:
-                report["skipped"].append({"reference":label(ref["key"]),"reason":"16-bit group budget"});continue
-            offset=len(combined.vertices);c,s=cos(yaw),sin(yaw)
-            combined.vertices.extend((px-x*4096+scale*(c*a-s*b),py-y*4096+scale*(s*a+c*b),pz+scale*z) for a,b,z in mesh.vertices)
-            combined.uv.extend(mesh.uv)
-            combined.faces.extend((tuple(i+offset for i in f),"lod") for f,_ in mesh.faces)
+            for mesh,d,n in value:
+                combined=groups.setdefault((d,n),Mesh())
+                if len(combined.vertices)+len(mesh.vertices)>65535 or len(combined.faces)+len(mesh.faces)>65535:
+                    report["skipped"].append({"reference":label(ref["key"]),"reason":"16-bit group budget","material":d});continue
+                offset=len(combined.vertices);c,s=cos(yaw),sin(yaw)
+                combined.vertices.extend((px-x*4096+scale*(c*a-s*b),py-y*4096+scale*(s*a+c*b),pz+scale*z) for a,b,z in mesh.vertices)
+                combined.uv.extend(mesh.uv)
+                combined.faces.extend((tuple(i+offset for i in f),"lod") for f,_ in mesh.faces)
         for (x,y),groups in sorted(tiles.items()):
             active=[(m,*paths) for paths,m in sorted(groups.items()) if m.faces]
             if not active:continue
