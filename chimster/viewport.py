@@ -8,8 +8,8 @@ from .scene import Scene,Instance,Camera,frame,demo_scene,load_obj
 def mount(parent):
     from .gpu_viewport import Renderer, Settings, make_demo, load_materials
     scene,materials=make_demo();camera=Camera();selected=None;drag=None
-    renderer=None;photo=None;render_size=(1,1);settings=Settings();failure=''
-    use_gl=tk.BooleanVar(value=False);lod_text=tk.StringVar(value='22,45,90')
+    renderer=None;panda=None;photo=None;render_size=(1,1);settings=Settings();failure=''
+    backend=tk.StringVar(value='CPU');lod_text=tk.StringVar(value='22,45,90')
     toolbar=ttk.Frame(parent);toolbar.pack(fill="x")
     pane=ttk.Panedwindow(parent,orient="horizontal");pane.pack(fill="both",expand=True)
     canvas=tk.Canvas(pane,bg="#1b232c",highlightthickness=0);pane.add(canvas,weight=4)
@@ -21,9 +21,27 @@ def mount(parent):
         ttk.Label(row,text=k,width=7).pack(side="left");ttk.Entry(row,textvariable=v,width=10).pack(side="right")
     status=tk.StringVar();ttk.Label(parent,textvariable=status).pack(fill="x")
     def draw():
-        nonlocal renderer,photo,render_size,failure
+        nonlocal renderer,panda,photo,render_size,failure
         canvas.delete("mesh");canvas.delete("gl")
-        if use_gl.get() and canvas.winfo_width()>4 and canvas.winfo_height()>4:
+        if backend.get()=="Panda3D" and canvas.winfo_width()>4 and canvas.winfo_height()>4:
+            try:
+                from .panda_viewport import Preview
+                from PIL import Image,ImageTk
+                if panda is None:panda=Preview()
+                w,h=canvas.winfo_width(),canvas.winfo_height()
+                factor=min(1,1280/w,720/h);rw,rh=max(1,int(w*factor)),max(1,int(h*factor))
+                raw=panda.render(scene,replace(camera,zoom=camera.zoom*factor),rw,rh)
+                photo=ImageTk.PhotoImage(Image.frombytes("RGBA",(rw,rh),raw).resize((w,h)))
+                canvas.create_image(0,0,image=photo,anchor="nw",tags=("gl",))
+                status.set("Panda3D experimental | select objects in sidebar")
+                return
+            except Exception as e:
+                failure=str(e)[:180];backend.set("CPU")
+                if panda is not None:
+                    try:panda.close()
+                    except Exception:pass
+                    panda=None
+        if backend.get()=="ModernGL" and canvas.winfo_width()>4 and canvas.winfo_height()>4:
             try:
                 from PIL import Image,ImageTk
                 if renderer is None:renderer=Renderer()
@@ -39,7 +57,7 @@ def mount(parent):
                 status.set(f'{stats["renderer"]} | {stats["triangles"]} tris | {stats["draw_calls"]} draws | {stats["culled"]} culled | {stats["frame_ms"]:.1f} ms | LOD {stats["lod_counts"]}')
                 return
             except Exception as e:
-                failure=str(e)[:180];use_gl.set(False)
+                failure=str(e)[:180];backend.set("CPU")
                 if renderer is not None:
                     try:renderer.close()
                     except Exception:pass
@@ -48,7 +66,7 @@ def mount(parent):
         rows=frame(scene,camera,max(1,canvas.winfo_width()),max(1,canvas.winfo_height()))
         for _,id,coords,color in rows:
             canvas.create_polygon(*coords,fill=color,outline="#d5c28f" if id==selected else "",tags=("mesh","obj:"+id))
-        status.set(f"{len(scene.instances)} objects | {len(rows)} CPU preview triangles | right-drag orbit, wheel zoom"+(" | GL unavailable: "+failure if failure else ""))
+        status.set(f"{len(scene.instances)} objects | {len(rows)} CPU preview triangles | right-drag orbit, wheel zoom"+(" | Renderer unavailable: "+failure if failure else ""))
     def sync():
         objects.delete(0,"end")
         for i,item in enumerate(scene.instances):
@@ -66,7 +84,7 @@ def mount(parent):
         if ids:selected=scene.instances[ids[0]].id;sync()
     def pick(e):
         nonlocal selected
-        if use_gl.get() and renderer is not None:
+        if backend.get()=="ModernGL" and renderer is not None:
             rw,rh=render_size
             selected=renderer.pick(int(e.x*rw/max(1,canvas.winfo_width())),int(e.y*rh/max(1,canvas.winfo_height())))
             sync();return
@@ -140,13 +158,17 @@ def mount(parent):
             try:materials=load_materials(p);draw()
             except (OSError,ValueError,TypeError,ImportError) as e:messagebox.showerror("Materials",str(e))
     def release(e):
-        nonlocal renderer
+        nonlocal renderer,panda
+        if e.widget is parent and panda is not None:
+            try:panda.close()
+            finally:panda=None
         if e.widget is parent and renderer is not None:
             try:renderer.close()
             finally:renderer=None
     parent.bind("<Destroy>",release,add="+")
     controls=ttk.Frame(parent);controls.pack(fill="x",before=pane)
-    ttk.Checkbutton(controls,text="OpenGL preview",variable=use_gl,command=draw).pack(side="left")
+    choice=ttk.Combobox(controls,textvariable=backend,values=("CPU","ModernGL","Panda3D"),state="readonly",width=12)
+    choice.pack(side="left");choice.bind("<<ComboboxSelected>>",lambda e:draw())
     def toggle_setting(name,value):
         nonlocal settings
         settings=replace(settings,**{name:value}).validate();draw()
