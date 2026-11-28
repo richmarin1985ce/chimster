@@ -58,7 +58,7 @@ def bake(groups,assets,size=128,angle=0):
                     tx=floor(tu*tw)%tw;ty=floor((1-tv)*th)%th
                     rgba=tex[(ty*tw+tx)*4:(ty*tw+tx+1)*4]
                     tinted=tuple(max(0,min(255,round(rgba[j]*sum(weight*p[j] for weight,p in zip((u,v,w),colors))))) for j in range(4))
-                    if cutout and tinted[3]<getattr(mesh,"lod_alpha_threshold",128):continue
+                    if cutout and tinted[3]<=getattr(mesh,"lod_alpha_threshold",128):continue
                     depth[i]=z;pixels[i*4:i*4+4]=bytes((*tinted[:3],255));normals[i*4:i*4+4]=encoded
     if not any(pixels[3::4]):raise ValueError("Empty foliage bake")
     return bytes(pixels),bytes(normals),{"span":span,"mid":mid,"width":span,"height":span,"bottom":bottom,"top":top,"source_hashes":hashes,"coverage":sum(v>0 for v in pixels[3::4])/(size*size)}
