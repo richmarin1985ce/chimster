@@ -103,7 +103,7 @@ def build_parser():
  a=s.add_parser('interior-check'); a.add_argument('project'); a.add_argument('--room'); a.add_argument('--closed',action='append',default=[])
  a=s.add_parser('record-edit'); a.add_argument('plugin'); a.add_argument('output'); a.add_argument('origin'); a.add_argument('id',type=lambda x:int(x,0)); a.add_argument('field'); a.add_argument('value_json'); a.add_argument('hash')
  a=s.add_parser('record-build'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--master',action='append',default=[]); a.add_argument('--ledger-in'); a.add_argument('--ledger-out')
- a=s.add_parser('master-reorder'); a.add_argument('source'); a.add_argument('output'); a.add_argument('masters',nargs='+')
+ a=s.add_parser('master-reorder'); a.add_argument('source'); a.add_argument('output'); a.add_argument('masters',nargs='*'); a.add_argument('--allow-master-set-change',action='store_true')
  a=s.add_parser('project'); c=a.add_subparsers(dest='project_op',required=True)
  b=c.add_parser('create'); b.add_argument('root'); b.add_argument('name'); b.add_argument('game',choices=PROFILES)
  for name in ('status','verify'):
@@ -300,7 +300,7 @@ def main(argv=None):
    result=staged_build(lambda ids:export(spec,n.output,n.master,ids),n.output,n.ledger_out,n.ledger_in) if n.ledger_out else export(spec,n.output,n.master)
   elif n.cmd=='master-reorder':
    from .master_remap import reorder
-   result=reorder(n.source,n.output,n.masters)
+   result=reorder(n.source,n.output,n.masters,allow_set_change=n.allow_master_set_change)
   elif n.cmd=='record-edit-text':
    from .record_editor import edit_text
    result=edit_text(n.plugin,n.output,n.origin,n.id,n.field,n.value,n.hash)
