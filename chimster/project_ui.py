@@ -61,7 +61,8 @@ def mount(parent,game):
     def rollback():
         if not current:raise ValueError("open a project first")
         n=simpledialog.askinteger("Rollback","Revision to restore as a new revision",minvalue=0,maxvalue=revision)
-        if n is not None:current.rollback(n,revision);refresh()
+        if n is not None and n!=revision and messagebox.askyesno("Confirm rollback",f"Restore revision {n} as a new revision? Current history is retained."):
+            current.rollback(n,revision);refresh()
     def verify():
         if not current:raise ValueError("open a project first")
         r=current.verify();messagebox.showinfo("Project integrity",str(r))
