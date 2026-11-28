@@ -201,8 +201,8 @@ def launch():
  load_cell_preview=mount(viewport_tab)
  f=tab('Worldspace browser')
  from .world_browser_ui import mount as mount_world_browser
- def open_cell_preview(scene,report,focus=None):
-  if not load_cell_preview(scene,report,focus):return False
+ def open_cell_preview(scene,report,focus=None,on_select=None):
+  if not load_cell_preview(scene,report,focus,on_select):return False
   tabs.select(viewport_tab)
   return True
  mount_world_browser(f,game,open_cell_preview)
