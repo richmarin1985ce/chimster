@@ -20,7 +20,7 @@ def schema(properties=None, required=()):
             "required": list(required), "additionalProperties": False}
 
 class Bridge:
-    def __init__(self, project=None, allow_create=False, allow_edit=False, allow_native=False, allow_ui=False):
+    def __init__(self, project=None, allow_create=False, allow_edit=False, allow_native=False, allow_ui=False, require_approval=False):
         self.project = project
         self.creation = CreationSession(project, allow_create, allow_edit) if project is not None else None
         if allow_native and (not allow_edit or project is None or native_profile(project.read()["game"]) not in REFERENCE_PROFILES):
@@ -32,6 +32,11 @@ class Bridge:
         self.jobs = Jobs(project) if project is not None else None
         self.initialized = False
         self.ready = False
+        from .mcp_security import Gate
+        self.gate=Gate(project) if project is not None and require_approval else None
+        self.approval_previews={}
+        import secrets
+        self.audit_session=secrets.token_hex(16)
         self.transport="stdio"
         self.allow_ui=bool(allow_ui and project is not None)
         self.registry = {}
@@ -175,7 +180,7 @@ class Bridge:
     def capabilities(self):
         return {"application": "Chimster", "api_version": 1, "transport": self.transport,
                 "access": ("create-and-edit" if self.creation.enabled else "edit-only") if self.creation and self.creation.allow_edit else "create-only" if self.creation and self.creation.enabled else "read-only", "project_selected": self.project is not None,
-                "tools": sorted(self.registry), "production_operations":list(getattr(self,"production_operations",())), "native_write_granted": bool(self.native and self.native.enabled), "live_ui": self.allow_ui, "dashboard_context": self.project is not None}
+                "tools": sorted(self.registry), "per_operation_approval":self.gate is not None, "production_operations":list(getattr(self,"production_operations",())), "native_write_granted": bool(self.native and self.native.enabled), "live_ui": self.allow_ui, "dashboard_context": self.project is not None}
     def editor_request(self,instance,action,revision,artifact=None):
         from .editor_commands import submit
         if not self.allow_ui or self.transport!="stdio":raise ValueError("local UI permission required")
@@ -248,13 +253,59 @@ class Bridge:
             if p["type"]=="array" and (not isinstance(v,list) or not p["minItems"]<=len(v)<=p["maxItems"] or
                     any(not isinstance(x,str) or len(x)>p["items"]["maxLength"] for x in v)):
                 raise ValueError("invalid array argument")
+        name=params["name"]
+        mutating=not definition["annotations"]["readOnlyHint"] and name not in ("diagnostic_cancel","diagnostic_discard","production_discard")
+        from .mcp_security import audit
+        import secrets
+        call_id=secrets.token_hex(16)
+        def record(outcome):
+            if mutating:
+                audit(self.project,self.audit_session,name,outcome,self.project.read()["revision"],call_id)
+        def response(data):
+            return {"content":[{"type":"text","text":json.dumps(data,ensure_ascii=True,allow_nan=False)}]}
+        started=False
         try:
-            result = json.dumps(handler(**args), ensure_ascii=True, allow_nan=False)
-            if len(result) > MAX_RESULT:
+            if mutating:
+                revision=self.project.read()["revision"]
+                if self.gate:
+                    if "token" in args:
+                        summary=self.approval_previews.get(args["token"])
+                        if summary is None:raise ValueError("preview required before approval")
+                    else:
+                        summary=args
+                    key=self.gate.check(name,args,summary,revision)
+                    if key:
+                        record("approval_requested")
+                        return response({"approval_required":True,"request_id":key,
+                                         "note":"Review in a separate local terminal with chimster --mcp --project PROJECT --review-approval REQUEST_ID, then repeat the same call."})
+                record("started")
+                started=True
+            data=handler(**args)
+            if self.gate and isinstance(data,dict) and isinstance(data.get("proposal_token"),str):
+                token=data["proposal_token"]
+                summary={k:v for k,v in data.items() if k!="proposal_token"}
+                if "text" in args:
+                    summary["text_preview"]=args["text"][:8192]
+                    summary["text_preview_truncated"]=len(args["text"])>8192
+                self.approval_previews[token]=summary
+                while len(self.approval_previews)>8:
+                    self.approval_previews.pop(next(iter(self.approval_previews)))
+            if mutating and "token" in args:
+                self.approval_previews.pop(args["token"],None)
+            if mutating:
+                try:record("completed")
+                except (OSError,ValueError,KeyError,TypeError):
+                    return response({"result":data,"audit_warning":"Operation returned successfully but completion audit could not be recorded. Verify project revision."})
+            result=json.dumps(data,ensure_ascii=True,allow_nan=False)
+            if len(result)>MAX_RESULT:
+                if started:return response({"result_omitted":True,"note":"Operation returned; result exceeded size limit. Verify project state."})
                 raise ValueError("result exceeds size limit")
-            return {"content": [{"type": "text", "text": result}]}
-        except (ValueError, KeyError, OSError, TypeError, AttributeError, IndexError, OverflowError, RecursionError, StopIteration):
-            return {"isError": True, "content": [{"type": "text", "text": "Operation failed: invalid, unavailable or corrupt project data."}]}
+            return {"content":[{"type":"text","text":result}]}
+        except (ValueError,KeyError,OSError,TypeError,AttributeError,IndexError,OverflowError,RecursionError,StopIteration):
+            if started:
+                try:record("failed_or_unconfirmed")
+                except (OSError,ValueError,KeyError,TypeError):pass
+            return {"isError":True,"content":[{"type":"text","text":"Operation refused or failed; verify the current revision before retrying."}]}
     def dispatch(self, msg):
         def error(code, message, id=None):
             return {"jsonrpc": "2.0", "id": id, "error": {"code": code, "message": message}}
@@ -357,6 +408,7 @@ def main(argv=None):
     selection.add_argument("--active-instance", help="Explicitly select a locally discovered editor instance ID")
     selection.add_argument("--discover-active", action="store_true", help="List active local editor projects and exit")
     selection.add_argument("--active", action="store_true", help="Select the sole active local editor project; fail if ambiguous")
+    parser.add_argument("--review-approval", metavar="REQUEST_ID", help="Review an exact pending operation in an interactive local terminal")
     parser.add_argument("--http", type=int, metavar="PORT", help="Start authenticated read-only loopback HTTP; 0 selects an available port")
     parser.add_argument("--token-file", help="Private bearer token file for local HTTP")
     parser.add_argument("--create-token", metavar="PATH", help="Create a new private token file and exit")
@@ -370,6 +422,12 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         from .editor_presence import discover, select
+        if args.review_approval:
+            if not args.project or any((args.allow_create,args.allow_edit,args.allow_native_edit,args.allow_ui,args.describe,args.client_config,args.register_client_config,args.http is not None,args.token_file,args.create_token)):
+                raise ValueError("approval review requires only explicit project and request ID")
+            from .mcp_security import review
+            print(json.dumps(review(Project(args.project),args.review_approval)))
+            return
         if args.create_token:
             if any((args.project,args.active,args.active_instance,args.discover_active,args.allow_create,args.allow_edit,args.allow_native_edit,args.allow_ui,args.describe,args.client_config,args.register_client_config,args.http is not None,args.token_file)):
                 raise ValueError("token creation must be standalone")
@@ -402,7 +460,7 @@ def main(argv=None):
             raise ValueError("write permission requires an explicit project path")
         if args.register_client_config and (args.allow_create or args.allow_edit or args.allow_native_edit or args.allow_ui or args.describe or args.client_config or not args.project):
             raise ValueError("registration requires an explicit read-only project")
-        bridge = Bridge(project, args.allow_create, args.allow_edit, args.allow_native_edit,args.allow_ui)
+        bridge = Bridge(project, args.allow_create, args.allow_edit, args.allow_native_edit,args.allow_ui,require_approval=bool(args.allow_create or args.allow_edit or args.allow_native_edit or args.allow_ui))
     except (ValueError, OSError, KeyError, TypeError):
         parser.exit(2, "Invalid or unavailable Chimster project\n")
     if args.client_config or args.register_client_config:
