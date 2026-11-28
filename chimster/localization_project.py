@@ -77,7 +77,12 @@ def check(c,project,encoding="utf-8",terms=None):
         except UnicodeEncodeError:issues.append({"id":key,"status":"encoding"})
         for source,target in (terms or {}).items():
             if source.casefold() in e["source"].casefold() and target.casefold() not in v.casefold():issues.append({"id":key,"status":"terminology-advisory","term":source})
-    return {"valid":not any(i["status"]!="terminology-advisory" for i in issues),"entries":len(c["entries"]),"issues":issues}
+    counts={}
+    for issue in issues:
+        status=issue["status"];counts[status]=counts.get(status,0)+1
+    total=len(c["entries"])
+    translated=sum(e["target"] is not None for e in c["entries"].values())
+    return {"valid":not any(i["status"]!="terminology-advisory" for i in issues),"entries":total,"translated":translated,"remaining":total-translated,"counts":counts,"issues":issues}
 def apply(c,project,encoding="utf-8"):
     report=check(c,project,encoding)
     if not report["valid"]:raise ValueError("translation validation failed: "+str(report["issues"][:5]))
