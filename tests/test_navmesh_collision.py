@@ -51,3 +51,29 @@ class CollisionAutoNavTests(unittest.TestCase):
     def test_radius_erodes_edges(self):
         s=self.source(.2);self.floor(s,0,4,0,4,0)
         self.assertEqual(generate_collision(s)["walkable_cells"],4)
+
+    def test_simplification_preserves_boundaries_and_links(self):
+        from chimster.navmesh_simplify import simplify
+        from chimster.navmesh import quality
+        s=self.source();self.floor(s,0,6,0,6,0)
+        original=generate_collision(s);reduced=simplify(original)
+        self.assertLess(len(reduced["triangles"]),len(original["triangles"]))
+        self.assertEqual(reduced["boundary"],original["boundary"])
+        self.assertAlmostEqual(quality(original)["surface_area"],quality(reduced)["surface_area"])
+        self.assertEqual(len(reduced["regions"]),1)
+        s=self.source();self.floor(s,0,3,0,3,0);self.floor(s,3,6,0,3,.25)
+        m=generate_collision(s);r=simplify(m)
+        self.assertEqual([l["id"] for l in r["links"]],[l["id"] for l in m["links"]])
+        self.assertTrue(all(l["clearance_checked"] for l in r["links"]))
+        self.assertTrue(route(r,r["links"][0]["from"],r["links"][0]["to"],r["links"])["reachable"])
+
+    def test_step_clearance_and_multi_riser(self):
+        s=self.source()
+        for i in range(4):
+            self.floor(s,i,i+1,0,2,.2*i)
+            if i:self.quad(s,[(i,0,.2*(i-1)),(i,2,.2*(i-1)),(i,2,.2*i),(i,0,.2*i)])
+        m=generate_collision(s)
+        self.assertEqual(len(m["links"]),6)
+        self.assertTrue(route(m,m["regions"][0][0],m["regions"][-1][0],m["links"])["reachable"])
+        s["agent"]["max_step"]=.1
+        self.assertEqual(generate_collision(s)["links"],[])
