@@ -288,6 +288,9 @@ def main(argv=None):
     selection.add_argument("--active-instance", help="Explicitly select a locally discovered editor instance ID")
     selection.add_argument("--discover-active", action="store_true", help="List active local editor projects and exit")
     selection.add_argument("--active", action="store_true", help="Select the sole active local editor project; fail if ambiguous")
+    parser.add_argument("--http", type=int, metavar="PORT", help="Start authenticated read-only loopback HTTP; 0 selects an available port")
+    parser.add_argument("--token-file", help="Private bearer token file for local HTTP")
+    parser.add_argument("--create-token", metavar="PATH", help="Create a new private token file and exit")
     parser.add_argument("--allow-native-edit", action="store_true", help="Grant staged FNV ESP record editing; requires --allow-edit")
     parser.add_argument("--allow-edit", action="store_true", help="Explicitly allow trusted client draft replacement and session undo/redo")
     parser.add_argument("--allow-create", action="store_true", help="Explicitly allow the trusted client to create new project text artifacts")
@@ -297,6 +300,21 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         from .editor_presence import discover, select
+        if args.create_token:
+            if any((args.project,args.active,args.active_instance,args.discover_active,args.allow_create,args.allow_edit,args.allow_native_edit,args.describe,args.client_config,args.register_client_config,args.http is not None,args.token_file)):
+                raise ValueError("token creation must be standalone")
+            from .mcp_http import create_token
+            create_token(args.create_token)
+            print(json.dumps({"created":True,"token_file":args.create_token}))
+            return
+        if args.http is not None:
+            if not args.project or not args.token_file or not 0<=args.http<=65535 or any((args.allow_create,args.allow_edit,args.allow_native_edit,args.describe,args.client_config,args.register_client_config)):
+                raise ValueError("HTTP requires explicit project and token file; read-only")
+            from .mcp_http import run
+            run(Project(args.project),args.token_file,args.http)
+            return
+        if args.token_file:
+            raise ValueError("token file requires HTTP")
         if args.discover_active:
             if args.allow_create or args.allow_edit or args.allow_native_edit or args.describe or args.client_config or args.register_client_config:
                 raise ValueError("discovery is a standalone read-only operation")
