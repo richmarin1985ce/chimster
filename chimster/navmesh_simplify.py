@@ -7,10 +7,14 @@ def simplify(mesh,budget=20000):
     if type(budget) is not int or not 0<=budget<=100000:raise ValueError("invalid simplification budget")
     vs=[tuple(p) for p in mesh["vertices"]];ts={i:tuple(t) for i,t in enumerate(mesh["triangles"])}
     before=topology(vs,list(ts.values()));initial=len(ts)
-    keys=[k for k in ("triangle_layers","triangle_rooms","triangle_areas") if k in mesh]
+    keys=[k for k in ("triangle_layers","triangle_rooms","triangle_areas","triangle_tiles") if k in mesh]
     meta={i:tuple(mesh[k][i] for k in keys) for i in ts}
     protected={i for link in mesh.get("links",[]) for i in (link["from"],link["to"])}
     fixed={v for edge in before["boundary"] for v in edge}|{v for i in protected for v in ts[i]}
+    if "triangle_tiles" in mesh:
+        for i,row in enumerate(before["neighbors"]):
+            for j in row:
+                if j>=0 and mesh["triangle_tiles"][i]!=mesh["triangle_tiles"][j]:fixed.update(set(ts[i])&set(ts[j]))
     incident=defaultdict(set)
     for i,t in ts.items():
         for v in t:incident[v].add(i)
