@@ -28,6 +28,16 @@ Use Ctrl+Space for an explicit completion chooser; F12 displays matching signatu
 
 Index local PSC reads an explicitly selected local Papyrus library (up to 2,000 files and 32 MiB), skips symlink entries, records declaration source paths and line numbers, and associates the results with the current game profile in memory. No proprietary sources are bundled or uploaded by the indexer. The selected library may contain extender or mod functions; provenance is displayed, but runtime compatibility is not inferred. Indexing is synchronous in this prototype. No persistent index, type inference, cross-file go-to-definition, full symbol parser or external version audit yet. Regression fixtures added; test execution deferred.
 
+### Papyrus project builds
+The Script editor's Build project action compiles saved flat PSC sources from a chosen project directory. CLI preview is the default:
+
+    python -m chimster papyrus-batch skyrimse ck /path/to/PapyrusCompiler.exe project-source flags/Game.flg build --import /path/to/game/Source
+    python -m chimster papyrus-batch skyrimse ck /path/to/PapyrusCompiler.exe project-source flags/Game.flg build --import /path/to/game/Source --execute
+
+The dependency inventory records explicit Scriptname extends and Import links, unresolved names, deterministic ordering and import cycles/blocked nodes. Duplicate case-insensitive script names and inheritance cycles are rejected; missing names and import cycles are advisory. The native compiler remains authoritative. All selected flat source libraries are hashed and copied to private staging, then each project script is compiled using the same snapshot. Artifacts are published only after every compilation passes the existing bounded PEX header check and input inventory is rechecked. The output directory contains PEX files and batch.json; failure before publication produces no output directory. Publication is not crash-atomic. No in-game files are modified.
+
+Only unnamespaced flat sources are included; subdirectories are not searched. Maximum 2,000 PSC files and 32 MiB per inventory. No incremental cache, full type dependency resolution, compiler verification or native engine validation yet. Synthetic regression cases committed; execution deferred.
+
 ## Voice
 The formats module packs and unpacks supported FUZ containers. A FUZ is not a speech synthesizer: it contains separate lip-sync and audio payloads. XWM encoding, actual lip-sync generation and Wwise conversion remain unimplemented. Do not republish extracted game voice assets.
 
