@@ -5,6 +5,8 @@ import json
 import secrets
 import subprocess
 import sys
+import os
+import tempfile
 import time
 import threading
 from concurrent.futures import ThreadPoolExecutor
@@ -50,23 +52,26 @@ class ProductionJobs:
             if event.is_set():raise ValueError("cancelled")
             cmd=[sys.executable] if getattr(sys,"frozen",False) else [sys.executable,"-m","chimster"]
             cmd+=["--mcp","--project",str(self.production.project.root),"--production-worker"]
-            proc=subprocess.Popen(cmd,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL)
-            deadline=time.monotonic()+180
-            try:
-                first=True
-                while True:
-                    if event.is_set() or time.monotonic()>deadline:raise ValueError("cancelled or timed out")
-                    try:
-                        inp=data if first else None
-                        first=False
-                        raw,_=proc.communicate(input=inp,timeout=.15)
-                        break
-                    except subprocess.TimeoutExpired:continue
-                if proc.returncode or len(raw)>WIRE_LIMIT or event.is_set():raise ValueError("worker failed")
-                return json.loads(raw)
-            finally:
-                if proc.poll() is None:proc.kill()
-                proc.communicate()
+            # Parent owns the worker temporary directory even after forced termination.
+            with tempfile.TemporaryDirectory(prefix="chimster-production-worker-") as workspace:
+                env=dict(os.environ,TMPDIR=workspace,TMP=workspace,TEMP=workspace)
+                proc=subprocess.Popen(cmd,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,env=env)
+                deadline=time.monotonic()+180
+                try:
+                    first=True
+                    while True:
+                        if event.is_set() or time.monotonic()>deadline:raise ValueError("cancelled or timed out")
+                        try:
+                            inp=data if first else None
+                            first=False
+                            raw,_=proc.communicate(input=inp,timeout=.15)
+                            break
+                        except subprocess.TimeoutExpired:continue
+                    if proc.returncode or len(raw)>WIRE_LIMIT or event.is_set():raise ValueError("worker failed")
+                    return json.loads(raw)
+                finally:
+                    if proc.poll() is None:proc.kill()
+                    proc.communicate()
         key=secrets.token_hex(16)
         self.entry=(key,revision,event,self.pool.submit(run))
         return {"job_id":key,"revision":revision,"state":"queued"}
