@@ -10,10 +10,13 @@ from . import lip_pipeline as lp
 def launch(parent):
     win=tk.Toplevel(parent);win.title("Chimster — Native lip generation");win.geometry("820x610")
     values={k:tk.StringVar() for k in ("WAV","Output directory","Backend executable","Fonix data","FFmpeg")}
+    from .drop_import import path_field
     for name,v in values.items():
         row=ttk.Frame(win);row.pack(fill="x",padx=8)
         ttk.Label(row,text=name,width=19).pack(side="left")
-        ttk.Entry(row,textvariable=v).pack(side="left",fill="x",expand=True)
+        field=ttk.Entry(row,textvariable=v);field.pack(side="left",fill="x",expand=True)
+        if name=="WAV":path_field(field,v,(".wav",))
+        elif name=="Fonix data":path_field(field,v,(".cdf",))
         def choose(name=name,v=v):
             p=filedialog.asksaveasfilename(parent=win,title="Choose a NEW output directory name") if name=="Output directory" else filedialog.askopenfilename(parent=win)
             if p:v.set(p)
