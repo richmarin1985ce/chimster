@@ -513,6 +513,14 @@ def main(argv=None):
                     p=Path(value)
                     if not p.is_absolute() or not p.is_file():raise ValueError("audio backend must be an explicit absolute executable path")
                     audio_tools[operation]=str(p.resolve())
+            facefx=os.environ.get("CHIMSTER_MCP_FACEFX")
+            fonix=os.environ.get("CHIMSTER_MCP_FONIX")
+            if facefx or fonix:
+                if not facefx or not fonix or project.read()["game"] not in ("skyrim","skyrimse","fallout4"):
+                    raise ValueError("native LIP requires configured FaceFX, Fonix and supported game")
+                paths=[Path(v) for v in (facefx,fonix)]
+                if any(not p.is_absolute() or not p.is_file() for p in paths):raise ValueError("absolute existing backend paths required")
+                audio_tools["native-lip"]=tuple(str(p.resolve()) for p in paths)
         bridge = Bridge(project, args.allow_create, args.allow_edit, args.allow_native_edit,args.allow_ui,require_approval=bool(args.allow_create or args.allow_edit or args.allow_native_edit or args.allow_ui),audio_tools=audio_tools)
     except (ValueError, OSError, KeyError, TypeError):
         parser.exit(2, "Invalid or unavailable Chimster project\n")
