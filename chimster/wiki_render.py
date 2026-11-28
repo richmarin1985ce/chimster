@@ -55,6 +55,8 @@ def heading_ids(body):
 
 def render(page,body,pages):
     result=[];anchors=iter(heading_ids(body))
+    home=posixpath.relpath("index.html",posixpath.dirname(page) or ".")
+    result.append('<nav><a href="'+html.escape(home,quote=True)+'">Manual index</a></nav>')
     for kind,text in blocks(body):
         if kind=="code":result.append("<pre><code>"+html.escape(text)+"</code></pre>");continue
         parts=[]
@@ -89,7 +91,7 @@ def link_report(wiki):
                 if dest and (not u.fragment or unquote(u.fragment) in anchors[dest]):internal+=1
                 elif u.scheme in ("https","http"):external+=1
                 else:broken.append({"page":page,"target":target})
-    return {"pages":len(pages),"internal_links":internal,"external_links_not_fetched":external,"unresolved_links":broken}
+    return {"pages":len(pages),"internal_links":internal,"external_links_not_fetched":external,"unresolved_links":broken,"unresolved_count":len(broken)}
 def export(wiki,folder):
     from pathlib import Path
     p=Path(folder);p.mkdir(parents=True,exist_ok=False);pages=wiki.pages();ids={r["id"] for r in pages}
