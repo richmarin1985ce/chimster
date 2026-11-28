@@ -160,6 +160,32 @@ def export_tile(profile,kind,world,level,x,y,mesh,diffuse,normal,output,cutout=F
             "scope":"Author-supplied tile mesh in local game units, material and runtime layout require validation"}
 
 
+def read_packed_vertices(r,desc,count,stream):
+    """Read documented unskinned static vertex variants, rejecting lossy attributes."""
+    flags=desc>>44
+    if flags&~0x43b or flags&3!=3 or flags&16 and not flags&8:
+        raise ValueError("Unsupported packed attributes")
+    full=stream==100 or bool(flags&0x400)
+    tangent=bool(flags&16);normal=bool(flags&8);color=bool(flags&32)
+    stride=(desc&15)*4
+    expected=(16 if full else 8)+4+4*normal+4*tangent+4*color
+    if stride!=expected:raise ValueError("Packed vertex stride mismatch")
+    uv_offset=(16 if full else 8)//4
+    if (desc>>8)&15!=uv_offset:raise ValueError("UV offset mismatch")
+    if normal and ((desc>>16)&15)!=uv_offset+1:raise ValueError("Normal offset mismatch")
+    if tangent and ((desc>>20)&15)!=uv_offset+2:raise ValueError("Tangent offset mismatch")
+    if color and ((desc>>24)&15)!=uv_offset+1+normal+tangent:raise ValueError("Color offset mismatch")
+    mesh=Mesh()
+    for _ in range(count):
+        x,y,z,_=r.get("4f" if full else "4e")
+        u,v=r.get("2e")
+        if normal:r.take(4)
+        if tangent:r.take(4)
+        if color and r.take(4)!=bytes([255])*4:raise ValueError("Nonwhite source vertex colors require color-preserving conversion")
+        if not all(isfinite(a) for a in (x,y,z,u,v)):raise ValueError("Nonfinite packed vertex")
+        mesh.vertices.append((x,y,z));mesh.uv.append((u,1-v))
+    return mesh
+
 def read_static_groups(raw,profile):
     """Read supported ordinary modern source geometry with explicit shader guards.
     No animation, skinning, external material files or complex shader conversion.
@@ -218,12 +244,9 @@ def read_static_groups(raw,profile):
             r.take(16);skin,sid,aid,desc=r.get("iiiQ")
             if skin!=-1:raise ValueError("Skinned source")
             t,n=r.get("IH" if stream==130 else "HH");size,=r.get("I")
-            flags=desc>>44;stride=(desc&15)*4
-            if flags not in (0x1b,0x41b) or stride!=28 or size!=n*28+t*6 or not n or not t:raise ValueError("Unsupported packed source attributes")
-            mesh=Mesh()
-            for _ in range(n):
-                x,y,z,bx,u,v,*_=r.get("4f2e8B")
-                mesh.vertices.append((x,y,z));mesh.uv.append((u,1-v))
+            stride=(desc&15)*4
+            if size!=n*stride+t*6 or not n or not t or t>65535:raise ValueError("Unsupported packed source geometry")
+            mesh=read_packed_vertices(r,desc,n,stream)
             mesh.faces=[(r.get("3H"),"lod") for _ in range(t)]
             if stream==100 and r.get("I")[0]!=0:raise ValueError("Particle data unsupported")
         else:raise ValueError("Unsupported source shape "+kind)
