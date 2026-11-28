@@ -80,7 +80,7 @@ def mount(parent, game=None):
         if not directory:return
         from .native_master_index import index_masters
         types,report=index_masters(s.profile,Path(directory),s.slots.names[:-1])
-        candidate=NativeSession(s.profile,s.data,s.slots,types)
+        candidate=NativeSession(s.profile,s.data,s.slots,types,report.pop("records",{}))
         state["session"]=candidate
         refresh()
         show({"master_index":report,"external_types":len(types),"diagnostics":candidate.validate()})
