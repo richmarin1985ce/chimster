@@ -1,4 +1,9 @@
 # Master checklist — production reassessment (2026-11-26)
+
+## Active release scope — 2026-11-27
+Active: Morrowind, classic Oblivion, Fallout 3, New Vegas, classic Skyrim, Skyrim SE/AE, Skyrim VR, Fallout 4 and Fallout 4 VR. VR variants require explicit capability profiles and independent format/runtime verification; do not assume desktop parity.
+Deferred: Arena, Daggerfall, Oblivion Remastered (legacy and Unreal), Starfield and Fallout 76 (including offline asset replacement). Preserve existing code and documentation; no new title-specific development until explicitly reopened. Shared improvements remain in scope. Exclude deferred-only tasks from active release readiness, but retain them in the lifetime roadmap. Continue easiest-first sweeps across active sections, with testing deferred as directed.
+
 Current baseline: PR23 merged at 7c356fbde0c879c0de46c47290e0bd7cb812635e; eight CI workflows green. Retail engine validation remains outstanding.
 | Area | Working foundation / limited implementation | Next production milestones |
 |---|---|---|
