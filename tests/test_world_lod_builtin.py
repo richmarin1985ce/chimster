@@ -241,3 +241,34 @@ class BuiltinLODTests(unittest.TestCase):
         colored=5|(2<<8)|(3<<16)|(4<<24)|(0x2b<<44)
         self.assertEqual(read_packed_vertices(Reader(raw+bytes([255])*4),colored,1,130).vertices,mesh.vertices)
         with self.assertRaises(ValueError):read_packed_vertices(Reader(raw+bytes([128,255,255,255])),colored,1,130)
+
+    def test_oblivion_generated_far_mesh_and_placements(self):
+        from chimster.oblivion_lod_nif import encode,read_static,inspect
+        from chimster.world_lod_oblivion_objects import export,decode_cell
+        from chimster.record_graph import Identity
+        from types import SimpleNamespace
+        mesh=terrain_grid([[0.,1.],[2.,3.]])
+        raw=encode(mesh,"textures/stone.dds")
+        decoded,diffuse,cutout=read_static(raw)
+        self.assertEqual(decoded.vertices,mesh.vertices)
+        self.assertEqual(diffuse,"textures/stone.dds")
+        self.assertFalse(cutout)
+        world,cell,base,placed=(Identity("world.esp",i) for i in range(0x800,0x804))
+        browser=SimpleNamespace(profile="oblivion",worlds={world:{"editor_id":"Demo"}},
+            source_paths=[Path("Oblivion.esm"),Path("World.esp")],
+            active={cell:{"key":cell,"signature":"CELL","world":world},
+                    base:{"key":base,"signature":"STAT","flags":0x8000,"model":"Architecture/Tower.nif"},
+                    placed:{"key":placed,"signature":"REFR","flags":0,"cell":cell,"base":base,
+                            "position":(0.,0.,0.),"rotation":(0.,0.,0.)}})
+        class Assets:
+            def get(self,path):
+                if path.casefold().endswith("_far.nif"):raise FileNotFoundError(path)
+                return raw
+        with tempfile.TemporaryDirectory() as d:
+            out=Path(d)/"lod"
+            result=export(browser,world,out,Assets())
+            self.assertEqual(len(result["generated_far_meshes"]),1)
+            far=out/"meshes/Architecture/Tower_far.nif"
+            self.assertEqual(inspect(far.read_bytes())["triangles"],2)
+            self.assertIn(0x01000802,decode_cell((out/"DistantLOD/Demo_0_0.lod").read_bytes()))
+            self.assertFalse(result["runtime_verified"])
