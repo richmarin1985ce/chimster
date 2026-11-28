@@ -81,7 +81,7 @@ def build_parser():
  b=c.add_parser('snapshot'); b.add_argument('game',choices=['oblivionremastered','fallout76']); b.add_argument('root'); b.add_argument('release')
  b=c.add_parser('compare'); b.add_argument('old'); b.add_argument('new')
  b=c.add_parser('package-layout'); b.add_argument('paths',nargs='+')
- a=s.add_parser('world-check'); a.add_argument('plugins',nargs='+'); a.add_argument('--strict',action='store_true')
+ a=s.add_parser('world-check'); a.add_argument('plugins',nargs='+'); a.add_argument('--strict',action='store_true'); a.add_argument('--quest-links',action='store_true')
  a=s.add_parser('landscape-budget'); a.add_argument('game',choices=['oblivion','fallout3','newvegas']); a.add_argument('plugin')
  a=s.add_parser('record-inspect'); a.add_argument('plugin'); a.add_argument('origin'); a.add_argument('id',type=lambda x:int(x,0))
  a=s.add_parser('record-edit-text'); a.add_argument('plugin'); a.add_argument('output'); a.add_argument('origin'); a.add_argument('id',type=lambda x:int(x,0)); a.add_argument('field'); a.add_argument('value'); a.add_argument('hash')
@@ -331,7 +331,7 @@ def main(argv=None):
    return
   elif n.cmd=='world-check':
    from .world_validator import validate
-   result=validate(n.plugins)
+   result=validate(n.plugins,quest_links=n.quest_links)
    print(json.dumps(result,indent=2))
    if not result['valid'] or (n.strict and result['warnings']):raise SystemExit(1)
    return
