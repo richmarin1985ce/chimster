@@ -14,3 +14,6 @@ Font Forge now supports explicit on-curve and quadratic control points, TrueType
 
 ### Freehand and shared font surfaces
 Freehand mode captures ordinary mouse-compatible input, smooths centerline samples, and converts them to editable closed outlines. Width and smoothing are adjustable; the platform-neutral sample model accepts optional pressure but no native tablet backend is certified. Tight folds may need manual correction. Books & Notes offers a local plain-text preview with imported fonts; it does not alter native font tags or claim game layout fidelity. Font Forge and Asset Forge expose a portable transparent PNG text asset dialog for signs, labels and UI artwork; distribution rights must be confirmed. Native HUD font registration remains pending.
+
+### Spacing and imported outlines
+Per-glyph advance widths and explicit kerning pairs are saved in version 2 projects (version 1 remains readable), and emitted as hmtx and OpenType GPOS kerning. A license-confirmed single-glyph copy supports static TrueType outlines, normalizing units to 1000 em without modifying the source. CFF, variable-font outline editing, source hinting, layout-table preservation, negative-coordinate viewport editing and native registration remain outside this adapter. Imported copies become authored project outlines, not full-font round trips.

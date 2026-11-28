@@ -6,6 +6,7 @@ from .font_library import FontLibrary, drop_paths
 from .font_forge import create
 from .font_project import nodes, segments, save_project, load_project
 from .font_strokes import Sample,outline
+from .font_metrics import validate_metrics,import_outline
 
 def mount(parent):
     library = FontLibrary()
@@ -125,6 +126,8 @@ def mount(parent):
     canvas = tk.Canvas(author,width=400,height=300,bg="white",highlightthickness=1)
     canvas.pack(anchor="w")
     contours, active, glyphs = [], [], {}
+    advances,kerning={},{}
+    width=tk.StringVar(value='1000')
     dragging = []
     stroke=[]
     note = tk.StringVar(value="0 glyphs saved")
@@ -139,6 +142,10 @@ def mount(parent):
         for y in range(10,291,40):
             canvas.create_line(20,y,380,y,fill="#eeeeee")
         canvas.create_line(20,250,380,250,fill="#888888",dash=(3,3))
+        try:
+            x=screen((int(width.get()),0))[0]
+            canvas.create_line(x,10,x,290,fill="#b56b21",dash=(3,3))
+        except ValueError:pass
         for points in contours:
             for a,c,b in segments(points):
                 if c is None:
@@ -231,7 +238,10 @@ def mount(parent):
             if active or not contours:raise ValueError("Close all contours before saving")
             if cp not in glyphs and len(glyphs)>=4096:raise ValueError("Too many glyphs")
             if cp in glyphs and not messagebox.askyesno("Glyph","Replace saved glyph?",parent=parent):return
+            value=int(width.get())
+            validate_metrics({cp:contours},{cp:value})
             glyphs[cp]=[nodes(c) for c in contours]
+            advances[cp]=value
             update_note()
             clear()
         except ValueError as exc:messagebox.showerror("Glyph",str(exc),parent=parent)
@@ -242,6 +252,7 @@ def mount(parent):
             if (active or contours) and not messagebox.askyesno("Glyph","Discard the unsaved drawing?",parent=parent):return
             clear()
             contours.extend([list(c) for c in glyphs[cp]])
+            width.set(str(advances.get(cp,1000)))
             redraw()
         except ValueError as exc:messagebox.showerror("Glyph",str(exc),parent=parent)
     def delete_glyph():
@@ -249,6 +260,9 @@ def mount(parent):
             cp=codepoint()
             if cp in glyphs and messagebox.askyesno("Glyph","Delete saved glyph?",parent=parent):
                 del glyphs[cp]
+                advances.pop(cp,None)
+                for pair in list(kerning):
+                    if cp in pair:del kerning[pair]
                 update_note()
         except ValueError as exc:messagebox.showerror("Glyph",str(exc),parent=parent)
     def save():
@@ -257,17 +271,19 @@ def mount(parent):
             return
         path=filedialog.asksaveasfilename(parent=parent,defaultextension=".json",filetypes=[("Font project","*.json")])
         if path:
-            try:save_project(path,family.get(),glyphs)
+            try:save_project(path,family.get(),glyphs,advances,kerning)
             except (OSError,ValueError) as exc:messagebox.showerror("Font project",str(exc),parent=parent)
     def load():
         path=filedialog.askopenfilename(parent=parent,filetypes=[("Font project","*.json")])
         if not path:return
         try:
-            name,new=load_project(path)
+            name,new,new_advances,new_kerning=load_project(path,True)
             if (glyphs or active or contours) and not messagebox.askyesno("Font project","Replace the current font project?",parent=parent):return
             clear()
             glyphs.clear()
             glyphs.update(new)
+            advances.clear();advances.update(new_advances)
+            kerning.clear();kerning.update(new_kerning)
             family.set(name)
             update_note()
         except (OSError,ValueError) as exc:messagebox.showerror("Font project",str(exc),parent=parent)
@@ -278,11 +294,57 @@ def mount(parent):
         path = filedialog.asksaveasfilename(parent=parent,defaultextension=".ttf",filetypes=[("TrueType","*.ttf")])
         if path:
             try:
-                create(family.get(),glyphs,path)
+                create(family.get(),glyphs,path,advances,kerning)
                 add([path])
                 tabs.select(browse)
             except (OSError,ValueError,ImportError) as exc:
                 messagebox.showerror("Font",str(exc),parent=parent)
+    def copy_glyph():
+        from .font_picker import FontPicker
+        win=tk.Toplevel(parent);win.title("Copy imported outline")
+        picker=FontPicker(win,False);picker.frame.pack(fill="x")
+        ttk.Label(win,text="Copy selected character into this project; source font stays unchanged.").pack()
+        permission=tk.BooleanVar(master=win,value=False)
+        ttk.Checkbutton(win,text="I have permission to modify and use this outline",variable=permission).pack()
+        def copy():
+            try:
+                codepoint()
+                if picker.path() is None:raise ValueError("Choose a font")
+                new,advance=import_outline(picker.path(),character.get(),permission.get())
+                if (active or contours) and not messagebox.askyesno("Glyph","Replace current drawing?",parent=win):return
+                clear();contours.extend(new);width.set(str(advance));redraw();win.destroy()
+            except (ValueError,OSError,ImportError) as exc:messagebox.showerror("Glyph",str(exc),parent=win)
+        ttk.Button(win,text="Copy outline",command=copy).pack()
+    def spacing():
+        win=tk.Toplevel(parent);win.title("Kerning and spacing")
+        listing=tk.Listbox(win,width=45,height=8);listing.pack(fill="both",expand=True)
+        pair=tk.StringVar(master=win,value="AV");adjust=tk.StringVar(master=win,value="-80")
+        row=ttk.Frame(win);row.pack(fill="x")
+        ttk.Label(row,text="Pair").pack(side="left");ttk.Entry(row,textvariable=pair,width=8).pack(side="left")
+        ttk.Label(row,text="Adjustment (em units)").pack(side="left");ttk.Entry(row,textvariable=adjust,width=8).pack(side="left")
+        def refresh_pairs():
+            listing.delete(0,"end")
+            for (a,b),value in sorted(kerning.items()):listing.insert("end",f"{chr(a)} {chr(b)} : {value}")
+        def change(remove=False):
+            try:
+                if len(pair.get())!=2:raise ValueError("Enter two saved characters")
+                key=tuple(map(ord,pair.get()))
+                if remove:kerning.pop(key,None)
+                else:
+                    value=int(adjust.get())
+                    validate_metrics(glyphs,{}, {key:value})
+                    kerning[key]=value
+                refresh_pairs()
+            except ValueError as exc:messagebox.showerror("Kerning",str(exc),parent=win)
+        ttk.Button(row,text="Set",command=change).pack(side="left")
+        ttk.Button(row,text="Remove",command=lambda:change(True)).pack(side="left")
+        refresh_pairs()
+    metricsbar=ttk.Frame(author);metricsbar.pack(fill="x")
+    ttk.Label(metricsbar,text="Advance width (1000-em)").pack(side="left")
+    ttk.Spinbox(metricsbar,from_=0,to=4000,textvariable=width,width=7).pack(side="left")
+    ttk.Button(metricsbar,text="Kerning pairs",command=spacing).pack(side="left")
+    ttk.Button(metricsbar,text="Copy imported glyph",command=copy_glyph).pack(side="left")
+    width.trace_add("write",lambda *_:redraw())
     canvas.bind("<Button-1>",click)
     canvas.bind("<B1-Motion>",move)
     canvas.bind("<ButtonRelease-1>",release)

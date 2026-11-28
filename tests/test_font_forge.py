@@ -111,3 +111,28 @@ class FontForgeTests(unittest.TestCase):
             with Image.open(target) as result:self.assertEqual(result.mode,"RGBA")
             with self.assertRaises(FileExistsError):export_text_png(font,target,"A",32,200,100,True)
             with self.assertRaises(ValueError):outline([Sample(1,1,2),Sample(10,10)])
+
+    def test_spacing_kerning_and_outline_copy(self):
+        from chimster.font_project import save_project,load_project
+        from chimster.font_metrics import import_outline
+        from fontTools.ttLib import TTFont
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp);font=root/"metrics.ttf";project=root/"metrics.json"
+            glyphs={65:[[(0,0),(300,700),(600,0)]],86:[[(0,700),(300,0),(600,700)]]}
+            advances={65:680,86:700,32:300};kerning={(65,86):-80}
+            save_project(project,"Metrics",glyphs,advances,kerning)
+            family,loaded,a,k=load_project(project,True)
+            self.assertEqual((a,k),(advances,kerning))
+            create(family,loaded,font,a,k)
+            with TTFont(font) as f:
+                self.assertEqual(f["hmtx"]["uni0041"][0],680)
+                self.assertIn("GPOS",f)
+                lookup=f["GPOS"].table.LookupList.Lookup[0]
+                self.assertEqual(lookup.SubTable[0].PairSet[0].PairValueRecord[0].Value1.XAdvance,-80)
+            before=font.read_bytes()
+            with self.assertRaises(ValueError):import_outline(font,"A")
+            contours,width=import_outline(font,"A",True)
+            self.assertEqual(width,680)
+            self.assertEqual(len(contours),1)
+            self.assertEqual(font.read_bytes(),before)
+            with self.assertRaises(ValueError):create("Invalid",glyphs,root/"invalid.ttf",{65:-1})

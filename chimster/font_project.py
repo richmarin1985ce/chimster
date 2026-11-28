@@ -74,9 +74,11 @@ def validate(family,glyphs,allow_empty=False):
         out[cp]=[nodes(c) for c in contours]
     return out
 
-def save_project(path,family,glyphs):
+def save_project(path,family,glyphs,advances=None,kerning=None):
+    from .font_metrics import validate_metrics
     glyphs=validate(family,glyphs,True)
-    data=json.dumps({"version":1,"family":family,"glyphs":{str(k):v for k,v in glyphs.items()}},ensure_ascii=False).encode("utf-8")
+    advances,kerning=validate_metrics(glyphs,advances,kerning)
+    data=json.dumps({"version":2,"family":family,"glyphs":{str(k):v for k,v in glyphs.items()},"advances":{str(k):v for k,v in advances.items()},"kerning":[[a,b,v] for (a,b),v in sorted(kerning.items())]},ensure_ascii=False).encode("utf-8")
     if len(data)>MAX_PROJECT_BYTES:
         raise ValueError("Project exceeds size limit")
     path=Path(path)
@@ -88,17 +90,34 @@ def save_project(path,family,glyphs):
     finally:
         Path(name).unlink(missing_ok=True)
 
-def load_project(path):
+def load_project(path,include_metrics=False):
     with Path(path).open("rb") as stream:
         data=stream.read(MAX_PROJECT_BYTES+1)
     if len(data)>MAX_PROJECT_BYTES:
         raise ValueError("Project exceeds size limit")
     obj=json.loads(data)
-    if not isinstance(obj,dict) or obj.get("version")!=1 or not isinstance(obj.get("glyphs"),dict):
+    if not isinstance(obj,dict) or obj.get("version") not in (1,2) or not isinstance(obj.get("glyphs"),dict):
         raise ValueError("Unsupported font project")
     glyphs={}
     for k,v in obj["glyphs"].items():
         if not re.fullmatch(r"[0-9]{1,7}",k) or str(int(k))!=k:
             raise ValueError("Invalid codepoint key")
         glyphs[int(k)]=v
-    return obj.get("family"),validate(obj.get("family"),glyphs,True)
+    family=obj.get("family")
+    glyphs=validate(family,glyphs,True)
+    from .font_metrics import validate_metrics
+    advances={};kerning={}
+    if obj["version"]==2:
+        raw=obj.get("advances",{});pairs=obj.get("kerning",[])
+        if not isinstance(raw,dict) or not isinstance(pairs,list) or len(pairs)>10000:
+            raise ValueError("Invalid metrics")
+        for k,v in raw.items():
+            if not re.fullmatch(r"[0-9]{1,7}",k) or str(int(k))!=k:raise ValueError("Invalid advance key")
+            advances[int(k)]=v
+        for p in pairs:
+            if not isinstance(p,list) or len(p)!=3 or any(type(v) is not int for v in p):raise ValueError("Invalid kerning pair")
+            key=tuple(p[:2])
+            if key in kerning:raise ValueError("Duplicate kerning pair")
+            kerning[key]=p[2]
+    advances,kerning=validate_metrics(glyphs,advances,kerning)
+    return (family,glyphs,advances,kerning) if include_metrics else (family,glyphs)

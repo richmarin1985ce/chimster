@@ -13,11 +13,13 @@ def inspect(path):
         return {"family":f["name"].getDebugName(1),"glyphs":len(f.getBestCmap() or {}),
                 "embedding_flags":f["OS/2"].fsType,"license":f["name"].getDebugName(13)}
 
-def create(family,glyphs,path):
+def create(family,glyphs,path,advances=None,kerning=None):
     """Create TrueType outlines from polygon or quadratic control points in em units."""
     from fontTools.fontBuilder import FontBuilder
     from fontTools.pens.ttGlyphPen import TTGlyphPen
+    from .font_metrics import validate_metrics
     glyphs=validate(family,glyphs)
+    advances,kerning=validate_metrics(glyphs,advances,kerning)
     outlines={".notdef":TTGlyphPen(None).glyph(),"space":TTGlyphPen(None).glyph()}
     cmap={32:"space"}
     for cp,contours in glyphs.items():
@@ -27,11 +29,16 @@ def create(family,glyphs,path):
         name=f"uni{cp:04X}";outlines[name]=pen.glyph();cmap[cp]=name
     fb=FontBuilder(1000,isTTF=True)
     fb.setupGlyphOrder(list(outlines));fb.setupCharacterMap(cmap);fb.setupGlyf(outlines)
-    fb.setupHorizontalMetrics({n:(500 if n=="space" else 1000,0 if not g.numberOfContours else g.xMin) for n,g in outlines.items()})
+    by_name={cmap[cp]:w for cp,w in advances.items()}
+    fb.setupHorizontalMetrics({n:(by_name.get(n,500 if n=="space" else 1000),0 if not g.numberOfContours else g.xMin) for n,g in outlines.items()})
     fb.setupHorizontalHeader(ascent=800,descent=-200)
     fb.setupNameTable({"familyName":family,"styleName":"Regular","uniqueFontIdentifier":family+" Regular","fullName":family+" Regular","psName":family.replace(" ","")+"-Regular"})
     fb.setupOS2(sTypoAscender=800,sTypoDescender=-200,usWinAscent=1000,usWinDescent=200)
     fb.setupPost()
+    if kerning:
+        from fontTools.feaLib.builder import addOpenTypeFeaturesFromString
+        rules=" ".join(f"pos {cmap[a]} {cmap[b]} {value};" for (a,b),value in sorted(kerning.items()))
+        addOpenTypeFeaturesFromString(fb.font,"languagesystem DFLT dflt; languagesystem latn dflt; feature kern { "+rules+" } kern;")
     buf=BytesIO();fb.save(buf)
     with Path(path).open("xb") as out:out.write(buf.getvalue())
     return inspect(path)
