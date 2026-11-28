@@ -211,8 +211,8 @@ def export(spec,output,masters=(),allocator=None):
         local=cid&0xffffff
         blocks.setdefault(local%10,{}).setdefault((local//10)%10,[]).append(raw)
     nested=[]
-    for block,subs in sorted(blocks.items()):
-        chunks=[group(3,subblock,b"".join(rows)) for subblock,rows in sorted(subs.items())]
+    for block,subblocks in sorted(blocks.items()):
+        chunks=[group(3,subblock,b"".join(rows)) for subblock,rows in sorted(subblocks.items())]
         nested.append(group(2,block,b"".join(chunks)));groups+=1+len(chunks)
     body=(group(0,b"DOOR",b"".join(door_top)) if door_top else b"")+(group(0,b"STAT",b"".join(top)) if top else b"")+group(0,b"CELL",b"".join(nested))
     header=record(b"TES4",sub(b"HEDR",struct.pack("<fII",1.34,len(expected)+groups,ids.next))+sub(b"CNAM",b"Chimster\0")+b.header())
