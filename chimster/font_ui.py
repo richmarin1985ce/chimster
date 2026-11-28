@@ -5,6 +5,7 @@ from pathlib import Path
 from .font_library import FontLibrary, drop_paths
 from .font_forge import create
 from .font_project import nodes, segments, save_project, load_project
+from .font_strokes import Sample,outline
 
 def mount(parent):
     library = FontLibrary()
@@ -96,6 +97,8 @@ def mount(parent):
         status.set("Native file drop unavailable; use Browse fonts.")
     ttk.Button(bar,text="Browse fonts",command=lambda:add(filedialog.askopenfilenames(parent=parent,filetypes=[("Fonts","*.ttf *.otf")]))).pack(side="left")
     ttk.Button(bar,text="Refresh",command=refresh).pack(side="left")
+    from .font_picker import text_asset_dialog
+    ttk.Button(bar,text="Text asset",command=lambda:text_asset_dialog(parent)).pack(side="left")
     listing.bind("<<TreeviewSelect>>",render)
     sample.trace_add("write",render)
     size.trace_add("write",render)
@@ -111,12 +114,19 @@ def mount(parent):
     ttk.Entry(fields,textvariable=family,width=22).pack(side="left")
     ttk.Label(fields,text="Character").pack(side="left")
     ttk.Entry(fields,textvariable=character,width=8).pack(side="left")
-    ttk.Combobox(fields,textvariable=mode,values=("On-curve","Control point","Move point"),state="readonly",width=15).pack(side="left")
+    ttk.Combobox(fields,textvariable=mode,values=("On-curve","Control point","Move point","Freehand"),state="readonly",width=15).pack(side="left")
     ttk.Label(author,text="Click to add points; control points form curves. Move point mode drags nodes. Reverse winding for holes.").pack(anchor="w")
+    stroke_width=tk.StringVar(value="40")
+    smoothing=tk.StringVar(value="1")
+    ttk.Label(fields,text="Stroke").pack(side="left")
+    ttk.Spinbox(fields,from_=5,to=200,textvariable=stroke_width,width=5).pack(side="left")
+    ttk.Label(fields,text="Smooth").pack(side="left")
+    ttk.Spinbox(fields,from_=0,to=3,textvariable=smoothing,width=3).pack(side="left")
     canvas = tk.Canvas(author,width=400,height=300,bg="white",highlightthickness=1)
     canvas.pack(anchor="w")
     contours, active, glyphs = [], [], {}
     dragging = []
+    stroke=[]
     note = tk.StringVar(value="0 glyphs saved")
     def screen(p):
         return (20+p[0]/2.5,250-p[1]/2.5)
@@ -136,6 +146,8 @@ def mount(parent):
                 else:
                     path=[screen(tuple((1-t)**2*a[i]+2*t*(1-t)*c[i]+t*t*b[i] for i in (0,1))) for t in (n/24 for n in range(25))]
                 canvas.create_line(*[v for p in path for v in p],fill="black",width=2)
+        if len(stroke)>1:
+            canvas.create_line(*[v for p in stroke for v in screen((p.x,p.y))],fill="#3366aa",width=2)
         if len(active)>1:
             canvas.create_line(*[v for p in active for v in screen(p)],fill="#3366aa",dash=(3,3),width=2)
         for points in contours+[active]:
@@ -147,6 +159,14 @@ def mount(parent):
                     canvas.create_rectangle(x-3,y-3,x+3,y+3,fill="#b56b21",outline="")
     def click(event):
         dragging.clear()
+        if mode.get()=="Freehand":
+            if active:
+                messagebox.showinfo("Stroke","Close or clear the active contour first.",parent=parent)
+                return
+            stroke.clear()
+            if 20<=event.x<=380 and 10<=event.y<=290:
+                x,y,_=em(event.x,event.y,True);stroke.append(Sample(x,y))
+            return
         if mode.get()=="Move point":
             candidates=[]
             for points in contours+[active]:
@@ -162,10 +182,23 @@ def mount(parent):
             active.append(em(event.x,event.y,not active or mode.get()!="Control point"))
             redraw()
     def move(event):
+        if stroke:
+            x,y,_=em(max(20,min(380,event.x)),max(10,min(290,event.y)),True)
+            if len(stroke)<1000 and (x,y)!=(stroke[-1].x,stroke[-1].y):
+                stroke.append(Sample(x,y));redraw()
+            return
         if dragging:
             points,i=dragging
             points[i]=em(max(20,min(380,event.x)),max(10,min(290,event.y)),points[i][2])
             redraw()
+    def release(event):
+        dragging.clear()
+        if stroke:
+            try:
+                if len(contours)>=128:raise ValueError("Too many contours")
+                contours.append(outline(stroke,int(stroke_width.get()),int(smoothing.get())))
+            except ValueError as exc:messagebox.showerror("Freehand",str(exc),parent=parent)
+            finally:stroke.clear();redraw()
     def close():
         try:
             if len(contours)>=128:raise ValueError("Too many contours")
@@ -181,6 +214,7 @@ def mount(parent):
         redraw()
     def clear():
         dragging.clear()
+        stroke.clear()
         active.clear()
         contours.clear()
         redraw()
@@ -251,7 +285,7 @@ def mount(parent):
                 messagebox.showerror("Font",str(exc),parent=parent)
     canvas.bind("<Button-1>",click)
     canvas.bind("<B1-Motion>",move)
-    canvas.bind("<ButtonRelease-1>",lambda e:dragging.clear())
+    canvas.bind("<ButtonRelease-1>",release)
     actions = ttk.Frame(author)
     actions.pack(fill="x")
     for label,command in (("Close contour",close),("Undo point",undo),("Clear drawing",clear),("Save glyph",save_glyph),("Edit glyph",edit_glyph),("Delete glyph",delete_glyph)):

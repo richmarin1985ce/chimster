@@ -79,6 +79,13 @@ def mount(parent):
             heading=ttk.Label(win);heading.pack()
             page=tk.Text(win,wrap="word",width=65,height=22,padx=20,pady=20)
             page.pack(fill="both",expand=True);page._book_fonts=[]
+            from .font_picker import FontPicker
+            from .font_render import render_text
+            from PIL import ImageTk
+            picker=FontPicker(win)
+            picker.frame.pack(fill="x")
+            raster=ttk.Label(win)
+            ttk.Label(win,text="Imported font preview uses plain text only; native font markup is unchanged.").pack(anchor="w")
             def show(delta=0):
                 nonlocal index
                 index=max(0,min(len(b.pages)-1,index+delta))
@@ -90,6 +97,22 @@ def mount(parent):
                 from .book_markup import runs
                 import tkinter.font as tkfont
                 fonts={}
+                if picker.path() is not None:
+                    try:
+                        image=render_text(picker.path(),"".join(value for value,_ in runs(b.pages[index])),24,600,420)
+                        raster.image=ImageTk.PhotoImage(image,master=win)
+                        raster.configure(image=raster.image,text="")
+                        page.pack_forget()
+                        raster.pack(fill="both",expand=True,before=picker.frame)
+                        return
+                    except (ValueError,OSError,ImportError) as exc:
+                        raster.configure(image="",text=str(exc))
+                        raster.image=None
+                        page.pack_forget()
+                        raster.pack(fill="both",expand=True,before=picker.frame)
+                        return
+                raster.pack_forget()
+                if not page.winfo_manager():page.pack(fill="both",expand=True,before=picker.frame)
                 for value,styles in runs(b.pages[index]):
                     key=tuple(styles)
                     if key not in fonts:
@@ -105,6 +128,7 @@ def mount(parent):
             bar=ttk.Frame(win);bar.pack()
             ttk.Button(bar,text="Previous",command=lambda:show(-1)).pack(side="left")
             ttk.Button(bar,text="Next",command=lambda:show(1)).pack(side="left")
+            picker.variable.trace_add("write",lambda *_:show())
             show()
         except (ValueError,TypeError) as e:messagebox.showerror("Book",str(e))
     def validate():

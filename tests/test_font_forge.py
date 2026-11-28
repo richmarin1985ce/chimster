@@ -89,3 +89,25 @@ class FontForgeTests(unittest.TestCase):
             target,info=FontLibrary(root/"library").import_font(path)
             self.assertEqual(info["format"],"OTF")
             self.assertEqual(target.read_bytes(),path.read_bytes())
+
+    def test_freehand_pressure_and_export(self):
+        from chimster.font_strokes import Sample,outline
+        from chimster.font_render import render_text,export_text_png
+        from PIL import Image
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp)
+            contour=outline([Sample(100,100,0),Sample(300,100,1),Sample(500,100,None)],100,0)
+            self.assertEqual(contour[0][1],110)
+            self.assertEqual(contour[1][1],150)
+            font=root/"stroke.ttf"
+            create("Stroke",{65:[contour]},font)
+            image=render_text(font,"A A",32,200,100,True)
+            self.assertEqual(image.size,(200,100))
+            self.assertEqual(image.getpixel((0,0))[3],0)
+            self.assertIsNotNone(image.getbbox())
+            target=root/"asset.png"
+            with self.assertRaises(ValueError):export_text_png(font,target,"A",32,200,100)
+            export_text_png(font,target,"A",32,200,100,True)
+            with Image.open(target) as result:self.assertEqual(result.mode,"RGBA")
+            with self.assertRaises(FileExistsError):export_text_png(font,target,"A",32,200,100,True)
+            with self.assertRaises(ValueError):outline([Sample(1,1,2),Sample(10,10)])

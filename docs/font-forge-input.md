@@ -11,3 +11,6 @@ The Assets > Font Forge tab imports multiple local TTF/OTF files via native TkDN
 
 ### Editable curves and projects
 Font Forge now supports explicit on-curve and quadratic control points, TrueType implied midpoints, moving existing points, editing and deleting saved glyphs, and local versioned JSON projects. Save the active glyph before exporting or saving the project. Project files contain authored outlines only, not imported fonts. Existing polygon outlines remain supported. Mouse editing does not certify pen pressure or native touch support. Game registration is still separate.
+
+### Freehand and shared font surfaces
+Freehand mode captures ordinary mouse-compatible input, smooths centerline samples, and converts them to editable closed outlines. Width and smoothing are adjustable; the platform-neutral sample model accepts optional pressure but no native tablet backend is certified. Tight folds may need manual correction. Books & Notes offers a local plain-text preview with imported fonts; it does not alter native font tags or claim game layout fidelity. Font Forge and Asset Forge expose a portable transparent PNG text asset dialog for signs, labels and UI artwork; distribution rights must be confirmed. Native HUD font registration remains pending.
