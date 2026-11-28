@@ -8,7 +8,7 @@ from .mcp_operations import (CreationSession, diagnose, read_text, MAX_TEXT,
 from .mcp_jobs import Jobs
 from .mcp_events import Subscriptions
 from .mcp_native import NativeProposals
-from .mcp_extended import native_profile, native_browse, MeshProposals
+from .mcp_extended import native_profile, native_browse, native_detail, MeshProposals, ReferenceProposals, REFERENCE_PROFILES
 from .mcp_production import Production
 
 VERSIONS = ("2024-11-05", "2025-03-26", "2025-06-18", "2025-11-25")
@@ -23,9 +23,10 @@ class Bridge:
     def __init__(self, project=None, allow_create=False, allow_edit=False, allow_native=False, allow_ui=False):
         self.project = project
         self.creation = CreationSession(project, allow_create, allow_edit) if project is not None else None
-        if allow_native and (not allow_edit or project is None or project.read()["game"]!="newvegas"):
-            raise ValueError("native edits require explicit FNV project and edit permission")
+        if allow_native and (not allow_edit or project is None or native_profile(project.read()["game"]) not in REFERENCE_PROFILES):
+            raise ValueError("native edits require explicit supported project and edit permission")
         self.native=NativeProposals(project,self.creation,allow_native) if project is not None else None
+        self.references=ReferenceProposals(project,self.creation,allow_native) if project is not None else None
         self.mesh=MeshProposals(project,self.creation,allow_create) if project is not None else None
         self.production=Production(project,self.creation,allow_create) if project is not None else None
         self.jobs = Jobs(project) if project is not None else None
@@ -63,6 +64,16 @@ class Bridge:
             else:
                 self.register("native_record_browse","Browse supported native record structures and optional schema diagnostics; not retail certification.",
                               schema({"id":key,"offset":{"type":"integer","minimum":0},"limit":{"type":"integer","minimum":1,"maximum":100},"signature":{"type":"string","maxLength":4},"validate":{"type":"boolean"}},["id"]),lambda **args:native_browse(project,**args))
+                identity={"type":"string","maxLength":2048}
+                self.register("native_record_detail","Inspect bounded field and typed reference details for a persistent identity.",
+                              schema({"id":key,"identity":identity,"offset":{"type":"integer","minimum":0},"limit":{"type":"integer","minimum":1,"maximum":100}},["id","identity"]),lambda **args:native_detail(project,**args))
+                if native_profile(project.read()["game"]) in REFERENCE_PROFILES:
+                    self.register("native_reference_preview","Stage a known full-slot ESP reference retargeting to a same-plugin owned record.",
+                                  schema({"id":key,"identity":identity,"index":{"type":"integer","minimum":0},"offset":{"type":"integer","minimum":0},
+                                          "expected_identity":identity,"target_identity":identity,"revision":{"type":"integer","minimum":0},"sha256":{"type":"string","maxLength":64}},
+                                         ["id","identity","index","offset","expected_identity","target_identity","revision","sha256"]),self.references.preview)
+                    if allow_native:
+                        self.register("native_reference_apply","Commit an exact staged reference edit in a new project revision.",schema({"token":{"type":"string","maxLength":80}},["token"]),self.references.apply,write=True,destructive=True)
             self.register("asset_preview_transform","Stage a transformed intermediate OBJ as a separate project artifact.",
                           schema({"id":key,"output_id":key,"scale_percent":{"type":"integer","minimum":1,"maximum":1000},"yaw_degrees":{"type":"integer","minimum":-360,"maximum":360},"ground":{"type":"boolean"},"revision":{"type":"integer","minimum":0},"sha256":{"type":"string","maxLength":64}},["id","output_id","scale_percent","yaw_degrees","ground","revision","sha256"]),self.mesh.preview)
             if allow_create:
