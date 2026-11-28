@@ -78,6 +78,10 @@ def read_plugin(path, profile="new-vegas"):
                     row["model"] = text_field(fields[b"MODL"])
                 if sig in KINDS and (profile in ("oblivion","fallout3","new-vegas") or not localized):
                     row["name"] = text_field(fields.get(b"FULL"))
+                if sig == "CLMT" and profile=="new-vegas":
+                    from .world_climate import decode as decode_climate
+                    spec=decode_climate(parts,slots)
+                    if spec is not None:row["climate_spec"]=spec
                 if sig == "WRLD" and profile=="new-vegas":
                     from .world_environment import decode
                     row["environment"]=decode(parts,slots)
