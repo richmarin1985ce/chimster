@@ -335,9 +335,9 @@ def mount(parent, game, open_preview=None):
                 if not selected or selected[0] not in state["objects"]:return
                 ref=state["objects"][selected[0]]
                 from math import degrees,radians
-                if ref["key"].origin!=draft.name or ref["signature"]!="REFR":
-                    raise ValueError("Select a newly staged static reference")
-                current=(*ref["position"],degrees(ref["rotation"][2]),ref["scale"])
+                if ref["signature"]!="REFR" or "position" not in ref:
+                    raise ValueError("Select a temporary static reference")
+                current=(*ref["position"],degrees(ref["rotation"][2]),ref.get("scale",1))
                 values=simpledialog.askstring("Transform reference","X,Y,Z, yaw degrees, scale",initialvalue=",".join(map(str,current)),parent=parent)
                 if values is None:return
                 x,y,z,yaw,scale=map(float,values.split(","))
