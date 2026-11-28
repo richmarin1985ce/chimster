@@ -27,6 +27,18 @@ def edit(profile,data,path,tag,occurrence,changes,revision):
             updated=tes3_items.edit_services(raw,**changes)
         elif sig==b"CONT" and tag==b"FLAG":
             updated=tes3_items.edit_container_flags(raw,**changes)
+        elif (sig.decode("ascii"),tag.decode("ascii")) in tes3_items.SCHEMAS:
+            updated=tes3_items.edit_properties(sig.decode("ascii"),tag.decode("ascii"),raw,**changes)
+        elif (sig,tag)==(b"INGR",b"IRDT"):
+            updated=tes3_items.edit_ingredient(raw,**changes)
+        elif sig in (b"NPC_",b"CREA",b"CONT") and tag==b"NPCO":
+            updated=tes3_items.edit_inventory_count(raw,**changes)
+        elif sig in (b"LEVI",b"LEVC") and tag==b"INTV":
+            updated=tes3_items.edit_leveled_level(raw,**changes)
+        elif sig in (b"LEVI",b"LEVC") and tag==b"NNAM":
+            updated=tes3_items.edit_chance_none(raw,**changes)
+        elif (sig,tag)==(b"NPC_",b"NPDT"):
+            updated=tes3_items.edit_npc_gold(raw,**changes)
         else:raise ValueError("No registered typed editor for field")
     elif profile=="oblivion" and (sig,tag) in native_items.OBLIVION_FIELDS:
         updated=native_items.edit_oblivion_properties(sig,tag,raw,**changes)
