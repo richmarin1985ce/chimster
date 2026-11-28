@@ -287,3 +287,27 @@ class StarfieldPreviewTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             dest=Path(folder)/"height.json";save_heightfield(dest,edited)
             self.assertEqual(Heightfield.load(dest).rows,edited.rows)
+
+    def test_btd_native_texture_layers(self):
+        from chimster.starfield_btd import BTD,layer_image,apply_layer_preview
+        from chimster.starfield_planets import terrain
+        from types import SimpleNamespace
+        import zlib
+        # Two LTEX IDs; slot 4 is first overlay, last slot is base.
+        raw=bytes(32768)+struct.pack("<16384H",*([3<<12]*16384))
+        packed=zlib.compress(raw)
+        header=struct.pack("<4sI2f2I4iI",b"BTDB",6,0.,100.,128,128,0,0,0,0,2)
+        sets=bytes((0,0,0,0,2,0,0,1))*4
+        data=header+struct.pack("<2I",0x801,0x802)+bytes(8)+sets+bytes(256)+struct.pack("<II",0,len(packed))*4+packed
+        b=BTD(data)
+        self.assertAlmostEqual(b.layers(0,0)[0x801],3/7)
+        self.assertAlmostEqual(b.layers(0,0)[0x802],4/7)
+        colors={0x801:(1.,0.,0.),0x802:(0.,0.,1.)}
+        image=layer_image(b,0,0,0,0,1,1,size=16,colors=colors)
+        self.assertEqual(image.rgba[:4],bytes((109,0,146,255)))
+        k=Identity("test.esm",0x800)
+        catalog=SimpleNamespace(planets={k:{"radius_km":6000.,"biomes":[]}},biomes={})
+        scene,report=terrain(catalog,k,0,0,8,16,heightfield=b.heightfield(0,0,res=33))
+        apply_layer_preview(scene,report,b,0,0,colors=colors)
+        self.assertEqual(len(report["preview_materials"]),9)
+        self.assertEqual(scene.assets["planet-tile-0-0@lod2"].faces[0][1],"btd-layer-planet-tile-0-0")

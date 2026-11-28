@@ -553,7 +553,10 @@ def mount(parent):
                             candidate,report=stream.update()
                         else:
                             candidate,report=terrain(catalog,k,lat,lon,span,heightfield=heights)
-                            if native_btd:report["height_source"]="native BTD samples (user scale)"
+                            if native_btd:
+                                from .starfield_btd import apply_layer_preview
+                                report["height_source"]="native BTD samples (user scale)"
+                                candidate,report=apply_layer_preview(candidate,report,btd,x,y)
                     else:candidate,report=globe(catalog,k)
                     if load_cell_preview(candidate,report,on_stream=stream.update if stream else None):source.set("Starfield "+p["name"]+" | "+report.get("height_source","illustrative")+" "+report["planet_mode"]+" preview")
                 except (ValueError,OSError,KeyError) as exc:messagebox.showerror("Planet preview",str(exc),parent=win)

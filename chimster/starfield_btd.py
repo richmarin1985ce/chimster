@@ -17,7 +17,8 @@ class BTD:
         self.nx=rx//128;self.ny=ry//128;self.low=low;self.high=high
         self.min_cell=(-(rx//256),-(ry//256))
         n=self.nx*self.ny
-        self.height4=44+4*nt+40*n
+        self.texture_sets=44+4*nt+8*n
+        self.height4=self.texture_sets+32*n
         pos=self.height4+256*n;self.tables={}
         for l in (3,2,1,0):
             step=1<<l;w=(self.nx+step-1)//step;h=(self.ny+step-1)//step
@@ -73,3 +74,68 @@ class BTD:
                 row.append((self.low+(self.high-self.low)*z/65535)*meters_per_height_unit)
             rows.append(row)
         return Heightfield(rows)
+
+    def layers(self,x,y,l=0):
+        """Return normalized native layer weights keyed by raw LTEX IDs.
+
+        Five three-bit blend values overlay the default texture in
+        quadrant-specific order. Unmapped/absent slots are ignored.
+        """
+        packed=self.sample(x,y,l,texture=True)
+        q=(y//64)*(self.nx*2)+x//64
+        entries=self.data[self.texture_sets+q*8:self.texture_sets+(q+1)*8]
+        slots=[self.textures[len(self.textures)-i] if 0<i<=len(self.textures) else None for i in entries]
+        base=next((i for i in reversed(slots) if i is not None),None)
+        weights={base:1.}
+        # Stored alphas are in the reverse of compositing order.
+        for n,key in enumerate(reversed(slots[:5])):
+            a=((packed>>(3*(4-n)))&7)/7
+            if key is None or not a:continue
+            weights={k:w*(1-a) for k,w in weights.items() if w*(1-a)>0}
+            weights[key]=weights.get(key,0.)+a
+        return weights
+
+def diagnostic_color(key):
+    from hashlib import sha256
+    if key is None:return (.35,.35,.35)
+    digest=sha256(struct.pack("<I",key)).digest()
+    return tuple(.18+.68*v/255 for v in digest[:3])
+
+def layer_image(btd,cell_x,cell_y,u0,v0,u1,v1,cells=1,size=64,colors=None):
+    """Bake native blend weights into a diagnostic preview, not game textures."""
+    from .gpu_viewport import ImageMap
+    if size not in (16,32,64,128) or not 1<=cells<=4 or not 0<=u0<u1<=1 or not 0<=v0<v1<=1:raise ValueError("Invalid terrain texture preview extent")
+    x0=(cell_x-btd.min_cell[0])*128;y0=(cell_y-btd.min_cell[1])*128
+    if x0<0 or y0<0 or x0+128*cells>btd.nx*128 or y0+128*cells>btd.ny*128:raise ValueError("Texture patch outside BTD")
+    colors=colors or {};rgba=bytearray()
+    for y in range(size):
+        for x in range(size):
+            # Rows of an ImageMap are top-to-bottom; terrain UVs increase north.
+            u=u0+(u1-u0)*x/(size-1);v=v1-(v1-v0)*y/(size-1)
+            a=min(btd.nx*128-1,x0+round(u*cells*128));b=min(btd.ny*128-1,y0+round(v*cells*128))
+            weights=btd.layers(a,b)
+            rgb=[0.,0.,0.]
+            for k,w in weights.items():
+                col=colors.get(k,diagnostic_color(k))
+                if len(col)!=3 or any(not isfinite(z) or not 0<=z<=1 for z in col):raise ValueError("Invalid LTEX preview color")
+                for i in range(3):rgb[i]+=w*col[i]
+            rgba.extend(max(0,min(255,round(c*255))) for c in rgb);rgba.append(255)
+    return ImageMap(size,size,bytes(rgba)).validate()
+
+def apply_layer_preview(scene,report,btd,cell_x,cell_y,cells=1,colors=None):
+    """Attach per-tile native-weight diagnostic diffuse maps to every LOD."""
+    from .gpu_viewport import Material
+    mats={}
+    for ty in range(3):
+        for tx in range(3):
+            name=f"planet-tile-{tx}-{ty}"
+            mat="btd-layer-"+name
+            image=layer_image(btd,cell_x,cell_y,tx/3,ty/3,(tx+1)/3,(ty+1)/3,cells,colors=colors)
+            mats[mat]=Material(diffuse=image).validate()
+            for suffix in ("","@lod1","@lod2"):
+                mesh=scene.assets[name+suffix]
+                mesh.faces=[(tri,mat) for tri,_ in mesh.faces]
+    report["preview_materials"]=mats
+    report["texture_source"]="native BTD blend weights, diagnostic LTEX colors"
+    report["issues"]=["Native height samples and texture weights; vertical scale and geographic alignment supplied by user; diagnostic colors, not native material textures"]
+    return scene,report
