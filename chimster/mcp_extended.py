@@ -73,7 +73,7 @@ class MeshProposals:
         before=s.report()
         s.transform(scale=scale_percent/100,yaw=yaw_degrees,ground=ground)
         after=s.report()
-        filename=output_id+".obj"
+        filename="generated-"+output_id+".obj"
         with tempfile.TemporaryDirectory(prefix="chimster-mesh-") as d:
             path=Path(d)/filename
             s.export_obj(path)
@@ -134,7 +134,10 @@ class ReferenceProposals:
         m,a,s,masters=native_session(self.project,id)
         if s.profile not in REFERENCE_PROFILES or m["revision"]!=revision or a["sha256"]!=sha256:
             raise ValueError("unsupported profile or stale revision")
-        if Path(a["filename"]).suffix.lower()!=".esp" or struct.unpack_from("<I",s.nodes[0].header,8)[0]&0x200:
+        name=a["filename"]
+        if not name.isascii() or any(c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.- " for c in name) or name.split(".")[0].strip().upper() in {"CON","PRN","AUX","NUL",*[f"COM{i}" for i in range(1,10)],*[f"LPT{i}" for i in range(1,10)]}:
+            raise ValueError("unsafe plugin filename")
+        if Path(name).suffix.lower()!=".esp" or struct.unpack_from("<I",s.nodes[0].header,8)[0]&0x200:
             raise ValueError("full-slot ESP required")
         own=plugin_name(a["filename"])
         path=s.resolve_identity(identity)
