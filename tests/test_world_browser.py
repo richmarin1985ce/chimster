@@ -176,5 +176,45 @@ class WorldBrowserTests(unittest.TestCase):
 
 
 
+    def test_neighborhood_crosses_negative_cell_boundary(self):
+        from chimster.world_preview import Neighborhood
+        header=record(b"TES4",0,sub(b"MAST",b"Base.esm\0"))
+        neighbor=record(b"CELL",0x01000800,sub(b"XCLC",struct.pack("<ii",-1,3)))
+        self.patch.write_bytes(header+group(1,0x800,neighbor))
+        browser=Browser.open([self.base,self.patch])
+        loader=Neighborhood(browser,self.cell,1)
+        self.assertIsNone(loader.move(-8192,13000))
+        scene,report=loader.move(-4096,13000)
+        self.assertEqual(loader.grid,(-1,3))
+        self.assertEqual(report["origin_game_units"],(-4096,12288,0))
+        self.assertIsNone(loader.move(100000,100000))
+        self.assertIsNone(loader.move(-1,13000))
+
+    def test_oblivion_structural_browser(self):
+        def rec(tag,fid,*parts):
+            data=b"".join(parts)
+            return struct.pack("<4s4I",tag,len(data),0,fid,0)+data
+        def grp(kind,owner,*records):
+            data=b"".join(records)
+            return struct.pack("<4sIIiI",b"GRUP",20+len(data),owner,kind,0)+data
+        self.base.write_bytes(rec(b"TES4",0)+grp(0,int.from_bytes(b"WRLD","little"),
+            rec(b"WRLD",0x800,edid("World")),grp(1,0x800,
+            rec(b"CELL",0x801,sub(b"XCLC",struct.pack("<ii",-1,2))))))
+        browser=Browser.open([self.base],"oblivion")
+        self.assertEqual(browser.profile,"oblivion")
+        self.assertEqual(browser.cell_rows(self.world)[0]["grid"],(-1,2))
+
+    def test_existing_reference_draft_transform(self):
+        from chimster.world_draft import Draft
+        browser=Browser.open([self.base])
+        draft=Draft(browser)
+        draft.transform(self.ref,(-7100,13000,10),yaw=.4,scale=1.2)
+        self.assertEqual(draft.index().active[self.ref]["position"],(-7100,13000,10))
+        self.assertNotEqual(browser.active[self.ref]["position"],(-7100,13000,10))
+        draft.undo()
+        self.assertEqual(draft.index().active[self.ref]["position"],browser.active[self.ref]["position"])
+
+
+
 if __name__ == "__main__":
     unittest.main()
