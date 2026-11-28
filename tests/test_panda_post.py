@@ -284,3 +284,22 @@ class PostTests(unittest.TestCase):
             self.assertEqual(len(pixels),96*72*4)
             self.assertEqual(preview.post.volume_post.spot_depth.buffer.get_x_size(),256)
         finally:preview.close()
+
+    def test_probe_blend_and_persistence(self):
+        from chimster.panda_probes import Probe,influence
+        a=Probe((0,0,0),8,"a");b=Probe((4,0,0),8,"b")
+        self.assertEqual(influence((a,b),(2,0,0)),((0,4),(1,4)))
+        self.assertEqual(influence((a,b),(20,0,0)),())
+        import os,tempfile
+        if not os.environ.get("CHIMSTER_TEST_PANDA_GL"):return
+        from chimster.panda_probes import environment_from_data,save,load,blended,cubemap_data
+        from pathlib import Path
+        x=environment_from_data(16,bytes((20,40,60,255))*1536)
+        y=environment_from_data(16,bytes((100,120,140,255))*1536)
+        probes=(Probe(a.center,a.radius,x),Probe(b.center,b.radius,y))
+        self.assertEqual(cubemap_data(blended(probes,(2,0,0)))[1][:4],bytes((60,80,100,255)))
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/"sample.probes.json"
+            save(path,probes);restored=load(path)
+            self.assertEqual(restored[0].center,a.center)
+            self.assertEqual(cubemap_data(restored[1].environment),cubemap_data(y))

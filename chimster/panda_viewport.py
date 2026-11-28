@@ -152,9 +152,18 @@ class Preview:
         self.probes.append(probe);self.probe_key=None
         return probe
     def clear_probes(self):
+        from .panda_probes import blend_pair
+        blend_pair.cache_clear()
         self.probes.clear();self.probe_key=None
         from .panda_probes import apply
         self.probe_count=apply(self.model,())
+    def save_probes(self,path):
+        from .panda_probes import save
+        save(path,self.probes)
+    def load_probes(self,path):
+        from .panda_probes import load,blend_pair
+        probes=load(path)
+        blend_pair.cache_clear();self.probes=probes;self.probe_key=None
     def update_probes(self):
         from .panda_probes import apply
         active=self.mode=="pbr" and self.post is not None and not self.underwater

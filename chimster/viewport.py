@@ -217,7 +217,22 @@ def mount(parent):
     def clear_probes():
         if panda is not None:panda.clear_probes();draw()
     ttk.Button(side,text="Bake reflection probe at view center",command=bake_probe).pack(fill="x")
+    def save_probes():
+        if panda is None:return
+        path=filedialog.asksaveasfilename(parent=parent,defaultextension=".probes.json",filetypes=[("Probe snapshots","*.probes.json")])
+        if path:
+            try:panda.save_probes(path)
+            except Exception as e:messagebox.showerror("Save reflection probes",str(e))
+    def load_probes():
+        if panda is None or backend.get()!="Panda3D PBR":
+            messagebox.showinfo("Reflection probes","Select Panda3D PBR first.");return
+        path=filedialog.askopenfilename(parent=parent,filetypes=[("Probe snapshots","*.probes.json"),("JSON","*.json")])
+        if path:
+            try:panda.load_probes(path);draw()
+            except Exception as e:messagebox.showerror("Load reflection probes",str(e))
     ttk.Button(side,text="Clear reflection probes",command=clear_probes).pack(fill="x")
+    ttk.Button(side,text="Save reflection probes",command=save_probes).pack(fill="x")
+    ttk.Button(side,text="Load reflection probes",command=load_probes).pack(fill="x")
     def clear_glb():
         if panda is not None:panda.set_glb_preview();draw()
     ttk.Button(side,text="Preview embedded GLB",command=preview_glb).pack(fill="x")
