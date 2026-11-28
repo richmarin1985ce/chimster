@@ -2,7 +2,7 @@
 from pathlib import Path
 import struct,hashlib,zlib
 from .native_parser import Node,subrecords
-from .historical_schema import BASE,PARENTS,group_label
+from .historical_schema import BASE,PARENTS
 from .world_remap_schema import PATTERNS as WORLD_PATTERNS,rewrite_world
 from .fnv_records import HEADER,scan,subs,text
 from .fnv_patch import sub
@@ -63,6 +63,7 @@ def reorder(source,output,masters,*,allow_set_change=False):
         return dest_id
     def remap_typed(v,kinds):
         target=source_slots.decode(v)
+        if target is None:raise ValueError("null world reference or group owner")
         key=(target.origin,target.local)
         rec=b.records.get(key)
         actual=local_types.get(key) or (rec["signature"] if rec and not rec["flags"]&0x20 else None)
@@ -170,6 +171,9 @@ def reorder(source,output,masters,*,allow_set_change=False):
         after=scan(out)
         def identities(r):return sorted((x["origin"],x["local_id"],x["signature"]) for x in r["records"])
         if identities(report)!=identities(after) or [plugin_name(x) for x in after["masters"]]!=b.names:raise ValueError("remap identity mismatch")
+        def owners(r):
+            return [(g["type"],g.get("owner") if g.get("role") in PARENTS else g["label"],g.get("role")) for g in r["groups"]]
+        if owners(report)!=owners(after):raise ValueError("group owner or coordinate mismatch")
         b.check()
     except Exception:
         if created:out.unlink()
