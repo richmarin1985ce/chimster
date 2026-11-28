@@ -184,7 +184,13 @@ def mount(frame, game):
         from .compiler_diagnostics import navigation
         if saved["path"] is None or saved["text"]!=source():
             status.set("Open the unchanged source before navigating diagnostics");return
-        matches=[(item,navigation(item,saved["path"],source())) for item in diagnostic_items]
+        from .papyrus_build import digest
+        try:
+            current_hash=digest(saved["path"])
+            if saved["path"].read_text(encoding="utf-8-sig")!=saved["text"]:raise ValueError("Source changed on disk")
+        except (OSError,ValueError) as exc:status.set(str(exc));return
+        matches=[(item,navigation(item,saved["path"],source())) for item in diagnostic_items
+                 if not item.get("source_sha256") or item["source_sha256"]==current_hash]
         matches=[(item,index) for item,index in matches if index]
         if not matches:status.set("No diagnostics for the current saved file");return
         popup=tk.Toplevel(frame);popup.title("Compiler diagnostics")
@@ -217,6 +223,28 @@ def mount(frame, game):
             except queue.Empty:editor.after(100,poll);return
             busy[0]=False;show_build(r);status.set(r.get("status","Lua check complete"))
         threading.Thread(target=worker,daemon=True).start();editor.after(100,poll)
+    def recover_script():
+        if busy[0]:return
+        from .pex_decompile import decompile
+        from .papyrus_build import family
+        try:family(game.get())
+        except ValueError as exc:status.set(str(exc));return
+        src=filedialog.askopenfilename(title="Choose PEX you have rights to inspect",filetypes=[("Compiled scripts","*.pex")])
+        if not src:return
+        exe=filedialog.askopenfilename(title="Choose trusted installed Champollion")
+        if not exe:return
+        out=filedialog.asksaveasfilename(title="Name a NEW recovery directory")
+        if not out:return
+        if not messagebox.askyesno("Run trusted decompiler","Recover source using this unsandboxed local tool?"):return
+        target=game.get();q=queue.Queue();busy[0]=True;status.set("Recovering source...")
+        def worker():
+            try:q.put(decompile(target,exe,src,out,execute=True))
+            except Exception as exc:q.put({"status":"error","message":str(exc)})
+        def poll():
+            try:r=q.get_nowait()
+            except queue.Empty:editor.after(100,poll);return
+            busy[0]=False;show_build(r);status.set(r.get("status","Recovery complete"))
+        threading.Thread(target=worker,daemon=True).start();editor.after(100,poll)
     def compile_script(project=False):
         if busy[0]:return
         if language.get()!="papyrus" or (not project and (saved["path"] is None or saved["text"]!=source())):
@@ -247,19 +275,23 @@ def mount(frame, game):
         out=filedialog.asksaveasfilename(title="Name a NEW build directory")
         if not out:return
         if not messagebox.askyesno("Run trusted compiler","Execute this local binary? It is not sandboxed."):return
+        reuse=None
+        if project and messagebox.askyesno("Reuse build","Try an unchanged prior local build?"):
+            reuse=filedialog.askdirectory(title="Choose completed build directory") or None
         args=(game.get(),backend,exe,target,flags,imports,out)
         try:
             if not project and saved["path"].read_text(encoding="utf-8-sig")!=saved["text"]:raise ValueError("Source changed on disk; reopen it before compilation")
         except (OSError,ValueError) as exc:messagebox.showerror("Compile",str(exc));return
         q=queue.Queue();busy[0]=True;status.set("Compiling...")
         def worker():
-            try:q.put((batch if project else build)(*args,execute=True))
+            try:q.put(batch(*args,execute=True,reuse=reuse) if project else build(*args,execute=True))
             except Exception as exc:q.put({"status":"error","message":str(exc)})
         def poll():
             try:r=q.get_nowait()
             except queue.Empty:editor.after(100,poll);return
             busy[0]=False;show_build(r);status.set(r.get("status","Compiler finished"))
         threading.Thread(target=worker,daemon=True).start();editor.after(100,poll)
+    ttk.Button(api_bar,text="Recover PEX",command=recover_script).pack(side="left")
     ttk.Button(api_bar,text="Diagnostics",command=jump_diagnostic).pack(side="left")
     ttk.Button(api_bar,text="Lua check",command=check_lua).pack(side="left")
     ttk.Button(api_bar,text="Build project",command=lambda:compile_script(True)).pack(side="left")
