@@ -1,12 +1,14 @@
 """Local read-only archive interface."""
-from . import classic_bsa,tes3_bsa,ba2_general
+from . import classic_bsa,tes3_bsa,ba2_general,ba2_texture
 from .compatibility_asset_lookup import normalize
 from pathlib import Path
 
 def reader(stream):
     stream.seek(0);magic=stream.read(4);stream.seek(0)
     if magic==b"BSA\0":return classic_bsa
-    if magic==b"BTDX":return ba2_general
+    if magic==b"BTDX":
+        stream.seek(8);kind=stream.read(4);stream.seek(0)
+        return ba2_texture if kind==b"DX10" else ba2_general
     if magic==b"\x00\x01\x00\x00":return tes3_bsa
     raise ValueError("Unsupported archive")
 
