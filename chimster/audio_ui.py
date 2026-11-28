@@ -49,6 +49,8 @@ def mount(parent):
     ttk.Button(parent,text="Open waveform and lip-sync editor",command=lambda:launch_editor(parent)).pack(anchor="w")
     from .voice_record_ui import launch as launch_recording
     ttk.Button(parent,text="Record and manage takes",command=lambda:launch_recording(parent)).pack(anchor="w")
+    from .lip_ui import launch as launch_lip
+    ttk.Button(parent,text="Generate and verify native LIP",command=lambda:launch_lip(parent)).pack(anchor="w")
     ttk.Separator(parent).pack(fill="x", pady=8)
     mount_voice_manager(parent)
 
