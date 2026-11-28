@@ -6,7 +6,8 @@ uniform sampler2D shadow_near,shadow_far;
 uniform int shadow_count;
 uniform vec3 shadow_right,shadow_up,shadow_axis,shadow_center0,shadow_center1;
 uniform vec2 shadow_extent;
-uniform float shadow_depth,shadow_bias,shadow_texel;
+uniform float shadow_depth,shadow_bias,shadow_texel,shadow_split,shadow_blend;
+uniform vec3 shadow_eye,shadow_forward;
 vec3 shadow_coord(vec3 p,vec3 center,float extent){
  vec3 d=p-center;
  return vec3(dot(d,shadow_right)/extent,dot(d,shadow_up)/extent,-dot(d,shadow_axis)/shadow_depth)*.5+.5;
@@ -30,8 +31,9 @@ float sun_visibility(vec3 p,float slope,bool soft){
  vec3 b=shadow_coord(p,shadow_center1,shadow_extent.y);
  float farv=shadow_tap(shadow_far,b,bias,soft);
  if(!shadow_inside(a))return farv;
- float edge=max(abs(a.x-.5),abs(a.y-.5))*2.0;
- return mix(shadow_tap(shadow_near,a,bias,soft),farv,smoothstep(.8,.98,edge));
+ float z=dot(p-shadow_eye,shadow_forward);
+ float blend=smoothstep(shadow_split-shadow_blend,shadow_split+shadow_blend,z);
+ return mix(shadow_tap(shadow_near,a,bias,soft),farv,blend);
 }
 """
 VERTEX="""#version 330
@@ -57,6 +59,28 @@ def frames(center,direction,extent,resolution,count):
     sizes=(extent,) if count==1 else (extent*.35,extent)
     return r,u,n,[(snap_center(center,n,e,resolution),e) for e in sizes]
 
+def frustum_frames(view,near,far,direction,extent,resolution,count):
+    """Fit stable square shadow regions to overlapping camera depth intervals."""
+    from math import sqrt,ceil
+    eye,right,up,back,tx,ty=view
+    forward=tuple(-v for v in back)
+    limit=min(far,max(near+.01,extent*2))
+    split=.55*sqrt(near*limit)+.45*(near+limit)*.5
+    overlap=max(.001,min((split-near)*.15,(limit-split)*.15))
+    bounds=((near,limit),) if count==1 else ((near,split+overlap),(split-overlap,limit))
+    n=unit(direction);ref=(0,0,1) if abs(n[2])<.99 else (0,1,0)
+    r=unit(cross(n,ref));u=cross(r,n)
+    views=[]
+    for a,b in bounds:
+        mid=(a+b)*.5
+        center=tuple(eye[i]+forward[i]*mid for i in range(3))
+        radius=max(sqrt((d-mid)**2+d*d*(tx*tx+ty*ty)) for d in (a,b))
+        size=ceil(max(1.,radius)*16)/16
+        # Extra border for texel snapping and PCF.
+        size*=1+4/resolution
+        views.append((snap_center(center,n,size,resolution),size))
+    return r,u,n,views,split,overlap
+
 class ShadowMaps:
     def __init__(self,renderer):
         self.renderer=renderer;self.ctx=renderer.ctx
@@ -71,12 +95,13 @@ class ShadowMaps:
             tex.compare_func="";tex.filter=(self.renderer.gl.NEAREST,)*2;tex.repeat_x=False;tex.repeat_y=False
             self.targets.append((tex,self.ctx.framebuffer(depth_attachment=tex)))
         self.key=(size,count)
-    def render(self,scene,center,settings,effects,materials):
+    def render(self,scene,center,settings,effects,materials,view=None):
         from .gpu_viewport import default_material,variants,lod_index,length
         from math import radians,cos,sin
         from array import array
-        r,u,n,views=frames(center,settings.light,effects.shadow_extent,effects.shadow_size,effects.shadow_cascades)
-        self.resize(effects.shadow_size,len(views));depth_range=effects.shadow_extent*2
+        if view is None:raise ValueError("Shadow pass requires camera frustum")
+        r,u,n,views,split,overlap=frustum_frames(view,settings.near,settings.far,settings.light,effects.shadow_extent,effects.shadow_size,effects.shadow_cascades)
+        self.resize(effects.shadow_size,len(views));depth_range=max(effects.shadow_extent*2,max(v[1] for v in views)*2)
         p=self.program
         for i,(anchor,extent) in enumerate(views):
             tex,fbo=self.targets[i];fbo.use();fbo.clear(depth=1.)
@@ -103,7 +128,7 @@ class ShadowMaps:
                     try:vao.render(self.renderer.gl.TRIANGLES,instances=len(rows)//10)
                     finally:vao.release()
         a,e=views[0];b,f=views[-1]
-        self.state=dict(shadow_count=len(views),shadow_right=r,shadow_up=u,shadow_axis=n,shadow_center0=a,shadow_center1=b,shadow_extent=(e,f),shadow_depth=depth_range,shadow_bias=effects.shadow_bias,shadow_texel=1/effects.shadow_size)
+        self.state=dict(shadow_count=len(views),shadow_right=r,shadow_up=u,shadow_axis=n,shadow_center0=a,shadow_center1=b,shadow_extent=(e,f),shadow_depth=depth_range,shadow_bias=effects.shadow_bias,shadow_texel=1/effects.shadow_size,shadow_split=split,shadow_blend=overlap,shadow_eye=view[0],shadow_forward=tuple(-v for v in view[3]))
     def bind(self,program,enabled):
         program["shadow_count"].value=len(self.targets) if enabled and self.state else 0
         program["shadow_near"].value=3;program["shadow_far"].value=4

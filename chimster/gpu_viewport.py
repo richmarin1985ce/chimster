@@ -248,7 +248,7 @@ class Renderer:
         self.prune(scene,materials);self.resize(w,h);a,b,depth,fbo=self.targets
         if effects.shadow_size:
             if self.shadows is None:self.shadows=gpu_shadows.ShadowMaps(self)
-            self.shadows.render(scene,camera.center,settings,effects,materials)
+            self.shadows.render(scene,camera.center,settings,effects,materials,basis(camera,w,h,settings))
         elif self.shadows is not None:self.shadows.release_targets()
         fbo.use();self.ctx.viewport=(0,0,w,h);self.ctx.enable_only(self.gl.DEPTH_TEST);self.ctx.depth_func="<"
         fbo.clear(0,0,0,0,depth=1.)
