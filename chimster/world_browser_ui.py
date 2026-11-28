@@ -300,7 +300,7 @@ def mount(parent, game, open_preview=None):
     ttk.Button(nav,text='Load 3D',command=render_cell).pack(side='left')
     cells.bind('<Double-1>',lambda e:render_cell())
     objects.bind('<Double-1>',render_object)
-    def edit_draft(action):
+    def edit_draft(action,drop=None):
         index=state["index"]
         if index is None:return
         if index.profile!="new-vegas" or canonical_profile(game.get())!="new-vegas":
@@ -312,13 +312,28 @@ def mount(parent, game, open_preview=None):
             state["draft"]=draft
         key=state["cell"]
         try:
-            if action in ("new","rename"):
+            if action=="duplicate":
+                if key is None:return
+                row=index.active[key]
+                name=simpledialog.askstring("Duplicate cell","New editor ID",parent=parent)
+                if not name:return
+                grid=None
+                if row.get("world") is not None:
+                    value=simpledialog.askstring("Duplicate cell","Destination X,Y",initialvalue=f"{row['grid'][0]+1},{row['grid'][1]}",parent=parent)
+                    if not value:return
+                    grid=tuple(map(int,value.split(",")))
+                if not messagebox.askyesno("Duplicate static cell","Copies the cell shell and eligible static objects only. LAND, navigation, persistent objects, links and cell settings are not copied. Continue?",parent=parent):return
+                key,report=draft.duplicate(key,name,grid,static_only=True)
+            elif action in ("new","rename"):
                 value=simpledialog.askstring("Draft cell","Editor ID",parent=parent)
                 if not value:return
                 if action=="new":
                     grid=(int(gx.get()),int(gy.get())) if state["world"] is not None else None
                     key=draft.create(value,state["world"],grid)
                 else:draft.rename(key,value)
+            elif action=="drop":
+                key,base,position=drop
+                draft.place(key,base,position)
             elif action=="place":
                 if key is None:return
                 base_name=simpledialog.askstring("Place static","Static editor ID (exact)",parent=parent)
@@ -357,12 +372,72 @@ def mount(parent, game, open_preview=None):
             refresh_cells()
             if key is not None:select_key(key)
             status.set(f"Draft: {len(draft.operations)} staged operations; source plugins unchanged")
+            if action=="duplicate":show(report)
         except (OSError,ValueError,TypeError,KeyError) as exc:
             messagebox.showerror("World edit draft",str(exc),parent=parent)
     editbar=ttk.Frame(parent)
     editbar.pack(fill="x",before=pane)
-    for title,action in (("New cell","new"),("Rename","rename"),("Place static","place"),("Transform","transform"),("Undo","undo"),("Redo","redo"),("Export draft","export"),("Export ESP","esp")):
+    for title,action in (("New cell","new"),("Rename","rename"),("Duplicate","duplicate"),("Place static","place"),("Transform","transform"),("Undo","undo"),("Redo","redo"),("Export draft","export"),("Export ESP","esp")):
         ttk.Button(editbar,text=title,command=lambda a=action:edit_draft(a)).pack(side="left")
+    def object_palette():
+        if state["index"] is None:return
+        if state["index"].profile!="new-vegas":
+            status.set("Static placement is New Vegas only.");return
+        win=tk.Toplevel(parent);win.title("Static Object Window");win.geometry("410x440")
+        search=tk.StringVar()
+        ttk.Label(win,text="Drag a static onto the cell list or exterior grid.").pack(anchor="w")
+        ttk.Entry(win,textvariable=search).pack(fill="x")
+        listing=table(win,(("name","Editor ID",180),("file","Plugin",120)))
+        rows={}
+        drag={"key":None,"start":None}
+        def populate(*_):
+            listing.delete(*listing.get_children());rows.clear()
+            index=state["index"]
+            if index is None:return
+            items=index.matching((r for r in index.active.values() if r["signature"]=="STAT"),search.get())
+            for row in items[:2000]:
+                item=listing.insert("","end",values=(index.name(row),row["plugin"]))
+                rows[item]=row["key"]
+        def begin(e):
+            drag["key"]=rows.get(listing.identify_row(e.y))
+            drag["start"]=(e.x_root,e.y_root)
+        def release(e):
+            base=drag["key"];start=drag["start"]
+            drag["key"]=None;drag["start"]=None
+            if base is None or start is None or abs(e.x_root-start[0])+abs(e.y_root-start[1])<8:return
+            index=state["index"]
+            if index is None or base not in index.active:return
+            def inside(widget):
+                return widget.winfo_rootx()<=e.x_root<widget.winfo_rootx()+widget.winfo_width() and widget.winfo_rooty()<=e.y_root<widget.winfo_rooty()+widget.winfo_height()
+            key=None;xy=None
+            if inside(canvas) and state["world"] is not None:
+                size=max(10,min(canvas.winfo_width(),canvas.winfo_height())//9)
+                px=e.x_root-canvas.winfo_rootx();py=e.y_root-canvas.winfo_rooty()
+                if not 0<=px<9*size or not 0<=py<9*size:return
+                col,row=px//size,py//size
+                coord=(state["center"][0]+col-4,state["center"][1]+4-row)
+                candidates=index.coordinates.get((state["world"],coord),())
+                if len(candidates)!=1:
+                    status.set("Drop requires one existing unambiguous cell.");return
+                key=candidates[0]["key"]
+                xy=(coord[0]*4096+(px%size)/size*4096,coord[1]*4096+(1-(py%size+.5)/size)*4096)
+            elif inside(cells):
+                key=state["cells"].get(cells.identify_row(e.y_root-cells.winfo_rooty()))
+            if key is None:return
+            row=index.active[key]
+            if xy is None:
+                grid=row.get("grid")
+                xy=(grid[0]*4096+2048,grid[1]*4096+2048) if grid else (0,0)
+            coords=simpledialog.askstring("Confirm static placement","World X,Y,Z (game units)",initialvalue=f"{xy[0]:.3f},{xy[1]:.3f},0",parent=parent)
+            if coords is None:return
+            try:position=tuple(map(float,coords.split(",")))
+            except ValueError:messagebox.showerror("Placement","Expected three coordinates",parent=parent);return
+            edit_draft("drop",(key,base,position))
+        listing.bind("<ButtonPress-1>",begin,add="+")
+        listing.bind("<ButtonRelease-1>",release,add="+")
+        search.trace_add("write",populate)
+        populate()
+    ttk.Button(editbar,text="Object Window",command=object_palette).pack(side="left")
     def profile_changed(*_):
         # Preserve staged work; changing the game selector must not discard it.
         if state.get('draft') and state['draft'].operations:
