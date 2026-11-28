@@ -31,10 +31,14 @@ def resolve_model(root, model):
 
 
 def read_static(path, units=128):
+    with Path(path).open("rb") as stream:
+        return read_static_stream(stream,units)
+
+
+def read_static_stream(stream,units=128):
     N = backend()
     data = N.Data()
-    with Path(path).open("rb") as stream:
-        data.read(stream)
+    data.read(stream)
     if data.version not in (0x04000002,0x14020007):
         raise ValueError("Unsupported NIF version")
     mesh = Mesh()
@@ -96,3 +100,50 @@ class LooseModels:
             self.vertices+=len(candidate.vertices)
             self.cache[key]=candidate
         return self.cache[key]
+
+class ArchiveModels:
+    """Explicit low-to-high BSA order; loose models override selected archives."""
+    def __init__(self, archives, loose=None):
+        from .archive_reader import directory
+        from .loadorder import fingerprint
+        self.archives=[]
+        for p in archives:
+            path=Path(p).resolve(strict=True)
+            if path.suffix.casefold()!=".bsa":
+                raise ValueError("New Vegas model archives must be BSA")
+            self.archives.append((path,directory(path),fingerprint(path)))
+        self.loose=loose
+        self.cache={}
+        self.vertices=0
+
+    def __call__(self,model):
+        from .compatibility_asset_lookup import normalize
+        from .archive_reader import reader
+        from io import BytesIO
+        path=model.replace("\\","/")
+        if not path.casefold().startswith("meshes/"):path="meshes/"+path
+        key=normalize(path)
+        if not key.endswith(".nif"):raise ValueError("Expected NIF archive member")
+        if self.loose is not None:
+            try:
+                candidate=resolve_model(self.loose.root,model)
+            except (OSError,ValueError):
+                pass
+            else:
+                return self.loose(model)
+        if key in self.cache:return self.cache[key]
+        if len(self.cache)>=64:raise ValueError("Archive model cache limit reached")
+        for archive,entries,digest in reversed(self.archives):
+            if key not in entries:continue
+            # Directory offsets are valid only for the indexed file revision.
+            from .loadorder import fingerprint
+            if fingerprint(archive)!=digest:raise ValueError("Archive changed; reselect sources")
+            with archive.open("rb") as stream:
+                payload=reader(stream).read(stream,entries[key],64*1024*1024)
+            if fingerprint(archive)!=digest:raise ValueError("Archive changed during read")
+            candidate=read_static_stream(BytesIO(payload))
+            if self.vertices+len(candidate.vertices)>250000:raise ValueError("Archive geometry budget reached")
+            self.vertices+=len(candidate.vertices)
+            self.cache[key]=candidate
+            return candidate
+        raise ValueError("No selected archive contains "+key)
