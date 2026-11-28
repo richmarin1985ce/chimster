@@ -641,7 +641,16 @@ def mount(parent, game, open_preview=None, viewport_drop=None):
         try:
             from .world_lod_builtin import export
             out=Path(folder)/("native_lod_"+world.origin.replace(".","_")+"_"+format(world.local,"06x"))
-            show(export(index,world,out))
+            from .world_lod_object_builtin import Assets
+            loose=state.get("loose");root=loose.root if loose is not None else None
+            archives=state.get("archives",())
+            if root is None and not archives and messagebox.askyesno("Source textures","Select game Data for source LAND texture baking?",parent=parent):
+                root=filedialog.askdirectory(title="Select source game Data directory") or None
+            assets=Assets(root,archives) if root is not None or archives else None
+            previous=None
+            if messagebox.askyesno("Incremental LOD","Reuse unchanged tiles from an earlier LOD package?",parent=parent):
+                previous=filedialog.askdirectory(title="Choose previous LOD package") or None
+            show(export(index,world,out,assets=assets,previous=previous))
             status.set("Built-in native LOD candidates exported. Runtime verification pending.")
         except (ValueError,OSError,TypeError,KeyError) as exc:messagebox.showerror("Built-in LOD",str(exc),parent=parent)
     ttk.Button(nav,text="Build native LOD",command=native_lod).pack(side="left")
