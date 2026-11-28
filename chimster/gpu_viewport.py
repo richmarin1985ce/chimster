@@ -273,15 +273,15 @@ class Renderer:
             batches[batch_key][1].append(row)
         stats["batches"]=len(batches)
         for mesh,rows in batches.values():
-            raw_instances=array("f")
-            for row in rows:raw_instances.extend(row)
-            self.instance_buffer.write(raw_instances.tobytes())
             _,parts,_=self.mesh(mesh)
-            for mat,_,vao,count in parts:
-                m=materials.get(mat,default_material(mat)).validate()
-                self.texture(m.diffuse or self.white).use(0);self.texture(m.normal or self.flat).use(1);self.texture(m.specular or self.white).use(2)
-                for key,value in {"tint":m.tint,"alpha_cut":m.cutout,"normal_strength":m.normal_strength if m.normal else 0.,"normal_y":-1. if m.directx else 1.,"spec_strength":m.spec_strength,"gloss":m.gloss}.items():p[key].value=value
-                vao.render(self.gl.TRIANGLES,instances=len(rows));stats["triangles"]+=count*len(rows);stats["draw_calls"]+=1
+            for offset in range(0,len(rows),5000):
+                chunk=rows[offset:offset+5000]
+                self.instance_buffer.write(array("f",(v for row in chunk for v in row)).tobytes())
+                for mat,_,vao,count in parts:
+                    m=materials.get(mat,default_material(mat)).validate()
+                    self.texture(m.diffuse or self.white).use(0);self.texture(m.normal or self.flat).use(1);self.texture(m.specular or self.white).use(2)
+                    for key,value in {"tint":m.tint,"alpha_cut":m.cutout,"normal_strength":m.normal_strength if m.normal else 0.,"normal_y":-1. if m.directx else 1.,"spec_strength":m.spec_strength,"gloss":m.gloss}.items():p[key].value=value
+                    vao.render(self.gl.TRIANGLES,instances=len(chunk));stats["triangles"]+=count*len(chunk);stats["draw_calls"]+=1
         raw=a.read(alignment=1);stride=w*4
         raw=b"".join(raw[y:y+stride] for y in range((h-1)*stride,-1,-stride))
         stats["frame_ms"]=(perf_counter()-start)*1000;stats["renderer"]=self.ctx.info.get("GL_RENDERER","unknown")
