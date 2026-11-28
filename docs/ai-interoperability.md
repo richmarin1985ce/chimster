@@ -22,7 +22,16 @@ After registration ask: "Connect to Chimster, enumerate its tools, and inspect m
 - project_verify: object integrity check and bounded issue summary (may be slow for large projects).
 - MCP handshake-era protocols through 2025-11-25; JSON-RPC stdio, initialize, ping, tools/list and tools/call. Newer protocol eras require compatibility work. No certification or cross-client test claim.
 
-This is a headless view of an explicitly selected on-disk project, not a connection to a running graphical editor. No arbitrary file reads, writes, subprocess execution, network listeners, or implicit project discovery. The client launches the process with the user's OS privileges; this is not an OS sandbox. Project data may contain sensitive or untrusted text. Only register trusted clients and grant a project you intend to share.
+This is a headless view of an explicitly selected on-disk project, not a connection to a running graphical editor. No arbitrary file reads or writes, subprocess execution, network listeners, or implicit project discovery. Default access is read-only; explicit create-only opt-in is described below. The client launches the process with the user's OS privileges; this is not an OS sandbox. Project data may contain sensitive or untrusted text. Only register trusted clients and grant a project you intend to share.
 
 ## Next
 Issue #39 tracks live instance discovery, resources, structured job control, broader editor operations, explicit per-project write grants and transactional preview/apply/undo, installer registration, and independent client testing. Writes must use the existing revision-checked project core. Keep the AI interface provider-neutral and separate from the optional Calipy assistant.
+
+## Scoped diagnostics and optional creation
+The server now exposes `project_read_text` (bounded UTF-8 artifact content) and `check_quest`, `check_interior`, `check_papyrus`, `check_legacy_script`, `check_navmesh_registration`. These call existing editor validators, not native game compilers. Inputs use project artifact IDs, not filesystem paths. Results carry the project revision; inspect the current revision before making decisions.
+
+All clients can call `project_preview_create` with id, kind, filename, text, and revision. It does not change the project. To let a trusted local client create **new** text artifacts only, the host explicitly launches:
+
+    chimster --mcp --project /path/to/project --allow-create
+
+The preview returns a one-use session token in this mode. `project_apply_create` accepts that token, not arbitrary data. The proposal is revision-bound; stale revisions and existing artifact IDs are rejected. The token is not human approval: the launch flag grants creation authority for the session. No remote exposure, replacement, deletion, automatic execution, or AI-triggered rollback is provided. Use the existing project revision rollback workflow for recovery after reviewing intervening edits. Restart without the flag to revoke the grant. Newly created artifacts are drafts, not validated native records.
