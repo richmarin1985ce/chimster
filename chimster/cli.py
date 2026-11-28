@@ -43,6 +43,7 @@ def build_parser():
  b=l.add_parser('compare-traces'); b.add_argument('baseline'); b.add_argument('changed')
  b=l.add_parser('workflow'); b.add_argument('game')
  b=l.add_parser('world-native'); b.add_argument('game'); b.add_argument('world'); b.add_argument('output'); b.add_argument('plugins',nargs='+'); b.add_argument('--size',type=int,choices=[64,128,256],default=128)
+ b=l.add_parser('world-trees'); b.add_argument('game',choices=['skyrim','skyrim-se']); b.add_argument('world'); b.add_argument('output'); b.add_argument('spec'); b.add_argument('plugins',nargs='+'); b.add_argument('--data'); b.add_argument('--archive',action='append',default=[])
  b=l.add_parser('world-objects'); b.add_argument('game'); b.add_argument('world'); b.add_argument('output'); b.add_argument('plugins',nargs='+'); b.add_argument('--data'); b.add_argument('--archive',action='append',default=[]); b.add_argument('--limit',type=int,default=512); b.add_argument('--previous'); b.add_argument('--no-atlas',action='store_true')
  b=l.add_parser('openmw-settings'); b.add_argument('--distance',type=float,default=32768); b.add_argument('--min-size',type=float,default=.023)
  a=s.add_parser('localization-audit'); a.add_argument('source'); a.add_argument('target')
@@ -725,7 +726,7 @@ def main(argv=None):
     result=compare(n.baseline,n.changed)
    elif n.lop=='workflow':result=workflow(n.game)
    elif n.lop=='openmw-settings':result={'settings':openmw_settings(n.distance,n.min_size)}
-   elif n.lop in ('world-native','world-objects'):
+   elif n.lop in ('world-native','world-objects','world-trees'):
     from .world_browser import Browser,label
     browser=Browser.open(n.plugins,n.game)
     matches=[k for k,row in browser.worlds.items() if row["editor_id"].casefold()==n.world.casefold() or label(k).casefold()==n.world.casefold()]
@@ -733,6 +734,11 @@ def main(argv=None):
     if n.lop=='world-native':
      from .world_lod_builtin import export
      result=export(browser,matches[0],n.output,size=n.size)
+    elif n.lop=='world-trees':
+     from .world_lod_tree_tiles import export
+     from .world_lod_object_builtin import Assets
+     spec=json.loads(Path(n.spec).read_text(encoding='utf-8'))
+     result=export(browser,matches[0],n.output,spec,Assets(n.data,n.archive))
     else:
      from .world_lod_object_builtin import Assets,export
      result=export(browser,matches[0],n.output,Assets(n.data,n.archive),limit=n.limit,previous=n.previous,atlas=not n.no_atlas)
