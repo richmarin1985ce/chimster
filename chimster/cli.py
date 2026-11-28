@@ -88,6 +88,8 @@ def build_parser():
  a=s.add_parser('navmesh-nif'); a.add_argument('nif'); a.add_argument('output'); a.add_argument('helper'); a.add_argument('--unit-scale',type=float,required=True); a.add_argument('--spacing',type=float,required=True); a.add_argument('--radius',type=float,default=0.3); a.add_argument('--height',type=float,default=1.8); a.add_argument('--max-step',type=float,default=0.4); a.add_argument('--max-slope',type=float,default=45)
  a=s.add_parser('navmesh-simplify'); a.add_argument('project'); a.add_argument('output')
  a=s.add_parser('navmesh-route'); a.add_argument('project'); a.add_argument('start',type=int); a.add_argument('end',type=int); a.add_argument('--closed',action='append',default=[]); a.add_argument('--avoid-area',action='append',default=[])
+ a=s.add_parser('navmesh-native-review'); a.add_argument('project')
+ a=s.add_parser('navmesh-registration'); a.add_argument('project')
  a=s.add_parser('navmesh-finalize'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--cell',type=lambda x:int(x,0),required=True); a.add_argument('--version',type=int,required=True); a.add_argument('--divisor',type=int,required=True); a.add_argument('--count-width',type=int,choices=(2,4),required=True); a.add_argument('--bindings')
  a=s.add_parser('navmesh-grid-compare'); a.add_argument('fields'); a.add_argument('--count-width',type=int,choices=(2,4),required=True)
  a=s.add_parser('navmesh-draft'); a.add_argument('project'); a.add_argument('output'); a.add_argument('--cell',type=lambda x:int(x,0),required=True); a.add_argument('--version',type=int,required=True)
@@ -456,6 +458,14 @@ def main(argv=None):
    from .navmesh_tiles import load
    from .navmesh import route
    mesh=load(n.project);mesh=mesh.get("mesh",mesh);result=route(mesh,n.start,n.end,mesh.get("links",[]),n.closed,avoid=n.avoid_area)
+  elif n.cmd=='navmesh-native-review':
+   from .navmesh_tiles import load
+   from .fnv_navmesh_review import review
+   source=load(n.project);result=review(source["meshes"],source["navi"],source.get("door_backlinks",[]))
+  elif n.cmd=='navmesh-registration':
+   from .navmesh_tiles import load
+   from .fnv_navmesh_review import registration_manifest
+   result=registration_manifest(load(n.project)["meshes"])
   elif n.cmd=='navmesh-finalize':
    from .navmesh_tiles import load
    from .fnv_navmesh_finalize import finalize
