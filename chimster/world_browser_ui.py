@@ -330,12 +330,12 @@ def mount(parent, game, open_preview=None, viewport_drop=None):
                 world=state["world"]
                 if world is None:return
                 import json
-                from .world_environment import FIELDS,LINKS
+                from .world_environment import FIELDS,LINKS,TEXTURES,effective
                 row=index.worlds[world]
                 win=tk.Toplevel(parent);win.title("Worldspace environment");win.transient(parent)
                 ttk.Label(win,text="Heights in game units. Flags are a numeric bitmask. Links use plugin and local FormID.").pack(anchor="w",padx=8,pady=4)
                 body=ttk.Frame(win,padding=8);body.pack(fill="both",expand=True)
-                labels={"heights":"Land, water heights","lod_height":"LOD water height","map_size_bounds":"Map size X,Y; NW X,Y; SE X,Y","map_offset":"Map scale, X,Y offsets","flags":"World flags (byte)"}
+                labels={"inheritance":"Parent inheritance flags (0–63)","heights":"Land, water heights","lod_height":"LOD water height","map_size_bounds":"Map size X,Y; NW X,Y; SE X,Y","map_offset":"Map scale, X,Y offsets","flags":"World flags (byte)"}
                 fields={}
                 env=row.get("environment",{})
                 for i,name in enumerate(FIELDS):
@@ -343,9 +343,14 @@ def mount(parent, game, open_preview=None, viewport_drop=None):
                     value=tk.StringVar(value=",".join(map(str,env[name])) if name in env else "")
                     ttk.Entry(body,textvariable=value,width=35).grid(row=i,column=1,sticky="ew",pady=3)
                     fields[name]=value
+                textures={}
+                for i,name in enumerate(TEXTURES,len(FIELDS)):
+                    ttk.Label(body,text=name.replace("_"," ").title()).grid(row=i,column=0,sticky="w",pady=3)
+                    var=tk.StringVar(value=env.get(name,""));textures[name]=var
+                    ttk.Entry(body,textvariable=var,width=35).grid(row=i,column=1,sticky="ew")
                 choices={}
-                for i,(name,(_,sig)) in enumerate(LINKS.items(),len(FIELDS)):
-                    items=[r for r in index.active.values() if r["signature"]==sig]
+                for i,(name,(_,sig)) in enumerate(LINKS.items(),len(FIELDS)+len(TEXTURES)):
+                    items=[r for r in index.active.values() if r["signature"]==sig and r["key"]!=world]
                     items.sort(key=lambda r:index.name(r).casefold())
                     options={"(unchanged)":None,"(clear)":None}
                     for item in items:
@@ -362,7 +367,10 @@ def mount(parent, game, open_preview=None, viewport_drop=None):
                             raw=var.get().strip()
                             if not raw:continue
                             parts=raw.split(",")
-                            value=tuple(int(v,0) for v in parts) if name in ("flags","map_size_bounds") else tuple(float(v) for v in parts)
+                            value=tuple(int(v,0) for v in parts) if name in ("flags","inheritance","map_size_bounds") else tuple(float(v) for v in parts)
+                            if value!=env.get(name):changes[name]=value
+                        for name,var in textures.items():
+                            value=var.get().strip() or None
                             if value!=env.get(name):changes[name]=value
                         for name,(var,options) in choices.items():
                             choice=var.get()
@@ -375,7 +383,10 @@ def mount(parent, game, open_preview=None, viewport_drop=None):
                             status.set("World environment staged; export ESP to publish")
                         win.destroy()
                     except (ValueError,TypeError,KeyError,OSError) as exc:messagebox.showerror("Environment",str(exc),parent=win)
-                ttk.Button(win,text="Stage changes",command=save).pack(pady=8)
+                ttk.Label(win,text="Parent bits: land 1, LOD 2, map 4, water 8, climate 16, image space 32.").pack(anchor="w",padx=8)
+                controls=ttk.Frame(win);controls.pack(fill="x",pady=8)
+                ttk.Button(controls,text="Stage changes",command=save).pack(side="left")
+                ttk.Button(controls,text="Effective settings",command=lambda:show(effective(index,world))).pack(side="left")
                 return
             elif action=="world":
                 world=state["world"]
