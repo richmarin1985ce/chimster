@@ -24,7 +24,7 @@ def build(entries,limit=256*1024*1024,compress=True,*,version=1):
         rows.append((nh,dh,path,texture,raw,stored,packed))
     offset=24+48*len(rows);records=[];payload=[];names=[]
     for nh,dh,path,t,raw,stored,packed in rows:
-        records.append(struct.pack("<I4sIBBHHHBBH",nh,b"dds",dh,0,1,24,t["height"],t["width"],t["mips"],t["dxgi_format"],0))
+        records.append(struct.pack("<I4sIBBHHHBBH",nh,b"dds",dh,0,1,24,t["height"],t["width"],t["mips"],t["dxgi_format"],int(t["cubemap"])))
         records.append(struct.pack("<QIIHHI",offset,packed,len(raw),0,t["mips"]-1,0xbaadf00d))
         payload.append(stored);offset+=len(stored)
         names.append(struct.pack("<H",len(path))+path)
