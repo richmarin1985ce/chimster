@@ -33,3 +33,34 @@ def directory(stream):
         if name in result:raise ValueError("Duplicate texture")
         result[name]=row
     return result
+
+# Standard DXGI BC formats and their bytes per 4x4 block.
+BLOCKS={71:8,72:8,74:16,75:16,77:16,78:16,80:8,81:8,83:16,84:16,95:16,96:16,98:16,99:16}
+
+def read(stream,entry,limit=64*1024*1024):
+    import zlib
+    w,h,mips,fmt=(entry[k] for k in ("width","height","mips","dxgi_format"))
+    if entry["flags"]!=0 or fmt not in BLOCKS or not 1<=mips<=max(w,h).bit_length():
+        raise ValueError("Unsupported DDS texture layout")
+    sizes=[max(1,((max(1,w>>i)+3)//4))*max(1,((max(1,h>>i)+3)//4))*BLOCKS[fmt] for i in range(mips)]
+    if sum(sizes)+148>limit:raise ValueError("Texture exceeds limit")
+    chunks=sorted(entry["chunks"],key=lambda c:c["first_mip"])
+    parts=[];next_mip=0
+    for chunk in chunks:
+        first,last=chunk["first_mip"],chunk["last_mip"]
+        expected=sum(sizes[first:last+1])
+        if first!=next_mip or last>=mips or chunk["unpacked"]!=expected or chunk["packed"]>limit:
+            raise ValueError("Invalid mip coverage or size")
+        stream.seek(chunk["offset"])
+        raw=exact(stream,chunk["packed"] or expected)
+        if chunk["packed"]:
+            dec=zlib.decompressobj();raw=dec.decompress(raw,expected+1)
+            if not dec.eof or dec.unused_data or dec.unconsumed_tail:raise ValueError("Invalid texture compression")
+        if len(raw)!=expected:raise ValueError("Invalid chunk size")
+        parts.append(raw);next_mip=last+1
+    if next_mip!=mips:raise ValueError("Incomplete mip chain")
+    flags=0x81007|(0x20000 if mips>1 else 0)
+    caps=0x1000|(0x400008 if mips>1 else 0)
+    header=struct.pack("<7I11I",124,flags,h,w,sizes[0],0,mips,*([0]*11))
+    pixel=struct.pack("<II4s5I",32,4,b"DX10",0,0,0,0,0)
+    return b"DDS "+header+pixel+struct.pack("<5I",caps,0,0,0,0)+struct.pack("<5I",fmt,3,0,1,0)+b"".join(parts)
