@@ -40,15 +40,17 @@ BLOCKS={71:8,72:8,74:16,75:16,77:16,78:16,80:8,81:8,83:16,84:16,95:16,96:16,98:1
 def read(stream,entry,limit=64*1024*1024):
     import zlib
     w,h,mips,fmt=(entry[k] for k in ("width","height","mips","dxgi_format"))
-    if entry["flags"]!=0 or fmt not in BLOCKS or not 1<=mips<=max(w,h).bit_length():
+    cube=bool(entry["flags"]&1)
+    if cube and (w!=h or len(entry["chunks"])!=1):raise ValueError("Unsupported cubemap layout")
+    if entry["flags"]&~1 or fmt not in BLOCKS or not 1<=mips<=max(w,h).bit_length():
         raise ValueError("Unsupported DDS texture layout")
     sizes=[max(1,((max(1,w>>i)+3)//4))*max(1,((max(1,h>>i)+3)//4))*BLOCKS[fmt] for i in range(mips)]
-    if sum(sizes)+148>limit:raise ValueError("Texture exceeds limit")
+    if sum(sizes)*(6 if cube else 1)+148>limit:raise ValueError("Texture exceeds limit")
     chunks=sorted(entry["chunks"],key=lambda c:c["first_mip"])
     parts=[];next_mip=0
     for chunk in chunks:
         first,last=chunk["first_mip"],chunk["last_mip"]
-        expected=sum(sizes[first:last+1])
+        expected=sum(sizes[first:last+1])*(6 if cube else 1)
         if first!=next_mip or last>=mips or chunk["unpacked"]!=expected or chunk["packed"]>limit:
             raise ValueError("Invalid mip coverage or size")
         stream.seek(chunk["offset"])
@@ -63,4 +65,4 @@ def read(stream,entry,limit=64*1024*1024):
     caps=0x1000|(0x400008 if mips>1 else 0)
     header=struct.pack("<7I11I",124,flags,h,w,sizes[0],0,mips,*([0]*11))
     pixel=struct.pack("<II4s5I",32,4,b"DX10",0,0,0,0,0)
-    return b"DDS "+header+pixel+struct.pack("<5I",caps,0,0,0,0)+struct.pack("<5I",fmt,3,0,1,0)+b"".join(parts)
+    return b"DDS "+header+pixel+struct.pack("<5I",caps|(8 if cube else 0),0xfe00 if cube else 0,0,0,0)+struct.pack("<5I",fmt,3,4 if cube else 0,1,0)+b"".join(parts)
