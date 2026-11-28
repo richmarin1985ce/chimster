@@ -154,8 +154,9 @@ def attach(draft,donor,output,game):
     if not changes:raise ValueError("no changed compiled scripts")
     result=bytearray(raw)
     # Reverse-order replacements preserve offsets of all earlier records.
+    offsets={v[0]:v for v in a.values()}
     for start in sorted(changes,reverse=True):
-        row=next(v for v in a.values() if v[0]==start)
+        row=offsets[start]
         payload=changes[start];delta=len(payload)-len(row[4])
         result[start+hs:row[1]]=payload
         struct.pack_into("<I",result,start+4,len(payload))
@@ -170,3 +171,56 @@ def attach(draft,donor,output,game):
             if idx[key][4]!=changes.get(row[0],row[4]):raise ValueError("output payload mismatch")
     except Exception:q.unlink();raise
     return {"output":str(q),"attached_scripts":len(changes),"scope":"editor-compiled donor transport; no opcode or engine certification"}
+
+def prepare(draft,output,game,identity,source_path):
+    """Replace one existing standalone script's source and invalidate its bytecode.
+    The result is an editor compilation draft, NOT a playable plugin.
+    """
+    p,q=map(Path,(draft,output))
+    if p.resolve()==q.resolve() or p.name!=q.name or q.exists() or q.is_symlink():
+        raise ValueError("new same-name plugin in separate directory required")
+    source_path=Path(source_path)
+    if source_path.stat().st_size>512*1024:raise ValueError("source too large")
+    source=source_path.read_text(encoding="utf-8-sig")
+    checked=lint(source,game)
+    if len(checked["script_names"])!=1:raise ValueError("one named script required")
+    try:encoded=source.replace("\r\n","\n").replace("\n","\r\n").encode("cp1252")
+    except UnicodeEncodeError as exc:raise ValueError("source requires an unsupported legacy encoding") from exc
+    if b"\0" in encoded:raise ValueError("NUL in script source")
+    raw=read(p,game);rows=index(raw,game);hs,subhs=PROFILES[game][1:]
+    matches=[]
+    for key,row in rows.items():
+        if row[2]!=b"SCPT":continue
+        if game=="morrowind":
+            if key[1].decode("cp1252").casefold()!=str(identity).casefold():continue
+        else:
+            if key[1]!=int(str(identity),0):continue
+        matches.append(row)
+    if len(matches)!=1:raise ValueError("missing or ambiguous script identity")
+    row=matches[0];old=script_record(row,game)
+    name=old["identity"].split(b"\0")[0].decode("cp1252")
+    if name.casefold()!=checked["script_names"][0].casefold():raise ValueError("source declaration differs from record name")
+    header_tag,code_tag=(b"SCHD",b"SCDT") if game=="morrowind" else (b"SCHR",b"SCDA")
+    parts=[]
+    for k,v in old["parts"]:
+        if k==header_tag:
+            v=v[:32]+bytes(20) if game=="morrowind" else v[:4]+bytes(12)+v[16:]
+        elif k==code_tag:v=b""
+        elif k==b"SCTX":v=encoded+(b"\0" if v.endswith(b"\0") else b"")
+        elif k in {b"SCVR",b"SLSD",b"SCRO",b"SCRV"}:continue
+        parts.append((k,v))
+    body=encode(parts,subhs);start,stop=row[:2]
+    result=bytearray(raw[:start+hs]+body+raw[stop:])
+    delta=len(body)-len(row[4])
+    struct.pack_into("<I",result,start+4,len(body))
+    for g in row[5]:struct.pack_into("<I",result,g+4,struct.unpack_from("<I",result,g+4)[0]+delta)
+    if p.read_bytes()!=raw:raise ValueError("source plugin changed")
+    with q.open("xb") as f:f.write(result)
+    try:
+        rebuilt=index(read(q,game),game)
+        if list(rebuilt)!=list(rows):raise ValueError("draft identity mismatch")
+        for key,original in rows.items():
+            if rebuilt[key][4]!=(body if original[0]==start else original[4]):raise ValueError("draft payload mismatch")
+    except Exception:q.unlink();raise
+    return {"output":str(q),"script":name,"diagnostics":checked["issues"],"status":"uncompiled-draft",
+            "scope":"compile and save this copy using the native editor before any game use"}
