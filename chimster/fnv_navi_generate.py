@@ -129,11 +129,12 @@ def extend(master_parts,meshes,*,registrations=None,grid_order=None):
         new_connections.append((b"NVCI",encode_connection(fid,standard,preferred,(d["raw_target"] for d in r["doors"]))))
     return head+maps+new_maps+connections+new_connections
 
-def stage_override(stage,master,output):
+def stage_override(stage,master,output,*,reference_meshes=()):
     """Create a new candidate ESP copy with an extended master NAVI.
 
-    Only a self-contained FalloutNV.esm and new interior-cell records are
-    accepted. Never remap opaque master bytes or replace existing master meshes.
+    Only a self-contained FalloutNV.esm and newly authored records are
+    accepted. Exterior NAVMs require native grid calibration. Never remap
+    opaque master bytes or replace existing master meshes.
     """
     from pathlib import Path
     from .fnv_records import scan,HEADER,MAX_RECORD
@@ -152,8 +153,8 @@ def stage_override(stage,master,output):
     if mr["masters"] or [plugin_name(x) for x in ar["masters"]]!=["falloutnv.esm"]:raise ValueError("requires exactly the self-contained FalloutNV.esm")
     name=plugin_name(a.name)
     source={r["local_id"]:r for r in ar["records"]}
-    if len(source)!=len(ar["records"]) or any(r["origin"]!=name or r["flags"]&0x20 or r["signature"] not in ("CELL","NAVM","REFR","STAT","DOOR") for r in source.values()):
-        raise ValueError("requires new interior stage only")
+    if len(source)!=len(ar["records"]) or any(r["origin"]!=name or r["flags"]&0x20 or r["signature"] not in ("CELL","NAVM","REFR","STAT","DOOR","WRLD","LAND","WTHR","CLMT","REGN") for r in source.values()):
+        raise ValueError("requires newly authored world/interior records only")
     navis=[r for r in mr["records"] if r["signature"]=="NAVI"]
     if len(navis)!=1 or navis[0]["origin"]!="falloutnv.esm" or navis[0]["flags"]&~0x40000:raise ValueError("unsupported base NAVI")
     navi=navis[0];maps=parts(m,navi)
@@ -161,13 +162,17 @@ def stage_override(stage,master,output):
         r=source.get(fid&0xffffff) if fid>>24==1 else None
         if not r or r["signature"]!=kind:raise ValueError("navigation references must be newly authored "+kind)
         return r
-    entries=[];bound=set()
+    from .fnv_navi_ownership import registration
+    group_index={g["offset"]:g for g in ar["groups"]}
+    raw_records={0x1000000|k:v for k,v in source.items()}
+    entries=[];bound=set();registrations={}
     for r in source.values():
         if r["signature"]!="NAVM":continue
         fid=0x1000000|r["local_id"];report,_=inspect_mesh(parts(a,r))
         cell=own(report["raw_cell"],"CELL")
         fields=dict(parts(a,cell))
-        if len(fields.get(b"DATA",b""))!=1 or not fields[b"DATA"][0]&1:raise ValueError("only new interior cells supported")
+        meta=registration(r,cell,report,fields,group_index,raw_records)
+        if meta:registrations[fid]=meta
         if len(report["grid_candidates"])!=1:raise ValueError("requires structurally valid native grid")
         for d in report["doors"]:
             ref=d["raw_target"];door=own(ref,"REFR")
@@ -176,7 +181,13 @@ def stage_override(stage,master,output):
             dp=parts(a,door);marker,_=inspect_marker(dp);back=marker.get("navigation_door",{})
             if back.get("raw_target")!=fid or back.get("triangle")!=d["triangle"]:raise ValueError("native door backlink mismatch")
         entries.append((fid,report))
-    merged=extend(maps,entries)
+    grid_order=None
+    if registrations:
+        from .fnv_navi_reference import extract
+        calibration=extract(m,reference_meshes)
+        grid_order=calibration["grid_order"]
+        if grid_order is None:raise ValueError("unambiguous native exterior grid calibration required")
+    merged=extend(maps,entries,registrations=registrations,grid_order=grid_order)
     def frame(tag,value):
         if len(value)<=65535:return sub(tag,value)
         return sub(b"XXXX",struct.pack("<I",len(value)))+struct.pack("<4sH",tag,0)+value
@@ -194,11 +205,9 @@ def stage_override(stage,master,output):
         if offset+24>len(raw):raise ValueError("truncated group")
         tag,length,label,kind,_,_=struct.unpack_from("<4sI4sIII",raw,offset)
         if tag!=b"GRUP" or kind!=0 or length<24 or offset+length>len(raw):raise ValueError("invalid top-level group")
-        if label==b"CELL":
-            if insert is not None:raise ValueError("duplicate CELL group")
-            insert=offset
+        if label in (b"CELL",b"WRLD") and insert is None:insert=offset
         offset+=length
-    if insert is None:raise ValueError("missing CELL group")
+    if insert is None:raise ValueError("missing CELL or WRLD group")
     if hashes!=[fingerprint(p) for p in (a,m)]:raise ValueError("source changed")
     created=False
     try:
@@ -214,7 +223,7 @@ def stage_override(stage,master,output):
     except Exception:
         if created:out.unlink()
         raise
-    return {"output":str(out),"registered_new_meshes":len(entries),"preserved_master_entries":sum(k==b"NVMI" for k,v in maps),"status":"experimental native NAVI override candidate; independent GECK and game validation required"}
+    return {"output":str(out),"registered_new_meshes":len(entries),"exterior_registrations":len(registrations),"grid_order":grid_order,"preserved_master_entries":sum(k==b"NVMI" for k,v in maps),"status":"experimental native NAVI override candidate; independent GECK and game validation required"}
 
 def candidate(project):
     """Build a payload-only NAVI extension from local reference entries.
