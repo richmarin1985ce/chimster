@@ -321,3 +321,5 @@ def mount(parent):
                     (("Open asset",open_project),("Save new asset",save_project),("Simplify LOD",simplify),("Undo",undo),("Export OBJ",export_obj),("Export NIF",export_nif))):
         bar=ttk.Frame(parent);bar.pack(fill="x")
         for label,fn in actions:ttk.Button(bar,text=label,command=guard(fn)).pack(side="left")
+    from .font_picker import text_asset_dialog
+    ttk.Button(parent,text="Font Forge text asset",command=guard(lambda:text_asset_dialog(parent))).pack(anchor="w")

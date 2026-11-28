@@ -1,0 +1,32 @@
+name: Font Forge validation
+on:
+  pull_request:
+    paths:
+      - 'chimster/font*.py'
+      - 'chimster/ui.py'
+      - 'tests/test_font_forge.py'
+      - 'pyproject.toml'
+      - '.github/workflows/font-forge.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  font-tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install .
+      - run: python -m unittest discover -s tests -p test_font_forge.py -v
+      - name: Mount Font Forge and register native drop targets (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+          xvfb-run -a python -c "import tkinter as tk; from tkinterdnd2 import TkinterDnD; from chimster.font_ui import mount; root=TkinterDnD.Tk(); frame=tk.Frame(root); frame.pack(); mount(frame); root.update(); assert any('tkdnd' in p.lower() for p in root.tk.call('package','names')); root.destroy()"

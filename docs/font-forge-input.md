@@ -1,6 +1,22 @@
 # Font Forge input requirements
 
+**Release status: feature-complete; testing and defect correction only.** Creator-approved scope freeze. Dedicated Windows, Linux and macOS validation passed on implementation revision `df53d18b13beabe2be884d5dcacb244cbb6091c5` (Actions run 46115761137). The Linux desktop mount/drop-registration smoke test passed. Physical file drops, hardware and installed application behavior still require manual verification. Earlier proposed additions (native tablet APIs, full-font round trips, CFF/variable outline editing, game-specific font registration and other enhancements) are deferred outside the current release scope, not outstanding Font Forge feature commitments. Do not expand scope unless explicitly reopened.
+
+
 Support Wacom and other OS-compatible pen tablets, including Windows Ink, Linux tablet input and macOS tablet events where available. Mouse and touch fallback required. Capture position, optional pressure, tilt, eraser and stroke boundaries through a platform-neutral adapter. Never assume pressure support from pointer events alone. Provide freehand glyph drawing, adjustable smoothing, stroke-to-closed-outline conversion, editable quadratic Bezier contours, baseline and em grid, undo, Unicode mapping and TTF export through fontTools. Pressure affects stroke width before outline conversion; retain editable outlines. No proprietary tablet SDK or separate application required for baseline input. Test real hardware separately; synthetic events do not certify tablet compatibility. Preserve native game font registration as a separate export step. No placeholder fonts required. Implementation and hardware verification pending.
 
 ## Deferred subsection
 Include ordinary phone and tablet touch input, finger drawing and optional mobile stylus pressure. Pause all new Font Forge development until the remaining Section 16 book and note functionality is complete. Existing native font reference preservation remains active.
+
+## Font Forge desktop implementation
+
+The Assets > Font Forge tab imports multiple local TTF/OTF files via native TkDND file drops or a file picker. The persistent library stores content-addressed copies under ~/.chimster/fonts and does not install system fonts or alter game files. Preview uses Pillow and shows family, style, character count, outline format, license metadata and embedding flags. The Create TTF tab authors basic polygon contours with mouse input, Unicode mapping, undo, and export via fontTools. This supersedes the earlier pause for this scope. Pressure, touch, editable Bezier curves, project-level packaging and game-specific font registration remain unverified or pending. Imported fonts are not automatically redistributed; verify their license separately.
+
+### Editable curves and projects
+Font Forge now supports explicit on-curve and quadratic control points, TrueType implied midpoints, moving existing points, editing and deleting saved glyphs, and local versioned JSON projects. Save the active glyph before exporting or saving the project. Project files contain authored outlines only, not imported fonts. Existing polygon outlines remain supported. Mouse editing does not certify pen pressure or native touch support. Game registration is still separate.
+
+### Freehand and shared font surfaces
+Freehand mode captures ordinary mouse-compatible input, smooths centerline samples, and converts them to editable closed outlines. Width and smoothing are adjustable; the platform-neutral sample model accepts optional pressure but no native tablet backend is certified. Tight folds may need manual correction. Books & Notes offers a local plain-text preview with imported fonts; it does not alter native font tags or claim game layout fidelity. Font Forge and Asset Forge expose a portable transparent PNG text asset dialog for signs, labels and UI artwork; distribution rights must be confirmed. Native HUD font registration remains pending.
+
+### Spacing and imported outlines
+Per-glyph advance widths and explicit kerning pairs are saved in version 2 projects (version 1 remains readable), and emitted as hmtx and OpenType GPOS kerning. A license-confirmed single-glyph copy supports static TrueType outlines, normalizing units to 1000 em without modifying the source. CFF, variable-font outline editing, source hinting, layout-table preservation, negative-coordinate viewport editing and native registration remain outside this adapter. Imported copies become authored project outlines, not full-font round trips.
