@@ -90,5 +90,7 @@ def extract_collision(path,helper,unit_scale):
         points,faces=hull(core);offset=len(vertices)
         vertices.extend(points);triangles.extend(tuple(offset+i for i in t) for t in faces)
         if max(len(vertices),len(triangles))>500000:raise ValueError("combined collision limit")
-    if not vertices or not triangles:raise ValueError("empty collision output")
-    return {"vertices":vertices,"triangles":triangles}
+    from .collision_obstacles import normalize
+    solids=normalize(report.get("solid_obstacles",[]))
+    if not triangles and not solids:raise ValueError("empty collision output")
+    return {"vertices":vertices,"triangles":triangles,**({"solid_obstacles":solids} if solids else {})}
