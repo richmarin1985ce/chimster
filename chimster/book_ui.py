@@ -40,6 +40,27 @@ def mount(parent):
             for k,v in fields.items():v.set(getattr(b,k))
             text.delete("1.0","end");text.insert("1.0","\n---PAGE---\n".join(b.pages))
         except (OSError,ValueError,TypeError) as e:messagebox.showerror("Book",str(e))
+    def import_native():
+        from .fnv_content import read_books
+        p=filedialog.askopenfilename(filetypes=[("New Vegas plugin","*.esp *.esm")])
+        if not p:return
+        try:rows=read_books(p)
+        except (OSError,ValueError,KeyError) as e:
+            messagebox.showerror("Import",str(e));return
+        win=tk.Toplevel(parent);win.title("Import native book as draft")
+        listing=tk.Listbox(win,width=75,height=20);listing.pack(fill="both",expand=True)
+        for row in rows:listing.insert("end",row["kind"]+" | "+row["editor_id"]+" | "+row["title"])
+        def choose():
+            selection=listing.curselection()
+            if not selection:return
+            row=rows[selection[0]]
+            fields["editor_id"].set(row["editor_id"]);fields["title"].set(row["title"])
+            fields["author"].set("");fields["game"].set("newvegas")
+            fields["kind"].set("book" if row["kind"]=="BOOK" else "note")
+            text.delete("1.0","end");text.insert("1.0",row["body"])
+            win.destroy()
+        ttk.Button(win,text="Import text draft",command=choose).pack()
+        ttk.Label(win,text="Uncompressed text records only. Export creates a new record, not an override.").pack()
     def write():
         parentdir=filedialog.askdirectory(title="Choose parent for new book output")
         if not parentdir:return
@@ -99,4 +120,4 @@ def mount(parent):
             export_book(b,p,model);messagebox.showinfo("Experimental ESP",p+"\nValidate in xEdit and game before use.")
         except (ValueError,TypeError,OSError) as e:messagebox.showerror("Book",str(e))
     bar=ttk.Frame(parent);bar.pack(fill="x")
-    for label,cmd in [("Open",open_book),("Validate",validate),("Page preview",page_preview),("Export project + preview",write),("Export FNV ESP",native)]:ttk.Button(bar,text=label,command=cmd).pack(side="left")
+    for label,cmd in [("Open",open_book),("Import FNV",import_native),("Validate",validate),("Page preview",page_preview),("Export project + preview",write),("Export FNV ESP",native)]:ttk.Button(bar,text=label,command=cmd).pack(side="left")
