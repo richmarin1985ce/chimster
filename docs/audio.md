@@ -57,3 +57,17 @@ chimster-voice batch Data/Sound/Voice manifest.json --output StagedVoice --encod
 ```
 
 Batch mode defaults to preview, refuses existing outputs, requires separate source and output roots and requires lip payloads unless explicitly allowed. Builds are per-line, not all-or-nothing. Record identities and exact file stems are supplied by the manifest; automatic extraction from native INFO records, validation of record IDs, game verification and archive integration are pending. Existing FUZ files with missing lip data must be unpacked first. External tool availability and normalization requirements may still block execution after preview. No external binaries are bundled.
+
+## Waveform and take editing
+
+Open Assets > Voice containers > Open waveform and lip-sync editor. The separate window accepts mono/stereo PCM16 WAV up to 128 MiB, draws a peak envelope, provides mouse-drag or exact time selection, FFplay playback of the original selection, and exclusive export of trimmed audio with gain and fades. Load Rhubarb JSON for preview mouth cues, edit cue boundaries and shapes, and export full or clipped cue timelines. These are not native Bethesda LIP; regenerate LIP after editing audio. No audio device capture yet.
+
+Local take registry commands:
+
+```sh
+python -m chimster.voice_takes register Takes recording.wav --line Example.esp/Voice/Line --performer "Actor A" --rights "Original recording with permission"
+python -m chimster.voice_takes list Takes
+python -m chimster.voice_takes select Takes TAKE_ID StagedVoiceSource
+````
+
+Takes are copied, hash-checked, assigned a unique ID, and include explicit performer and rights metadata. Selection creates a new staged WAV without overwriting other takes. Rights metadata is a user declaration, not independent proof. Automatic native INFO extraction is still pending: the current verified writer covers FNV's generated TRDT/NAM1 layout, while this voice manifest currently covers Skyrim/FO4 and requires exact stems rather than guessed native names. Test execution remains deferred.
