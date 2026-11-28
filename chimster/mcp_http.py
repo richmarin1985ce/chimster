@@ -35,20 +35,30 @@ def read_token(path):
     return token
 
 class Server(HTTPServer):
-    def __init__(self,project,token,port=0):
+    def __init__(self,project,token=None,port=0,oauth=None):
         from .mcp_bridge import Bridge
         self.project=project
         self.token=token
+        self.oauth=oauth
+        if oauth is None and not token:raise ValueError("token required")
         self.sessions={}
         self.bridge_factory=lambda:Bridge(project)
-        super().__init__(("127.0.0.1",port),Handler)
+        super().__init__((oauth.bind,oauth.port) if oauth else ("127.0.0.1",port),Handler)
+        if oauth:
+            try:self.socket=oauth.tls.wrap_socket(self.socket,server_side=True,do_handshake_on_connect=False)
+            except Exception:
+                self.server_close();raise
+    def get_request(self):
+        sock,address=super().get_request()
+        sock.settimeout(10)
+        return sock,address
     def expire(self):
         now=time.monotonic()
-        for key,(bridge,version,last) in list(self.sessions.items()):
+        for key,(bridge,version,last,principal) in list(self.sessions.items()):
             if now-last>SESSION_TTL:
                 self.drop(key)
     def drop(self,key):
-        bridge,_,_=self.sessions.pop(key)
+        bridge,_,_,_=self.sessions.pop(key)
         if bridge.jobs:bridge.jobs.close()
     def server_close(self):
         for key in list(self.sessions):self.drop(key)
@@ -67,29 +77,44 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length",str(len(body)))
         self.send_header("Cache-Control","no-store")
         if body:self.send_header("Content-Type","application/json")
-        if status==401:self.send_header("WWW-Authenticate","Bearer")
+        if status==401:
+            challenge="Bearer"
+            if self.server.oauth:challenge+=' resource_metadata="'+self.server.oauth.resource.removesuffix("/mcp")+'/.well-known/oauth-protected-resource/mcp", scope="chimster:read"'
+            self.send_header("WWW-Authenticate",challenge)
         if session:self.send_header("Mcp-Session-Id",session)
         self.end_headers()
         if body:self.wfile.write(body)
+    def validate_host(self):
+        port=self.server.server_port
+        allowed=([self.server.oauth.host],) if self.server.oauth else ([f"127.0.0.1:{port}"],[f"localhost:{port}"])
+        hosts=self.headers.get_all("Host",[])
+        if [v.lower() for v in hosts] not in allowed or self.headers.get("Origin") is not None:
+            self.reply(403);return False
+        return True
     def authorized(self):
         if self.path!="/mcp":
             self.reply(404);return False
-        port=self.server.server_port
-        if self.headers.get_all("Host",[]) not in ([f"127.0.0.1:{port}"],[f"localhost:{port}"]):
-            self.reply(403);return False
-        if self.headers.get("Origin") is not None:
-            self.reply(403);return False
+        if not self.validate_host():return False
         auth=self.headers.get_all("Authorization",[])
-        if len(auth)!=1 or not auth[0].isascii() or not secrets.compare_digest(auth[0],"Bearer "+self.server.token):
+        if len(auth)!=1 or not auth[0].isascii() or not auth[0].startswith("Bearer "):
+            self.reply(401);return False
+        if self.server.oauth:
+            self.principal=self.server.oauth.authenticate(auth[0][7:])
+        else:
+            self.principal="local" if secrets.compare_digest(auth[0],"Bearer "+self.server.token) else None
+        if self.principal is None:
             self.reply(401);return False
         self.server.expire()
         return True
     def do_GET(self):
+        if self.server.oauth and self.path in ("/.well-known/oauth-protected-resource/mcp","/.well-known/oauth-protected-resource"):
+            if self.validate_host():self.reply(200,self.server.oauth.metadata())
+            return
         if self.authorized():self.reply(405)
     def do_DELETE(self):
         if not self.authorized():return
         key=self.headers.get("Mcp-Session-Id")
-        if key not in self.server.sessions:self.reply(404);return
+        if key not in self.server.sessions or self.server.sessions[key][3]!=self.principal:self.reply(404);return
         self.server.drop(key)
         self.reply(204)
     def do_POST(self):
@@ -110,7 +135,7 @@ class Handler(BaseHTTPRequestHandler):
             if len(self.server.sessions)>=MAX_SESSIONS:
                 self.reply(503);return
             bridge=self.server.bridge_factory()
-            bridge.transport="loopback-http"
+            bridge.transport="oauth-https" if self.server.oauth else "loopback-http"
             result=bridge.dispatch(msg)
             if result is None or "result" not in result:
                 if bridge.jobs:bridge.jobs.close()
@@ -122,15 +147,15 @@ class Handler(BaseHTTPRequestHandler):
                 if bridge.jobs:bridge.jobs.close()
                 self.reply(400);return
             key=secrets.token_urlsafe(24)
-            self.server.sessions[key]=(bridge,version,time.monotonic())
+            self.server.sessions[key]=(bridge,version,time.monotonic(),self.principal)
             self.reply(200,result,key);return
-        if key not in self.server.sessions:
+        if key not in self.server.sessions or self.server.sessions[key][3]!=self.principal:
             self.reply(404 if key else 400);return
-        bridge,version,_=self.server.sessions[key]
+        bridge,version,_,_=self.server.sessions[key]
         supplied=self.headers.get("MCP-Protocol-Version")
         if supplied!=version and not (supplied is None and version=="2025-03-26"):
             self.reply(400);return
-        self.server.sessions[key]=(bridge,version,time.monotonic())
+        self.server.sessions[key]=(bridge,version,time.monotonic(),self.principal)
         if msg.get("method") in ("resources/subscribe","resources/unsubscribe"):
             result={"jsonrpc":"2.0","id":msg.get("id"),"error":{"code":-32601,"message":"Subscriptions require stdio"}}
         else:
@@ -141,5 +166,14 @@ def run(project,token_file,port):
     token=read_token(token_file)
     with Server(project,token,port) as server:
         print(json.dumps({"url":f"http://127.0.0.1:{server.server_port}/mcp","access":"read-only","authentication":"Bearer token from selected file"}),flush=True)
+        try:server.serve_forever()
+        except KeyboardInterrupt:pass
+
+
+def run_remote(project,config_file):
+    from .mcp_oauth import OAuthConfig
+    config=OAuthConfig(config_file)
+    with Server(project,oauth=config) as server:
+        print(json.dumps({"url":config.resource,"access":"read-only","authentication":"OAuth introspection over TLS"}),flush=True)
         try:server.serve_forever()
         except KeyboardInterrupt:pass
