@@ -111,16 +111,20 @@ class Draft:
         return key
 
     def transform(self,key,position,yaw=0,scale=1):
-        row=self.rows.get(key)
-        if not row or row["signature"]!="REFR" or key.origin!=self.name:
-            raise ValueError("Only newly staged static references can be transformed")
-        parent=self.index().active[row["cell"]]
+        index=self.index()
+        row=index.active.get(key)
+        base=index.active.get(row.get("base")) if row else None
+        if not row or row["signature"]!="REFR" or row.get("persistent") or row.get("bucket")!=9 or not base or base["signature"]!="STAT" or "position" not in row:
+            raise ValueError("Select a temporary static reference with a valid transform")
+        if key.origin!=self.name and (row["flags"] or any(abs(v)>1e-6 for v in row.get("rotation",(0,0,0))[:2])):
+            raise ValueError("Flagged or tilted source references are not supported")
+        parent=index.active[row["cell"]]
         if len(position)!=3 or not all(isfinite(v) and abs(v)<=1e7 for v in (*position,yaw,scale)) or not .01<=scale<=10:
             raise ValueError("Invalid placement transform")
         if "grid" in parent and tuple(floor(v/4096) for v in position[:2])!=parent["grid"]:
             raise ValueError("Placement is outside selected exterior cell")
         self.checkpoint()
-        self.rows[key]={**row,"position":tuple(position),"rotation":(0,0,yaw),"scale":scale}
+        self.rows[key]={**row,"plugin":self.name,"position":tuple(position),"rotation":(0,0,yaw),"scale":scale}
         self.operations.append({"action":"transform_static","key":key_json(key),"position":position,"yaw_radians":yaw,"scale":scale})
 
     def export(self,path):
