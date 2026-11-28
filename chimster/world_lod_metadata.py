@@ -28,3 +28,24 @@ def world_bounds(cells):
     return {"min_cell":lo,"max_cell":hi,"min_world":tuple(x*4096 for x in lo),
             "max_world_exclusive":tuple((x+1)*4096 for x in hi),
             "occlusion_extent_warning":any(b-a+1>256 for a,b in zip(lo,hi))}
+
+
+def fnv_settings(cells,levels=(4,8,16,32),object_level=4):
+    """24-byte FO3/FNV settings layout; inclusive cell bounds, stride 4.
+    Values are candidate defaults until independently checked against a game file.
+    """
+    import struct
+    bounds=world_bounds(cells)
+    if not levels or any(v not in (4,8,16,32) for v in levels) or object_level not in (4,8,16,32):
+        raise ValueError("Unsupported LOD level")
+    lo,hi=bounds["min_cell"],bounds["max_cell"]
+    if any(not -32768<=v<=32767 for v in (*lo,*hi)):raise ValueError("LODSettings coordinate limit")
+    return struct.pack("<3I4hI",min(levels),max(levels),4,*lo,*hi,object_level)
+
+def read_fnv_settings(raw):
+    import struct
+    if len(raw)!=24:raise ValueError("Invalid FO3/FNV settings size")
+    low,high,stride,x,y,X,Y,obj=struct.unpack("<3I4hI",raw)
+    if low not in (4,8,16,32) or high not in (4,8,16,32) or low>high or not stride or x>X or y>Y or obj not in (4,8,16,32):
+        raise ValueError("Invalid LODSettings fields")
+    return {"min_level":low,"max_level":high,"stride":stride,"min_cell":(x,y),"max_cell":(X,Y),"object_level":obj}
