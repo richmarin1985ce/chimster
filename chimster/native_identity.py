@@ -61,3 +61,42 @@ def parse_token(value,profile=None):
         key=Identity(a,b)
     else:raise ValueError("identity kind mismatch")
     return game,key
+
+
+def tes3_placed_references(parts, plugin, masters=()):
+    """Extract CELL FRMR identities without confusing them with CELL names.
+
+    TES3 reference numbers use the high byte for the source master
+    (one-based), zero for the current plugin. Preserve moved references
+    as opaque until MVRF/CNDT reconciliation is implemented.
+    """
+    import struct
+    from .record_graph import Identity
+    from .loadorder import plugin_name
+    origins=(plugin_name(plugin),)+tuple(plugin_name(m) for m in masters)
+    if len(origins)>256 or len(set(origins))!=len(origins):
+        raise ValueError("invalid TES3 master table")
+    rows=[]
+    seen=set()
+    issues=[]
+    moved=False
+    for index,(tag,raw) in enumerate(parts):
+        if tag==b"MVRF":
+            moved=True
+            issues.append(("moved-reference",index))
+        if tag!=b"FRMR":
+            continue
+        if len(raw)!=4:
+            issues.append(("malformed-reference",index))
+            continue
+        number=struct.unpack("<I",raw)[0]
+        slot,local=number>>24,number&0xffffff
+        if slot>=len(origins) or not local:
+            issues.append(("invalid-reference",index))
+            continue
+        key=Identity(origins[slot],local)
+        if key in seen:issues.append(("duplicate-reference",index,key))
+        seen.add(key)
+        rows.append({"key":key,"field":index,"moved_context":moved})
+        moved=False
+    return {"references":rows,"issues":issues,"complete":not issues}
