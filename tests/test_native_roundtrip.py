@@ -169,3 +169,67 @@ class NativeTypedWorkbench(unittest.TestCase):
         self.assertEqual(list(subrecords("skyrim-se",node)),[parts[0],(b"CNTO",struct.pack("<Ii",0x5678,9))])
         self.assertEqual([r["occurrence"] for r in property_fields("skyrim-se",node)],[0,1])
         with self.assertRaises(ValueError):edit("skyrim-se",data,(0,),b"CNTO",1,{"formid":1},rev)
+
+
+class NativeCreationAndReferences(unittest.TestCase):
+    @staticmethod
+    def record(sig,parts,form=0,flags=0):
+        raw=b"".join(struct.pack("<4sH",tag,len(v))+v for tag,v in parts)
+        return struct.pack("<4sIIIII",sig,len(raw),flags,form,0,0)+raw
+
+    def test_create_duplicate_and_identity_preservation(self):
+        from chimster.native_editor import NativeSession
+        for profile in ("fallout3","new-vegas"):
+            header=self.record(b"TES4",[(b"HEDR",struct.pack("<fII",1.34,0,0x800))])
+            s=NativeSession(profile,header,Slots("fixture.esp"))
+            args=dict(editor_id="Original",name="Item",model="mesh.nif",value=3,weight=1,bounds=[0]*6)
+            new=s.create_or_duplicate(s.revision,"native_misc",**args)
+            path=s.resolve_identity(new);before=s.node(path)
+            duplicate=s.create_or_duplicate(s.revision,"native_duplicate",path=path,new_id="Copy")
+            self.assertNotEqual(new,duplicate)
+            self.assertEqual(s.node(s.resolve_identity(new)),before)
+            self.assertEqual(dict(s.rows[s.resolve_identity(duplicate)]["parts"])[b"EDID"],b"Copy\0")
+            original=s.data
+            with self.assertRaises(ValueError):s.create_or_duplicate(s.revision,"native_misc",**args)
+            self.assertEqual(s.data,original)
+    def test_tes3_create_and_duplicate(self):
+        from chimster.native_editor import NativeSession
+        raw=struct.pack("<4sI",b"HEDR",300)+bytes(300)
+        data=struct.pack("<4sIII",b"TES3",len(raw),0,0)+raw
+        s=NativeSession("morrowind",data,None)
+        key=s.create_or_duplicate(s.revision,"create",signature="MISC",new_id="Original",name="Item",model="mesh.nif",properties={"value":3,"weight":1})
+        path=s.resolve_identity(key)
+        copy=s.create_or_duplicate(s.revision,"duplicate",index=path[0],new_id="Copy")
+        self.assertNotEqual(key,copy)
+        self.assertEqual(len(s.paths),2)
+    def test_reference_selector_filters_and_ambiguity(self):
+        from chimster.native_editor import NativeSession
+        record=self.record
+        header=record(b"TES4",[])
+        data=header+record(b"NPC_",[(b"RNAM",struct.pack("<I",2))],1)+record(b"RACE",[(b"EDID",b"RaceA\0")],2)+record(b"RACE",[(b"EDID",b"RaceB\0")],3)+record(b"MISC",[],4)
+        s=NativeSession("skyrim-se",data,Slots("a.esp"))
+        fields=s.reference_fields((1,))
+        self.assertEqual(fields[0]["target"],Identity("a.esp",2))
+        matches=s.reference_targets((1,),0,0,"RaceB")
+        self.assertEqual([x["local_id"] for x in matches],[3])
+        s.apply(s.revision,[((1,),0,Identity("a.esp",2),Identity("a.esp",3),0)])
+        self.assertEqual(s.reference_fields((1,))[0]["target"],Identity("a.esp",3))
+        ambiguous=NativeSession("skyrim-se",data+record(b"RACE",[],3),Slots("a.esp"))
+        self.assertNotIn(3,[x["local_id"] for x in ambiguous.reference_targets((1,),0,0)])
+    def test_semantic_comparison_master_reorder(self):
+        from chimster.native_compare import semantic_compare
+        left=self.record(b"REFR",[(b"NAME",struct.pack("<I",1)),(b"ZZZZ",b"x")],0x02000800)
+        right=self.record(b"REFR",[(b"NAME",struct.pack("<I",0x01000001)),(b"ZZZZ",b"x")],0x02000800)
+        report=semantic_compare("skyrim",left,(0,),Slots("p.esp",["a.esm","b.esm"]),right,(0,),Slots("p.esp",["b.esm","a.esm"]))
+        self.assertEqual(report["fields"][0]["status"],"changed")
+        self.assertEqual(report["fields"][0]["semantic_status"],"equivalent")
+        self.assertEqual(report["fields"][1]["semantic_status"],"opaque-unchanged")
+    def test_native_string_tables(self):
+        from chimster.compatibility_strings import encode,parse,edit
+        from hashlib import sha256
+        for kind in ("STRINGS","DLSTRINGS","ILSTRINGS"):
+            data=encode({3:"Hello",12:"Résumé",100:""},kind)
+            result=edit(data,kind,{12:"New"},sha256(data).hexdigest())
+            self.assertEqual(parse(result,kind),{3:"Hello",12:"New",100:""})
+            with self.assertRaises(ValueError):edit(data,kind,{5:"New"},sha256(data).hexdigest())
+            with self.assertRaises(ValueError):edit(data,kind,{3:"New"},"stale")
