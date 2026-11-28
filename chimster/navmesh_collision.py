@@ -116,6 +116,11 @@ def generate_collision(spec):
                 # Compare collision vertex height to the candidate floor at that XY.
                 delta=[p[2]-(plane[0]*(p[0]-ox)+plane[1]*(p[1]-oy)+plane[2]) for p in poly]
                 if max(delta)>EPS and min(delta)<height-EPS:
+                    # A short riser strictly on the cell boundary is a possible
+                    # step, not an interior obstacle. Tall walls still block.
+                    x0=ox+k[0]*s;y0=oy+k[1]*s
+                    on_edge=any(all(abs(p[axis]-v)<=EPS for p in poly) for axis,v in ((0,x0),(0,x0+s),(1,y0),(1,y0+s)))
+                    if on_edge and max(delta)<=step+EPS:continue
                     blocked=True;break
             if blocked:reject["headroom_or_collision"]+=1;continue
             spans.append(z)
@@ -150,7 +155,7 @@ def generate_collision(spec):
         cell_tri[key]=len(triangles);triangles.extend(((a,b,c),(a,c,d)));layers.extend((i,i))
     report=topology(vertices,triangles)
     # Stepped floors stay disconnected unless a full shared edge has a
-    # bounded step and no intervening collision above the higher floor.
+    # bounded step. Both columns already passed conservative collision checks.
     links=[];by_xy=defaultdict(list)
     for key in kept:by_xy[key[:2]].append(key)
     for key,z in sorted(kept.items()):
