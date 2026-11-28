@@ -13,6 +13,7 @@ from .mcp_events import Subscriptions
 from .mcp_native import NativeProposals
 from .mcp_extended import native_profile, native_browse, native_detail, MeshProposals, ReferenceProposals, REFERENCE_PROFILES
 from .mcp_production import Production
+from .mcp_production_jobs import ProductionJobs, OPERATIONS as INTERRUPTIBLE_OPERATIONS
 from .mcp_structure import StructureProposals
 
 VERSIONS = ("2024-11-05", "2025-03-26", "2025-06-18", "2025-11-25")
@@ -35,6 +36,7 @@ class Bridge:
         self.mesh=MeshProposals(project,self.creation,allow_create) if project is not None else None
         self.production=Production(project,self.creation,allow_create) if project is not None else None
         self.jobs = Jobs(project) if project is not None else None
+        self.production_jobs=ProductionJobs(self.production) if self.production is not None else None
         self.initialized = False
         self.ready = False
         from .mcp_security import Gate
@@ -132,6 +134,11 @@ class Bridge:
                           schema({"operation":{"type":"string","maxLength":32},"id":key,"output_id":key,"revision":{"type":"integer","minimum":0},
                                   "master_ids":{"type":"array","minItems":0,"maxItems":4,"items":key},"aux_id":key,"edits_json":{"type":"string","maxLength":65536}},
                                  ["operation","id","output_id","revision"]),self.production_preview)
+            self.register("production_start","Queue a cancellable internal production preview; no publish.",schema({"operation":{"type":"string","maxLength":32},"id":key,"output_id":key,"revision":{"type":"integer","minimum":0},
+                                  "master_ids":{"type":"array","minItems":0,"maxItems":4,"items":key},"aux_id":key,"edits_json":{"type":"string","maxLength":65536}},
+                                 ["operation","id","output_id","revision"]),self.production_start)
+            for name,handler in (("status",self.production_jobs.status),("collect",self.production_jobs.collect),("cancel",self.production_jobs.cancel),("job_discard",self.production_jobs.discard)):
+                self.register("production_"+name,"Manage a session-local staged production job ("+name+").",schema({"job_id":{"type":"string","maxLength":32}},["job_id"]),handler,write=name in ("cancel","job_discard"))
             if allow_create:
                 self.register("production_apply","Publish exactly the staged new artifacts in one project revision; never overwrite.",
                               schema({"token":{"type":"string","maxLength":80}},["token"]),self.production.apply,write=True)
@@ -167,7 +174,11 @@ class Bridge:
                     self.register("project_"+direction,"Recover session edits, up to twenty steps; refuse intervening external revisions.",
                                   schema({"revision":{"type":"integer","minimum":0}},["revision"]),
                                   lambda revision,direction=direction:self.creation.recover(direction,revision),write=True,destructive=True)
+    def production_start(self,operation,**args):
+        if operation not in self.production_operations or operation not in INTERRUPTIBLE_OPERATIONS:raise ValueError("operation unavailable for isolated staging")
+        return self.production_jobs.start({"operation":operation,**args})
     def production_preview(self,operation,**args):
+        if self.production_jobs.entry is not None:raise ValueError("collect or discard active production job first")
         if operation not in self.production_operations:raise ValueError("production operation unavailable")
         return self.production.preview(operation,**args)
     def production_discard(self):
@@ -284,7 +295,7 @@ class Bridge:
                     any(not isinstance(x,str) or len(x)>p["items"]["maxLength"] for x in v)):
                 raise ValueError("invalid array argument")
         name=params["name"]
-        mutating=not definition["annotations"]["readOnlyHint"] and name not in ("diagnostic_cancel","diagnostic_discard","production_discard")
+        mutating=not definition["annotations"]["readOnlyHint"] and name not in ("diagnostic_cancel","diagnostic_discard","production_discard","production_cancel","production_job_discard")
         from .mcp_security import audit
         import secrets
         call_id=secrets.token_hex(16)
@@ -444,6 +455,7 @@ def main(argv=None):
     selection.add_argument("--discover-active", action="store_true", help="List active local editor projects and exit")
     selection.add_argument("--active", action="store_true", help="Select the sole active local editor project; fail if ambiguous")
     parser.add_argument("--diagnostic-worker",nargs=2,help=argparse.SUPPRESS)
+    parser.add_argument("--production-worker",action="store_true",help=argparse.SUPPRESS)
     parser.add_argument("--review-approval", metavar="REQUEST_ID", help="Review an exact pending operation in an interactive local terminal")
     parser.add_argument("--remote-config", metavar="PATH", help="Explicit read-only OAuth HTTPS server configuration; no automatic hosting")
     parser.add_argument("--http", type=int, metavar="PORT", help="Start authenticated read-only loopback HTTP; 0 selects an available port")
@@ -459,6 +471,12 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         from .editor_presence import discover, select
+        if args.production_worker:
+            if not args.project or any((args.diagnostic_worker,args.allow_create,args.allow_edit,args.allow_native_edit,args.allow_ui,args.describe,args.client_config,args.register_client_config,args.http is not None,args.token_file,args.create_token,args.review_approval,args.remote_config)):
+                raise ValueError("worker requires explicit project only")
+            from .mcp_production_jobs import worker
+            worker(Project(args.project))
+            return
         if args.diagnostic_worker:
             if not args.project or any((args.allow_create,args.allow_edit,args.allow_native_edit,args.allow_ui,args.describe,args.client_config,args.register_client_config,args.http is not None,args.token_file,args.create_token,args.review_approval,args.remote_config)):
                 raise ValueError("worker requires explicit project only")
@@ -565,6 +583,8 @@ def main(argv=None):
         finally:
             if bridge.jobs:
                 bridge.jobs.close()
+            if bridge.production_jobs:
+                bridge.production_jobs.close()
 
 if __name__ == "__main__":
     main()
