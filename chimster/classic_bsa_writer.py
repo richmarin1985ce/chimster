@@ -1,11 +1,11 @@
 """Experimental classic BSA writer.
 Format facts: TES5Edit Core/wbBSArchive.pas, folder offsets include filename table length.
 """
-import struct
+import struct,zlib
 from .classic_bsa_hash import native_hash
 from .compatibility_asset_lookup import normalize
 
-def build(entries,limit=256*1024*1024,*,version=103):
+def build(entries,limit=256*1024*1024,*,version=103,compress=False):
     if version not in (103,104,105):raise ValueError('Unsupported BSA version')
     stride=24 if version==105 else 16
     groups={};seen=set();total=36
@@ -37,6 +37,15 @@ def build(entries,limit=256*1024*1024,*,version=103):
         blocks.append(bytes([len(f)])+f)
         cursor+=1+len(f)+16*len(rows)
         for nh,n,data in sorted(rows):
-            blocks.append(struct.pack("<QII",nh,len(data),pos))
-            names.append(n);payload.append(data);pos+=len(data)
+            stored=data;flag=0
+            if compress and data:
+                if version==105:
+                    try:from lz4.frame import compress as encode
+                    except ImportError as exc:raise ValueError("LZ4 support is not installed") from exc
+                else:encode=zlib.compress
+                candidate=struct.pack("<I",len(data))+encode(data)
+                if len(candidate)<len(data):
+                    stored=candidate;flag=0x40000000
+            blocks.append(struct.pack("<QII",nh,len(stored)|flag,pos))
+            names.append(n);payload.append(stored);pos+=len(stored)
     return struct.pack("<4s8I",b"BSA\0",version,36,3,len(ordered),len(seen),folder_len,name_len,0)+b"".join(headers+blocks+names+payload)
