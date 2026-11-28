@@ -3,7 +3,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from pathlib import Path
 from pprint import pformat
-from .native_profiles import PROFILES
+from .native_profiles import PROFILES, capability_manifest
 from .native_parser import parse, subrecords
 from .native_editor import NativeSession
 from .record_graph import Slots, Identity
@@ -135,6 +135,7 @@ def mount(parent, game=None):
         target=Path(directory)/source.name
         with target.open("xb") as f:f.write(s.data)
         show({"export":str(target),"revision":s.revision})
+    ttk.Button(bar,text="Capabilities",command=guard(lambda:show(capability_manifest()))).pack(side="left")
     ttk.Button(bar,text="Open plugin",command=guard(open_file)).pack(side="left")
     ttk.Button(bar,text="Dependencies",command=guard(lambda:review(False))).pack(side="left")
     ttk.Button(bar,text="Dependents",command=guard(lambda:review(True))).pack(side="left")
