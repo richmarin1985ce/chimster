@@ -4,9 +4,9 @@ from pathlib import Path
 from . import ba2_writer,ba2_general
 from .compatibility_asset_lookup import normalize
 
-def package(destination,entries,*,compress=True,limit=256*1024*1024):
+def package(destination,entries,*,compress=True,limit=256*1024*1024,version=1):
     rows=list(entries)
-    data=ba2_writer.build(rows,limit=limit,compress=compress)
+    data=ba2_writer.build(rows,limit=limit,compress=compress,version=version)
     stream=io.BytesIO(data)
     directory=ba2_general.directory(stream)
     if len(directory)!=len(rows):raise ValueError("Directory verification failed")
@@ -28,7 +28,7 @@ def package_assets(destination,entries,**options):
     from .ba2_hash import prepare
     return package(destination,prepare(entries),**options)
 
-def package_directory(source,destination,*,compress=True,limit=256*1024*1024,format='ba2'):
+def package_directory(source,destination,*,compress=True,limit=256*1024*1024,format='ba2',ba2_version=1):
     root=Path(source).resolve()
     if not root.is_dir():raise ValueError("Expected asset directory")
     if Path(destination).resolve().is_relative_to(root):raise ValueError("Save archive outside source directory")
@@ -47,9 +47,9 @@ def package_directory(source,destination,*,compress=True,limit=256*1024*1024,for
             yield name,raw
     if format=='tes3':return package_tes3(destination,assets(),limit=limit)
     if format in ('103','104','105'):return package_classic(destination,assets(),version=int(format),compress=compress,limit=limit)
-    if format=='dx10':return package_textures(destination,assets(),compress=compress,limit=limit)
+    if format=='dx10':return package_textures(destination,assets(),compress=compress,limit=limit,version=ba2_version)
     if format!='ba2':raise ValueError('Unsupported packaging format')
-    return package_assets(destination,assets(),compress=compress,limit=limit)
+    return package_assets(destination,assets(),compress=compress,limit=limit,version=ba2_version)
 
 def package_tes3(destination,entries,*,limit=256*1024*1024):
     from . import tes3_bsa_writer,tes3_bsa
@@ -93,10 +93,10 @@ def package_classic(destination,entries,*,version=103,compress=False,limit=256*1
         os.unlink(temp)
     return {"path":str(target),"members":len(rows),"bytes":len(data),"version":version,"roundtrip_verified":True,"retail_verified":False}
 
-def package_textures(destination,entries,*,compress=True,limit=256*1024*1024):
+def package_textures(destination,entries,*,compress=True,limit=256*1024*1024,version=1):
     from . import ba2_texture_writer,ba2_texture,dds_texture
     rows=list(entries)
-    data=ba2_texture_writer.build(rows,limit=limit,compress=compress)
+    data=ba2_texture_writer.build(rows,limit=limit,compress=compress,version=version)
     stream=io.BytesIO(data)
     index=ba2_texture.directory(stream)
     if len(index)!=len(rows):raise ValueError("Directory verification failed")
