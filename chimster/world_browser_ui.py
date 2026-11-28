@@ -661,7 +661,7 @@ def mount(parent, game, open_preview=None, viewport_drop=None):
         if not folder:return
         try:
             from .world_lod_native import audit,world_name,GAME
-            show(audit(folder,world_name(index,world),GAME.get(index.profile,index.profile)))
+            show(audit(folder,world_name(index,world),GAME.get(index.profile,index.profile),deep=True))
         except (ValueError,OSError) as exc:messagebox.showerror("Audit LOD",str(exc),parent=parent)
     ttk.Button(nav,text="Audit LOD",command=audit_lod).pack(side="left")
     def object_lod():
