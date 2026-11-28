@@ -25,6 +25,21 @@ float sun_visibility(vec3 p,float slope,bool soft){
  if(any(lessThan(q,vec2(0)))||any(greaterThan(q,vec2(1)))||z<0.0||z>1.0)return 1.0;
  return step(z-volume_shadow_bias,texture(volume_shadow,q).r);
 }
+uniform sampler2D volume_spot_depth;
+uniform int volume_spot_index;
+uniform vec3 volume_spot_origin,volume_spot_right,volume_spot_up,volume_spot_forward;
+uniform vec2 volume_spot_proj;
+uniform float volume_spot_near,volume_spot_far;
+float local_visibility(int i,vec3 p){
+ if(i!=volume_spot_index)return 1.0;
+ vec3 d=p-volume_spot_origin;
+ float z=dot(d,volume_spot_forward);
+ if(z<=volume_spot_near||z>=volume_spot_far)return 1.0;
+ vec2 q=vec2(dot(d,volume_spot_right),dot(d,volume_spot_up))*volume_spot_proj/z*.5+.5;
+ if(any(lessThan(q,vec2(0)))||any(greaterThan(q,vec2(1))))return 1.0;
+ float depth=volume_spot_far/(volume_spot_far-volume_spot_near)*(1.0-volume_spot_near/z);
+ return step(depth-volume_shadow_bias,texture(volume_spot_depth,q).r);
+}
 """
 GLSL=expand_arrays(gpu_lighting.GLSL)+SHADOW_GLSL+expand_arrays(gpu_volume.GLSL)
 
@@ -84,3 +99,36 @@ class SunDepth:
     def close(self):
         if self.buffer is not None:self.preview.engine.remove_window(self.buffer);self.buffer=None
         if self.camera is not None:self.camera.remove_node();self.camera=None
+
+class SpotDepth(SunDepth):
+    """One local spotlight visibility pass, bounded to 256 depth pixels."""
+    def __init__(self,preview,effects,index):
+        from panda3d.core import Texture,GraphicsOutput,Camera,PerspectiveLens,NodePath,BitMask32
+        self.preview=preview;self.effects=effects;self.index=index
+        self.buffer=None;self.camera=None
+        self.depth=Texture("volume-spot-depth")
+        self.depth.set_format(Texture.F_depth_component)
+        self.depth.set_minfilter(Texture.FT_nearest);self.depth.set_magfilter(Texture.FT_nearest)
+        self.depth.set_wrap_u(Texture.WM_clamp);self.depth.set_wrap_v(Texture.WM_clamp)
+        try:
+            self.buffer=preview.output.make_texture_buffer("volume-spot",256,256)
+            if self.buffer is None:raise RuntimeError("Spot volume shadow buffer unavailable")
+            self.buffer.set_sort(-1999)
+            self.buffer.add_render_texture(self.depth,GraphicsOutput.RTM_bind_or_copy,GraphicsOutput.RTP_depth)
+            self.buffer.set_clear_depth_active(True);self.buffer.set_clear_depth(1.)
+            light=effects.lights[index]
+            self.lens=PerspectiveLens();self.lens.set_fov(light.cone);self.lens.set_near_far(.05,max(.1,light.radius))
+            self.camera=preview.root.attach_new_node(Camera("volume-spot-camera",self.lens))
+            self.camera.node().set_scene(preview.root);self.camera.node().set_camera_mask(BitMask32.bit(2))
+            state=NodePath("volume-spot-state");state.set_shader_off(100);state.set_light_off(100);state.set_fog_off(100)
+            self.camera.node().set_initial_state(state.get_state())
+            self.buffer.make_display_region().set_camera(self.camera)
+        except Exception:
+            self.close();raise
+    def bind(self,quad):
+        from math import tan,radians
+        from panda3d.core import Vec3
+        root=self.preview.root;light=self.preview.effect_nodes[self.index]
+        self.camera.set_mat(root,light.get_mat(root));q=self.camera.get_quat(root)
+        h,v=self.lens.get_fov()
+        for key,value in dict(volume_spot_depth=self.depth,volume_spot_index=self.index,volume_spot_origin=self.camera.get_pos(root),volume_spot_right=q.xform(Vec3(1,0,0)),volume_spot_up=q.xform(Vec3(0,0,1)),volume_spot_forward=q.xform(Vec3(0,1,0)),volume_spot_proj=(1/tan(radians(h)/2),1/tan(radians(v)/2)),volume_spot_near=self.lens.get_near(),volume_spot_far=self.lens.get_far()).items():quad.set_shader_input(key,value)

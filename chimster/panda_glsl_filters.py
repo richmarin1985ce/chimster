@@ -57,7 +57,7 @@ class GLSLFilters:
         self.preview=preview;self.effects=effects
         self.owns_manager=pipeline is None
         self.manager=FilterManager(preview.output,preview.camera) if self.owns_manager else pipeline._filtermgr
-        self.quad=None;self.sun_depth=None;self.state=preview.root.get_state()
+        self.quad=None;self.sun_depth=None;self.spot_depth=None;self.state=preview.root.get_state()
         self.volume=panda_volume.needs_volume(effects);self.shadow_error=None
         try:
             if self.volume:preview.root.clear_fog()
@@ -93,11 +93,18 @@ class GLSLFilters:
             quad.set_shader_input("use_volume",int(self.volume));quad.set_shader_input("hdr_pass",int(not self.owns_manager))
             # Valid sampler and uniforms even when the shadow pass is disabled.
             quad.set_shader_input("volume_shadow",depth)
+            quad.set_shader_input("volume_spot_depth",depth)
+            quad.set_shader_input("volume_spot_index",-1)
+            for key,val in dict(volume_spot_origin=(0,0,0),volume_spot_right=(1,0,0),volume_spot_up=(0,0,1),volume_spot_forward=(0,1,0),volume_spot_proj=(1,1),volume_spot_near=.05,volume_spot_far=1.).items():quad.set_shader_input(key,val)
             quad.set_shader_input("volume_shadow_enabled",0)
             for key,val in dict(volume_shadow_origin=(0,0,0),volume_shadow_right=(1,0,0),volume_shadow_up=(0,0,1),volume_shadow_forward=(0,1,0),volume_shadow_extent=1.,volume_shadow_near=.1,volume_shadow_far=1.,volume_shadow_bias=effects.shadow_bias).items():quad.set_shader_input(key,val)
             if self.volume and effects.shadow_size and effects.scatter_strength:
                 try:self.sun_depth=panda_volume.SunDepth(preview,effects)
                 except Exception as exc:self.shadow_error=str(exc)[:160]
+                index=next((i for i,light in enumerate(effects.lights) if light.shadows and light.direction is not None),None)
+                if index is not None:
+                    try:self.spot_depth=panda_volume.SpotDepth(preview,effects,index)
+                    except Exception as exc:self.shadow_error=str(exc)[:160]
         except Exception:
             self.close()
             raise
@@ -110,7 +117,9 @@ class GLSLFilters:
         self.quad.set_shader_input("nearp",lens.get_near());self.quad.set_shader_input("farp",lens.get_far())
         panda_volume.bind(self.quad,self.preview,self.effects)
         if self.sun_depth is not None:self.sun_depth.bind(self.quad)
+        if self.spot_depth is not None:self.spot_depth.bind(self.quad)
     def close(self):
+        if self.spot_depth is not None:self.spot_depth.close();self.spot_depth=None
         if self.sun_depth is not None:self.sun_depth.close();self.sun_depth=None
         if self.owns_manager:self.manager.cleanup();self.manager.ignore_all()
         self.quad=None

@@ -265,3 +265,22 @@ class PostTests(unittest.TestCase):
             restored=preview.render(scene,cam,96,72,materials)
             self.assertEqual(restored,baseline)
         finally:preview.close()
+
+    def test_volume_spotlight_shadow(self):
+        import os
+        if not os.environ.get("CHIMSTER_TEST_PANDA_GL"):self.skipTest("Optional framebuffer test")
+        from panda3d.core import load_prc_file_data
+        load_prc_file_data("chimster-test","load-display p3headlessgl\naudio-library-name null")
+        from chimster.panda_viewport import Preview
+        from chimster.gpu_viewport import make_demo
+        from chimster.scene import Camera
+        from chimster.render_effects import Effects,LocalLight
+        scene,materials=make_demo();preview=Preview("pbr")
+        try:
+            fx=Effects(fog_density=.06,scatter_strength=.7,shadow_size=512,lights=(LocalLight(position=(0,0,8),direction=(0,0,-1),radius=20,shadows=True),))
+            pixels=preview.render(scene,Camera(zoom=4),96,72,materials,effects=fx)
+            self.assertIsNone(preview.post_error)
+            self.assertIsNotNone(preview.post.volume_post.spot_depth)
+            self.assertEqual(len(pixels),96*72*4)
+            self.assertEqual(preview.post.volume_post.spot_depth.buffer.get_x_size(),256)
+        finally:preview.close()

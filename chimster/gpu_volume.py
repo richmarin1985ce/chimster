@@ -48,7 +48,7 @@ vec3 integrate_fog(vec3 src,vec3 view_pos){
      radiance+=fog_color*sun_color*sun_intensity*visible*scatter_strength*phase*.15;
      for(int j=0;j<light_count;j++){
        vec3 toward;vec3 local=local_light(j,p,toward);
-       radiance+=local*scatter_strength*phase_hg(dot(direction,toward))*.12;
+       radiance+=local*local_visibility(j,p)*scatter_strength*phase_hg(dot(direction,toward))*.12;
      }
    }
    accumulated+=trans*a*radiance;

@@ -35,6 +35,7 @@ float sun_visibility(vec3 p,float slope,bool soft){
  float blend=smoothstep(shadow_split-shadow_blend,shadow_split+shadow_blend,z);
  return mix(shadow_tap(shadow_near,a,bias,soft),farv,blend);
 }
+float local_visibility(int i,vec3 p){return 1.0;}
 """
 VERTEX="""#version 330
 in vec3 pos;in vec2 uv;in vec3 origin;in vec2 rotation;in float scale;
