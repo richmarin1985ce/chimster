@@ -4,7 +4,7 @@ from math import isfinite
 from .native_parser import parse,subrecords
 from .native_profiles import PROFILES
 
-ITEMS={b"SLGM",b"APPA",b"ENCH",b"SPEL",b"BOOK",b"NOTE",b"WEAP",b"ARMO",b"CLOT",b"ALCH",b"INGR",b"AMMO",b"MISC",b"KEYM",b"CONT",b"LVLI"}
+ITEMS={b"NPC_",b"CREA",b"LVLC",b"LVSP",b"SLGM",b"APPA",b"ENCH",b"SPEL",b"BOOK",b"NOTE",b"WEAP",b"ARMO",b"CLOT",b"ALCH",b"INGR",b"AMMO",b"MISC",b"KEYM",b"CONT",b"LVLI"}
 LOCALIZED={ "skyrim","skyrim-se","fallout4" }
 
 def inspect(profile,data):
@@ -39,6 +39,9 @@ def inspect(profile,data):
                     f,s,val,w=struct.unpack("<Bbif",v)
                     if isfinite(w):row["book_data"]={"flags":f,"skill_raw":s,"value":val,"weight":w}
                     else:row["issues"].append("Nonfinite book weight")
+            if profile=="oblivion" and node.signature in (b"LVLI",b"LVLC",b"LVSP"):
+                try:row["leveled"]=oblivion_leveled(list(subrecords(profile,node)))
+                except ValueError as e:row["issues"].append(str(e))
             rows.append(row)
     walk(nodes)
     return {"profile":profile,"localized":localized,"items":rows}
@@ -59,6 +62,10 @@ def edit_fallout_book_data(profile,raw,**changes):
 
 # Classic Oblivion only; no inheritance into the Remastered profile.
 OBLIVION_FIELDS={
+ (b"ARMO",b"BMDT"):("<I",("biped_flags",)),
+ (b"CLOT",b"BMDT"):("<I",("biped_flags",)),
+ (b"NPC_",b"AIDT"):("<4BIb3s",("aggression","confidence","energy","responsibility","service_flags","training_skill","reserved")),
+ (b"CREA",b"AIDT"):("<4BIb3s",("aggression","confidence","energy","responsibility","service_flags","training_skill","reserved")),
  (b"SLGM",b"DATA"):("<If",("value","weight")),
  (b"SLGM",b"SOUL"):("<B",("soul",)),
  (b"SLGM",b"SLCP"):("<B",("capacity",)),
@@ -89,8 +96,29 @@ def edit_oblivion_properties(signature,tag,raw,**changes):
         if k=="reserved":continue
         if k in ("weight","speed","reach","quality"):
             if not isfinite(v) or not 0<=v<=1e6:raise ValueError("Invalid weight")
-        elif type(v)!=int or (k=="skill" and not -1<=v<=20) or (k!="skill" and v<0):raise ValueError("Invalid "+k)
+        elif type(v)!=int or (k=="skill" and not -1<=v<=20) or (k not in ("skill","training_skill") and v<0):raise ValueError("Invalid "+k)
     if any(d[k]>5 for k in ("soul","capacity") if k in d):raise ValueError("Invalid soul tier")
     fmt,keys=OBLIVION_FIELDS[signature,tag]
     try:return struct.pack(fmt,*(d[k] for k in keys))
     except (struct.error,OverflowError) as e:raise ValueError("Outside native range") from e
+
+def oblivion_leveled(parts):
+    result={"entries":[]}
+    for tag,raw in parts:
+        if tag in (b"LVLD",b"LVLF"):
+            if len(raw)!=1:raise ValueError("Unexpected leveled metadata size")
+            result["chance_none" if tag==b"LVLD" else "flags"]=raw[0]
+        elif tag==b"LVLO":
+            if len(raw)!=12:raise ValueError("Unexpected leveled entry size")
+            level,pad,form,count,pad2=struct.unpack("<h2sIh2s",raw)
+            result["entries"].append(dict(level=level,form_id_raw=form,count=count))
+    return result
+
+def edit_oblivion_leveled_entry(raw,*,level=None,count=None):
+    if len(raw)!=12:raise ValueError("Unexpected leveled entry size")
+    result=bytearray(raw)
+    for offset,value in ((0,level),(8,count)):
+        if value is not None:
+            if type(value)!=int or not 1<=value<=32767:raise ValueError("Invalid leveled entry property")
+            struct.pack_into("<h",result,offset,value)
+    return bytes(result)
