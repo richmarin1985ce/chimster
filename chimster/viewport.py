@@ -28,7 +28,7 @@ def mount(parent):
     source=tk.StringVar(value="Portable scene");ttk.Label(parent,textvariable=source).pack(fill="x")
     native_preview=False
     selection_callback=None
-    stream_callback=None;preview_origin=(0,0,0);pan_drag=None
+    stream_callback=None;preview_origin=(0,0,0);pan_drag=None;preview_cell=None
     def draw():
         nonlocal renderer,panda,photo,render_size,failure
         canvas.delete("mesh");canvas.delete("gl")
@@ -176,7 +176,7 @@ def mount(parent):
         camera=replace(camera,center=(x+cos(a)*right+sin(a)*forward,y-sin(a)*right+cos(a)*forward,z))
         draw()
     def pan_end(e):
-        nonlocal pan_drag,camera,scene,materials,selected,preview_origin
+        nonlocal pan_drag,camera,scene,materials,selected,preview_origin,preview_cell
         pan_drag=None
         if not native_preview or stream_callback is None:return
         absolute=tuple(camera.center[i]*128+preview_origin[i] for i in range(3))
@@ -185,7 +185,7 @@ def mount(parent):
             status.set("Cell streaming: "+str(exc));return
         if result is None:return
         candidate,report=result
-        scene=candidate;materials={};preview_origin=report["origin_game_units"]
+        scene=candidate;materials={};preview_origin=report["origin_game_units"];preview_cell=report["cell"]
         camera=replace(camera,center=tuple((absolute[i]-preview_origin[i])/128 for i in range(3)))
         if not any(i.id==selected for i in scene.instances):selected=None
         source.set(f"Read-only cell {report['cell']} | {report['cells']} cells | {report['land_tiles']} LAND tiles | {report.get('model_references',0)} models")
@@ -313,13 +313,29 @@ def mount(parent):
     canvas.bind("<Button-2>",pan_start);canvas.bind("<B2-Motion>",pan_move);canvas.bind("<ButtonRelease-2>",pan_end)
     canvas.bind("<Configure>",lambda e:draw());sync()
     def load_cell_preview(candidate, report, focus=None, on_select=None, on_stream=None):
-        nonlocal scene,materials,camera,selected,native_preview,selection_callback,stream_callback,preview_origin
+        nonlocal scene,materials,camera,selected,native_preview,selection_callback,stream_callback,preview_origin,preview_cell
         if not native_preview and not messagebox.askyesno("Cell preview", "Replace the current portable viewport scene? Save any edits first.",parent=parent):
             return False
-        scene=candidate;materials={};native_preview=True;selection_callback=on_select;stream_callback=on_stream;preview_origin=report["origin_game_units"]
+        scene=candidate;materials={};native_preview=True;selection_callback=on_select;stream_callback=on_stream;preview_origin=report["origin_game_units"];preview_cell=report["cell"]
         selected=focus if any(i.id==focus for i in scene.instances) else None
         camera=Camera()
         source.set(f"Read-only cell {report['cell']} | {report['cells']} cells | {report['land_tiles']} LAND tiles | {report.get('model_references',0)} models | {report['proxy_references']} reference markers | {report['skipped_references']} skipped")
         sync();parent.after_idle(fit)
         return True
+    def drop_position(root_x,root_y):
+        """Inverse orthographic projection onto camera focus-height plane."""
+        if not native_preview or not canvas.winfo_viewable():return None
+        px=root_x-canvas.winfo_rootx();py=root_y-canvas.winfo_rooty()
+        w,h=canvas.winfo_width(),canvas.winfo_height()
+        if not 0<=px<w or not 0<=py<h:return None
+        from math import radians,sin,cos
+        a,b=radians(camera.yaw),radians(camera.pitch)
+        if abs(sin(b))<.05:return None
+        right=(px-w/2)/camera.zoom
+        forward=(py-h/2)/(camera.zoom*sin(b))
+        x,y,z=camera.center
+        return preview_cell,(128*(x+cos(a)*right+sin(a)*forward)+preview_origin[0],
+            128*(y-sin(a)*right+cos(a)*forward)+preview_origin[1],
+            128*z+preview_origin[2])
+    load_cell_preview.drop_position=drop_position
     return load_cell_preview
