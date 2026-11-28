@@ -677,10 +677,32 @@ def mount(parent, game, open_preview=None, viewport_drop=None):
                 root=filedialog.askdirectory(title="Select source game Data directory")
                 if not root:return
             out=Path(folder)/("object_lod_"+world.origin.replace(".","_")+"_"+format(world.local,"06x"))
-            show(export(index,world,out,Assets(root,archives)))
+            previous=None
+            if messagebox.askyesno("Incremental object LOD","Reuse unchanged tiles from a previous package?",parent=parent):
+                previous=filedialog.askdirectory(title="Select previous object LOD package") or None
+            show(export(index,world,out,Assets(root,archives),previous=previous))
             status.set("Built-in native object LOD candidates exported; review unsupported models and materials.")
         except (ValueError,OSError,TypeError,KeyError) as exc:messagebox.showerror("Object LOD",str(exc),parent=parent)
     ttk.Button(nav,text="Build object LOD",command=object_lod).pack(side="left")
+    def vegetation_lod():
+        from .world_lod_vegetation import build
+        from .flora import Recipe
+        name=simpledialog.askstring("Vegetation LOD","New asset name",initialvalue="Vegetation",parent=parent)
+        if not name:return
+        species=simpledialog.askstring("Vegetation LOD","Species: tree, shrub, grass",initialvalue="tree",parent=parent)
+        if not species:return
+        seed=simpledialog.askinteger("Vegetation LOD","Seed",initialvalue=42,parent=parent)
+        if seed is None:return
+        folder=filedialog.askdirectory(title="Choose output parent directory")
+        if not folder:return
+        try:
+            # Validate name before joining the output path.
+            import re
+            if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}",name):raise ValueError("Invalid asset name")
+            show(build(Recipe(species=species,seed=seed),Path(folder)/("vegetation_"+name),name))
+            status.set("Native vegetation billboard candidate exported; tree tile format pending.")
+        except (ValueError,OSError,TypeError) as exc:messagebox.showerror("Vegetation LOD",str(exc),parent=parent)
+    ttk.Button(nav,text="Vegetation LOD",command=vegetation_lod).pack(side="left")
     def profile_changed(*_):
         # Preserve staged work; changing the game selector must not discard it.
         if state.get('draft') and state['draft'].operations:
