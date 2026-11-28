@@ -62,7 +62,7 @@ def export(spec,output,masters=(),allocator=None):
         if not isinstance(markers,list) or len(markers)>10000:raise ValueError("marker limit")
         if markers and "layout" not in cell:raise ValueError("native markers require portable layout")
         for m in markers:
-            if not isinstance(m,dict) or set(m)-{"id","kind","base","position","rotation","primitive_hex","collision_layer","header_tail_hex","linked_rooms","rooms","geometry_hex"}:raise ValueError("unknown native marker fields")
+            if not isinstance(m,dict) or set(m)-{"id","kind","base","position","rotation","primitive_hex","collision_layer","header_tail_hex","linked_rooms","rooms","geometry_hex","geometry_convention"}:raise ValueError("unknown native marker fields")
             kind=m["kind"];ident(m["id"])
             if kind not in ("room","portal"):raise ValueError("unknown native marker kind")
             key=(cell["id"],kind,m["id"])
@@ -74,6 +74,7 @@ def export(spec,output,masters=(),allocator=None):
             required="roommarker" if kind=="room" else "portalmarker"
             if not editor or editor.casefold()!=required:raise ValueError("marker base must be explicit RoomMarker or PortalMarker STAT")
             marker_ids[key]=(fid,base_id,m)
+            if len(marker_ids)>50000:raise ValueError("total native marker limit")
     def link(key):
         if not isinstance(key,str) or key not in placements:raise ValueError("unknown local placement link")
         return placements[key]
@@ -143,7 +144,7 @@ def export(spec,output,masters=(),allocator=None):
                     if type(layer) is not int or not 0<=layer<=0xffffffff:raise ValueError("invalid collision layer")
                     fields.append((b"XTRI",struct.pack("<I",layer)))
                 if kind=="room":
-                    if mid not in room_ids or set(m)&{"rooms","geometry_hex"}:raise ValueError("room marker does not match layout")
+                    if mid not in room_ids or set(m)&{"rooms","geometry_hex","geometry_convention"}:raise ValueError("room marker does not match layout")
                     linked=m.get("linked_rooms",[])
                     if not isinstance(linked,list) or len(linked)>65535 or mid in linked:raise ValueError("invalid room links")
                     tail=bytes.fromhex(m["header_tail_hex"])
@@ -159,6 +160,14 @@ def export(spec,output,masters=(),allocator=None):
                 fields.extend(((b"XSCL",struct.pack("<f",1.)),(b"DATA",struct.pack("<6f",*pos,*rotation))))
                 decoded,_=inspect_marker(fields)
                 if decoded["primitive"]["type"]!=(1 if kind=="room" else 3):raise ValueError("unexpected primitive type for marker")
+                if kind=="portal" and "geometry_convention" in m:
+                    from .native_visibility_geometry import rectangle,Mapping
+                    convention=m["geometry_convention"]
+                    if not isinstance(convention,dict) or set(convention)!={"order","plane","dimension_factor"}:raise ValueError("explicit portal geometry convention required")
+                    corners=rectangle(decoded["portal_geometry"],Mapping(((1,0,0),(0,1,0),(0,0,1)),1),**convention)
+                    expected_corners=portal_map[mid]["corners"]
+                    if any(not any(math.dist(a,b)<=1e-4 for b in expected_corners) for a in corners) or any(not any(math.dist(a,b)<=1e-4 for b in corners) for a in expected_corners):
+                        raise ValueError("native portal rectangle differs from portable layout")
                 buckets[9].append(record(b"REFR",b"".join(sub(tag,value) for tag,value in fields),fid))
                 expected[fid]="REFR";native_bindings.append({"cell":cell["id"],"kind":kind,"layout_id":mid,"local_id":fid&0xffffff})
         children=b"".join(group(kind,cid,b"".join(rows)) for kind,rows in buckets.items() if rows)
