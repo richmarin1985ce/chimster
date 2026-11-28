@@ -114,6 +114,9 @@ Implemented bounded globally aligned raster windows; tile-local source and setti
 ### AutoNav refinement and weighted navigation
 Added bounded globally aligned resolution trials (finest nonempty candidate within a raw triangle budget), area classification for slope/stair geometry and explicit world-coordinate zones, positive weighted routing and area exclusions, transactional triangle area painting API, and simple concave coplanar fan simplification with self-intersection/diagonal checks. CLI navmesh-adaptive/navmesh-areas and route --avoid-area; desktop classification and area colors. Cache version bumped to invalidate old raster builds. Refinement is global per trial, not mixed-resolution local tiles; native area flags, physical collision material classification, streaming, advanced NIF collision and native NAVM finalization remain pending. Synthetic tests committed but not executed; percentages unchanged.
 
+### Native navigation finalization and collision extraction
+Added native NAVM candidate generation of counts, geometry, edge/door flags, cover indices, explicit external/door bytes and configurable conservative spatial grid; local reference comparison and review gates. Read-only NAVI prefix inspection and opt-in cross-record registration, external reciprocal link and door backlink diagnostics. Expanded FO3/FNV Nifly collision extraction for rigid-body quaternion and nested proper child rotation. Native helper rebuild, independent grid and NAVI unknown data verification, actual playable ESP finalization, more collision families and runtime tests remain outstanding. Synthetic test fixtures committed but not executed; local GitHub DNS failed. Existing milestone percentages unchanged.
+
 ## Critical path
 1. Stable project FormID allocation, typed native record schema and dependency-safe edits.
 2. Integrated native interior cells, architectural assets, room/portal/trigger volumes, placed references and collision.
