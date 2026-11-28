@@ -1,6 +1,6 @@
 """Tk desktop viewport with an original portable scene model."""
 import tkinter as tk
-from tkinter import ttk,filedialog,messagebox
+from tkinter import ttk,filedialog,messagebox,simpledialog
 from dataclasses import replace
 from pathlib import Path
 from .scene import Scene,Instance,Camera,frame,demo_scene,load_obj
@@ -205,6 +205,19 @@ def mount(parent):
             draw()
             status.set(status.get()+" | GLB preview only; not saved to scene")
         except Exception as e:messagebox.showerror("GLB preview",str(e))
+    def bake_probe():
+        if panda is None or backend.get()!="Panda3D PBR":
+            messagebox.showinfo("Reflection probes","Select Panda3D PBR and render a scene first.");return
+        radius=simpledialog.askfloat("Reflection probe","Influence radius in scene units",initialvalue=20,minvalue=.1,maxvalue=10000,parent=parent)
+        if radius is None:return
+        try:
+            panda.bake_probe(camera.center,radius);draw()
+            status.set(status.get()+f" | {len(panda.probes)} probes / {panda.probe_count} affected objects")
+        except Exception as e:messagebox.showerror("Reflection probe",str(e))
+    def clear_probes():
+        if panda is not None:panda.clear_probes();draw()
+    ttk.Button(side,text="Bake reflection probe at view center",command=bake_probe).pack(fill="x")
+    ttk.Button(side,text="Clear reflection probes",command=clear_probes).pack(fill="x")
     def clear_glb():
         if panda is not None:panda.set_glb_preview();draw()
     ttk.Button(side,text="Preview embedded GLB",command=preview_glb).pack(fill="x")

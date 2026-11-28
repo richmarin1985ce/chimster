@@ -128,6 +128,7 @@ class Preview:
     def __init__(self,mode="native"):
         if mode not in ("native","pbr","filters"):raise ValueError("Unknown Panda mode")
         self.mode=mode;self.post=None;self.post_key=None;self.post_error=None
+        self.probes=[];self.probe_key=None;self.probe_count=0
         from panda3d.core import GraphicsEngine, GraphicsPipeSelection, NodePath
         self.engine=GraphicsEngine()
         self.pipe=GraphicsPipeSelection.get_global_ptr().make_default_pipe()
@@ -144,6 +145,24 @@ class Preview:
         a=self.root.attach_new_node(ambient);s=self.root.attach_new_node(sun)
         s.set_hpr(-35,-50,0);self.root.set_light(a);self.root.set_light(s)
         self.ambient=a;self.sun=s;self.effect_nodes=[];self.effects_key=None;self.water=None;self.water_targets=None;self.water_error=None;self.underwater=None
+    def bake_probe(self,center,radius,size=32):
+        from .panda_probes import capture
+        if len(self.probes)>=4:raise ValueError("At most four local probes")
+        probe=capture(self,center,radius,size)
+        self.probes.append(probe);self.probe_key=None
+        return probe
+    def clear_probes(self):
+        self.probes.clear();self.probe_key=None
+        from .panda_probes import apply
+        self.probe_count=apply(self.model,())
+    def update_probes(self):
+        from .panda_probes import apply
+        active=self.mode=="pbr" and self.post is not None and not self.underwater
+        key=(id(self.model),active,tuple(id(p) for p in self.probes))
+        if key!=self.probe_key:
+            self.probe_count=apply(self.model,self.probes if active else ())
+            self.probe_key=key
+
     def set_glb_preview(self,path=None):
         candidate=None
         if path is not None:
@@ -276,6 +295,7 @@ class Preview:
         self.configure_effects(effects,settings,camera.center,eye)
         self.update_water_targets(effects,w,h,eye,camera.center,up)
         self.update_post(effects)
+        self.update_probes()
         if self.water is not None:
             # The volume compositor integrates to the water surface; avoid
             # applying the same atmospheric extinction inside the water shader.

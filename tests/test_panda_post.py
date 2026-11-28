@@ -235,3 +235,33 @@ class PostTests(unittest.TestCase):
             self.assertIsNotNone(preview.post.volume_post)
             self.assertEqual(len(c),64*48*4)
         finally:preview.close()
+
+    def test_probe_selection(self):
+        from chimster.panda_probes import Probe,nearest
+        a=Probe((0,0,0),5,"a");b=Probe((4,0,0),2,"b")
+        self.assertIs(nearest((a,b),(4,0,0)),b)
+        self.assertIs(nearest((a,b),(0,0,0)),a)
+        self.assertIsNone(nearest((a,b),(10,0,0)))
+
+    def test_probe_capture(self):
+        import os
+        if not os.environ.get("CHIMSTER_TEST_PANDA_GL"):self.skipTest("Optional framebuffer test")
+        from panda3d.core import load_prc_file_data
+        load_prc_file_data("chimster-test","load-display p3headlessgl\naudio-library-name null")
+        from chimster.panda_viewport import Preview
+        from chimster.gpu_viewport import make_demo
+        from chimster.scene import Camera
+        scene,materials=make_demo();preview=Preview("pbr")
+        try:
+            cam=Camera(zoom=4)
+            baseline=preview.render(scene,cam,96,72,materials)
+            probe=preview.bake_probe((0,0,2),24,16)
+            self.assertTrue(probe.environment.filtered_env_map.has_ram_image())
+            after=preview.render(scene,cam,96,72,materials)
+            self.assertIsNone(preview.post_error)
+            self.assertGreater(preview.probe_count,0)
+            self.assertNotEqual(after,baseline)
+            preview.clear_probes()
+            restored=preview.render(scene,cam,96,72,materials)
+            self.assertEqual(restored,baseline)
+        finally:preview.close()

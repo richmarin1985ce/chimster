@@ -1,0 +1,3 @@
+# Local reflection probes
+
+Panda's native six-face cubemap capture feeds SimplePBR's existing environment prefilter and spherical harmonic irradiance. Bake at the camera target, choose an influence radius, and repeat up to four times. Scene instance origins select the nearest in-range probe by normalized distance; otherwise the global sky environment is used. Probes are transient snapshots, not per-frame captures. Geometry uses a native lighting capture path and excludes water. Scene edit changes require manual rebaking. No probe blending, parallax correction, persistence or native game-record export yet. No external assets or paid dependencies.
