@@ -11,6 +11,7 @@ license-files = ["LICENSE"]
 [project.optional-dependencies]
 textures = ["Pillow>=10,<13"]
 viewport = ["moderngl>=5.12,<6", "Pillow>=10,<13"]
+advanced-viewport = ["panda3d==1.10.16", "Pillow>=10,<13"]
 [project.scripts]
 chimster = "chimster.cli:main"
 [tool.setuptools.packages.find]
