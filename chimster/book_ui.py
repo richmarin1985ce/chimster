@@ -12,6 +12,23 @@ def mount(parent):
         else:ttk.Entry(row,textvariable=var).pack(side="left",fill="x",expand=True)
     ttk.Label(parent,text="Separate pages with a line containing ---PAGE---. Plain text; preview is not the game font/layout.").pack(anchor="w")
     text=tk.Text(parent,wrap="word");text.pack(fill="both",expand=True)
+    from .book_fonts import choices,font_tag,references
+    fontbar=ttk.Frame(parent);fontbar.pack(fill="x",before=text)
+    ttk.Label(fontbar,text="Native font").pack(side="left")
+    face=ttk.Combobox(fontbar,state="readonly",width=25);face.pack(side="left")
+    def update_fonts(*args):
+        options=choices(fields["game"].get());face.configure(values=options)
+        face.set(options[0] if options else "")
+    fields["game"].trace_add("write",update_fonts);update_fonts()
+    def insert_font():
+        try:
+            start=text.index("sel.first");end=text.index("sel.last")
+            selected=text.get(start,end)
+            tag=font_tag(fields["game"].get(),face.get())
+            text.delete(start,end);text.insert(start,tag+selected+"</FONT>")
+        except tk.TclError:messagebox.showinfo("Font","Select a passage first.")
+        except ValueError as e:messagebox.showerror("Font",str(e))
+    ttk.Button(fontbar,text="Apply to selection",command=insert_font).pack(side="left")
     def book():
         import re
         return Book(**{k:v.get() for k,v in fields.items()},pages=tuple(re.split(r"\n---PAGE---\n",text.get("1.0","end-1c")))).validate()
@@ -50,7 +67,7 @@ def mount(parent):
             show()
         except (ValueError,TypeError) as e:messagebox.showerror("Book",str(e))
     def validate():
-        try:b=book();messagebox.showinfo("Book",f"{len(b.pages)} pages; {sum(map(len,b.pages))} characters. Valid portable project.")
+        try:b=book();messagebox.showinfo("Book",f"{len(b.pages)} pages; {sum(map(len,b.pages))} characters. Valid portable project. Native font references: {references(chr(10).join(b.pages))}")
         except (ValueError,TypeError) as e:messagebox.showerror("Book",str(e))
     def native():
         from .fnv_content import export_book
