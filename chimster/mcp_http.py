@@ -110,6 +110,7 @@ class Handler(BaseHTTPRequestHandler):
             if len(self.server.sessions)>=MAX_SESSIONS:
                 self.reply(503);return
             bridge=self.server.bridge_factory()
+            bridge.transport="loopback-http"
             result=bridge.dispatch(msg)
             if result is None or "result" not in result:
                 if bridge.jobs:bridge.jobs.close()
