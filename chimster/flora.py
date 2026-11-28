@@ -26,8 +26,10 @@ class Mesh:
     vertices: list = field(default_factory=list)
     uv: list = field(default_factory=list)
     faces: list = field(default_factory=list)
+    colors: list = field(default_factory=list)  # optional normalized RGBA vertex channel
     def add(self, verts, uv, triangles, material):
         base=len(self.vertices); self.vertices.extend(verts); self.uv.extend(uv)
+        if self.colors:self.colors.extend([(1.,1.,1.,1.)]*(len(self.vertices)-base))
         self.faces.extend((tuple(base+i for i in f), material) for f in triangles)
     def stats(self):
         return {'vertices':len(self.vertices),'triangles':len(self.faces),'material_groups':len({m for _,m in self.faces})}
