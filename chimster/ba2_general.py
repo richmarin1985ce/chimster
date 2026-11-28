@@ -1,4 +1,4 @@
-"""Independent read-only BA2 v1 GNRL reader. DX10 and newer versions fail closed."""
+"""Bounded read-only BA2 GNRL reader, including Starfield extended headers."""
 import struct,zlib
 from .compatibility_asset_lookup import normalize
 
@@ -7,15 +7,17 @@ def directory(stream):
     header=stream.read(24)
     if len(header)!=24:raise ValueError("Truncated BA2")
     magic,version,kind,count,names=struct.unpack("<4sI4sIQ",header)
-    if magic!=b"BTDX" or version not in (1,7,8) or kind!=b"GNRL":raise ValueError("Unsupported BA2 variant")
-    if count>1000000 or not 24+36*count<=names<=size:raise ValueError("Invalid directory extent")
+    if magic!=b"BTDX" or version not in (1,2,3,7,8) or kind!=b"GNRL":raise ValueError("Unsupported BA2 variant")
+    header_size=32 if version in (2,3) else 24
+    stream.seek(header_size)
+    if count>1000000 or not header_size+36*count<=names<=size:raise ValueError("Invalid directory extent")
     rows=[]
     for _ in range(count):
         raw=stream.read(36)
         if len(raw)!=36:raise ValueError("Truncated entry")
         _,_,_,_,offset,packed,unpacked,_=struct.unpack("<I4sIIQIII",raw)
         length=packed or unpacked
-        if offset<24+36*count or offset+length>names:raise ValueError("Invalid member extent")
+        if offset<header_size+36*count or offset+length>names:raise ValueError("Invalid member extent")
         rows.append((offset,packed,unpacked))
     stream.seek(names);result={}
     for row in rows:

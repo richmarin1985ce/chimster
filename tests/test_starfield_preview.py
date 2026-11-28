@@ -66,3 +66,24 @@ class StarfieldPreviewTests(unittest.TestCase):
         with self.assertRaises(ValueError):decode(data[:-1])
         broken=bytearray(data);struct.pack_into("<H",broken,8,99)
         with self.assertRaises(ValueError):decode(broken)
+
+    def test_starfield_ba2_and_lz4(self):
+        from chimster.starfield_assets import Sources,lz4_block
+        from chimster.archive_reader import read
+        import zlib
+        self.assertEqual(lz4_block(b"\x32abc\x03\x00",9),b"abcabcabc")
+        with self.assertRaises(ValueError):lz4_block(b"\x00\x00\x00",4)
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);p=root/"geometry.ba2";name=b"geometries/test.mesh";raw=b"mesh-fixture"
+            packed=zlib.compress(raw)
+            p.write_bytes(struct.pack("<4sI4sIQ",b"BTDX",2,b"GNRL",1,68+len(packed))+bytes(8)+struct.pack("<I4sIIQIII",0,b"mesh",0,0,68,len(packed),len(raw),0xBAADF00D)+packed+struct.pack("<H",len(name))+name)
+            sources=Sources([p])
+            self.assertEqual(sources.read("Geometries/Test.mesh"),raw)
+            loose=root/"Data";(loose/"geometries").mkdir(parents=True);(loose/"geometries"/"test.mesh").write_bytes(b"loose")
+            self.assertEqual(Sources([p],loose).read(name.decode()),b"loose")
+            p=root/"textures.ba2";name=b"textures/test.dds";raw=b"12345678";packed=b"\x80"+raw
+            offset=36+48
+            p.write_bytes(struct.pack("<4sI4sIQ",b"BTDX",3,b"DX10",1,offset+len(packed))+bytes(12)+struct.pack("<I4sIBBHHHBBH",0,b"dds\0",0,0,1,24,4,4,1,71,0x800)+struct.pack("<QIIHHI",offset,len(packed),len(raw),0,0,0xBAADF00D)+packed+struct.pack("<H",len(name))+name)
+            dds=read(p,name.decode())
+            self.assertTrue(dds.startswith(b"DDS "))
+            self.assertEqual(dds[148:],raw)

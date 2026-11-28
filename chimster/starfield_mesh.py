@@ -73,19 +73,21 @@ def load(path,units=1.):
 
 class MappedMeshes:
     """Explicit NIF-to-external-mesh manifest; no guessing NIF geometry hashes."""
-    def __init__(self,path,units=1.):
+    def __init__(self,path,units=1.,sources=None):
         p=Path(path).resolve(strict=True)
         if p.stat().st_size>1024*1024:raise ValueError("Mesh manifest too large")
         data=json.loads(p.read_text(encoding="utf-8"))
         if data.get("version")!=1 or not isinstance(data.get("models"),dict) or len(data["models"])>256:raise ValueError("Invalid mesh manifest")
-        self.root=p.parent;self.units=units;self.paths={};self.cache={};self.vertices=0
+        self.root=p.parent;self.units=units;self.sources=sources;self.paths={};self.cache={};self.vertices=0
         for model,value in data["models"].items():
             key=self.key(model)
             if not isinstance(value,str):raise ValueError("Expected relative .mesh path")
             parts=value.replace("\\","/").split("/")
             if any(not x or x in (".","..") or ":" in x or "\0" in x for x in parts):raise ValueError("Unsafe mesh path")
-            dest=self.root.joinpath(*parts).resolve(strict=True)
-            if not dest.is_relative_to(self.root) or dest.suffix.casefold()!=".mesh":raise ValueError("Mesh path outside manifest directory")
+            dest="/".join(parts) if sources is not None else self.root.joinpath(*parts).resolve(strict=True)
+            if sources is not None:
+                if not dest.casefold().startswith("geometries/") or not dest.casefold().endswith(".mesh"):raise ValueError("Expected geometries/*.mesh asset")
+            elif not dest.is_relative_to(self.root) or dest.suffix.casefold()!=".mesh":raise ValueError("Mesh path outside manifest directory")
             if key in self.paths:raise ValueError("Duplicate model key")
             self.paths[key]=dest
     @staticmethod
@@ -100,7 +102,7 @@ class MappedMeshes:
         if key not in self.paths:return None
         if key not in self.cache:
             if len(self.cache)>=64:raise ValueError("Mesh cache limit")
-            m,lods,_=load(self.paths[key],self.units)
+            m,lods,_=decode(self.sources.read(self.paths[key]),self.units) if self.sources is not None else load(self.paths[key],self.units)
             count=sum(len(x.vertices) for x in (m,*lods))
             if self.vertices+count>300000:raise ValueError("Combined mesh vertex budget exceeded")
             self.vertices+=count;self.cache[key]=(m,lods)

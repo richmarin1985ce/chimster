@@ -450,7 +450,14 @@ def mount(parent):
                     mapped=None
                     if messagebox.askyesno("Starfield geometry","Use an optional NIF-to-.mesh manifest for native static geometry?",parent=win):
                         manifest=filedialog.askopenfilename(parent=win,filetypes=[("Mesh manifest","*.json")])
-                        if manifest:mapped=MappedMeshes(manifest,units)
+                        if manifest:
+                            from .starfield_assets import Sources
+                            sources=None
+                            if messagebox.askyesno("Starfield archives","Read manifest geometry from game BA2 archives or loose Data?",parent=win):
+                                archives=filedialog.askopenfilenames(parent=win,title="Select BA2 archives in low-to-high priority",filetypes=[("BA2 archives","*.ba2")])
+                                loose=filedialog.askdirectory(parent=win,title="Optional loose Data directory (Cancel for archives only)")
+                                sources=Sources(archives,loose)
+                            mapped=MappedMeshes(manifest,units,sources)
                     scene,report=catalog.preview(choices[ids[0]][0],units,mapped)
                     if load_cell_preview(scene,report):
                         source.set("Starfield experimental | "+report["cell"]+" | "+str(report["light_records"])+" lights | "+str(report["model_references"])+" mapped models | "+str(report["proxy_references"])+" proxies")
