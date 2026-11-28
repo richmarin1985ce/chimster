@@ -104,7 +104,12 @@ def build_parser():
  a=s.add_parser('quest-check'); a.add_argument('project')
  a=s.add_parser('script-check'); a.add_argument('path')
  a=s.add_parser('script-syntax-export'); a.add_argument('language',choices=['papyrus','geck','oblivion','morrowind','lua']); a.add_argument('output')
+ a=s.add_parser('legacy-script-check'); a.add_argument('game'); a.add_argument('path'); a.add_argument('--result-script',action='store_true')
+ a=s.add_parser('legacy-script-inspect'); a.add_argument('game'); a.add_argument('plugin')
+ a=s.add_parser('legacy-script-attach'); a.add_argument('game'); a.add_argument('draft'); a.add_argument('donor'); a.add_argument('output')
+ a=s.add_parser('lua-check'); a.add_argument('compiler'); a.add_argument('source'); a.add_argument('--execute',action='store_true'); a.add_argument('--timeout',type=int,default=30)
  a=s.add_parser('papyrus-build'); a.add_argument('game'); a.add_argument('backend',choices=['ck','caprica']); a.add_argument('compiler'); a.add_argument('source'); a.add_argument('flags'); a.add_argument('output'); a.add_argument('--import',dest='imports',action='append',default=[]); a.add_argument('--execute',action='store_true'); a.add_argument('--timeout',type=int,default=120)
+ for opt in ('optimize','release','final','warnings-as-errors'): a.add_argument('--'+opt,action='store_true')
  a=s.add_parser('papyrus-batch'); a.add_argument('game'); a.add_argument('backend',choices=['ck','caprica']); a.add_argument('compiler'); a.add_argument('source_root'); a.add_argument('flags'); a.add_argument('output'); a.add_argument('--import',dest='imports',action='append',default=[]); a.add_argument('--execute',action='store_true'); a.add_argument('--timeout',type=int,default=120)
  a=s.add_parser('vmad-inspect'); a.add_argument('game'); a.add_argument('plugin'); a.add_argument('form',type=lambda v:int(v,0))
  a=s.add_parser('vmad-edit'); a.add_argument('game'); a.add_argument('plugin'); a.add_argument('output'); a.add_argument('form',type=lambda v:int(v,0)); a.add_argument('script'); a.add_argument('property'); a.add_argument('value'); a.add_argument('plugin_sha256'); a.add_argument('vmad_sha256')
@@ -290,9 +295,23 @@ def main(argv=None):
    print(json.dumps(result,indent=2))
    if not result['valid']:raise SystemExit(1)
    return
+  elif n.cmd=='legacy-script-check':
+   from .legacy_compile import lint
+   result=lint(Path(n.path).read_text(encoding='utf-8-sig'),n.game,result_script=n.result_script)
+  elif n.cmd=='legacy-script-inspect':
+   from .legacy_compile import inspect
+   result=inspect(n.plugin,n.game)
+  elif n.cmd=='legacy-script-attach':
+   from .legacy_compile import attach
+   result=attach(n.draft,n.donor,n.output,n.game)
+  elif n.cmd=='lua-check':
+   from .lua_compile import check
+   result=check(n.compiler,n.source,execute=n.execute,timeout=n.timeout)
+   if n.execute and result['status']!='syntax-checked':
+    print(json.dumps(result,indent=2)); raise SystemExit(1)
   elif n.cmd=='papyrus-build':
    from .papyrus_build import build
-   result=build(n.game,n.backend,n.compiler,n.source,n.flags,n.imports,n.output,execute=n.execute,timeout=n.timeout)
+   result=build(n.game,n.backend,n.compiler,n.source,n.flags,n.imports,n.output,execute=n.execute,timeout=n.timeout,options={k:getattr(n,k) for k in ('optimize','release','final','warnings_as_errors')})
    if n.execute and result['status']!='header-checked':
     print(json.dumps(result,indent=2)); raise SystemExit(1)
   elif n.cmd=='papyrus-batch':
