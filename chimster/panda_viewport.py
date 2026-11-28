@@ -133,7 +133,7 @@ class Preview:
             self.close_water_targets()
             if self.water is not None:self.water.remove_node();self.water=None
             self.ambient.node().set_color((*([effects.ambient]*3),1))
-            self.sun.node().set_color((*([effects.sun_intensity]*3),1))
+            self.sun.node().set_color(tuple(c*effects.sun_intensity for c in effects.sun_color)+(1,))
             self.sun.node().set_shadow_caster(bool(effects.shadow_size),max(1,effects.shadow_size),max(1,effects.shadow_size))
             if effects.shadow_size:
                 lens=self.sun.node().get_lens()
@@ -148,7 +148,9 @@ class Preview:
                 source.set_color(tuple(x*light.intensity for x in light.color)+(1,))
                 source.set_attenuation((1,0,4/(light.radius*light.radius)))
                 node=self.root.attach_new_node(source);node.set_pos(*light.position)
-                if light.direction is not None:node.look_at(Point3(*(light.position[j]+light.direction[j] for j in range(3))))
+                if light.direction is not None:
+                    direction=Vec3(*light.direction);direction.normalize()
+                    node.look_at(Point3(*(light.position[j]+direction[j] for j in range(3))),Vec3(0,0,1) if abs(direction[2])<.99 else Vec3(0,1,0))
                 self.root.set_light(node);self.effect_nodes.append(node)
             if effects.fog_density:
                 fog=Fog("preview-haze")

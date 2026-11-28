@@ -26,3 +26,13 @@ class EffectsTests(unittest.TestCase):
         with self.assertRaises(ValueError):LocalLight(direction=(0,0,0)).validate()
         with self.assertRaises(ValueError):LocalLight(shadows=True).validate()
         self.assertEqual(LocalLight(direction=(0,0,-1),shadows=True).validate().cone,45)
+
+    def test_nested_shadow_frames(self):
+        from chimster.gpu_shadows import frames
+        from chimster.shadow_math import dot
+        r,u,n,views=frames((0,0,0),(1,2,3),48,512,2)
+        self.assertAlmostEqual(dot(r,u),0)
+        self.assertAlmostEqual(dot(u,n),0)
+        self.assertAlmostEqual(views[0][1],16.8)
+        self.assertEqual(views[1][1],48)
+        with self.assertRaises(ValueError):Effects(shadow_cascades=3).validate()

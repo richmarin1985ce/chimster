@@ -6,6 +6,7 @@ from array import array
 from time import perf_counter
 from .flora import cross
 from .lod import validate_mesh
+from . import gpu_lighting,gpu_shadows
 
 VERTEX="""#version 330
 in vec3 pos; in vec3 norm; in vec2 uv;
@@ -32,6 +33,7 @@ uniform float alpha_cut, normal_strength, normal_y, spec_strength, gloss;
 flat in vec3 object_id; flat in float selected;
 layout(location=0) out vec4 color;
 layout(location=1) out vec4 picking;
+"""+gpu_lighting.GLSL+gpu_shadows.GLSL+"""
 void main(){
  vec4 a=texture(albedo,texcoord);
  if(a.a<alpha_cut) discard;
@@ -56,7 +58,14 @@ void main(){
  float diffuse=max(0.0,dot(n,l));
  float spec=pow(max(0.0,dot(n,normalize(l+v))),gloss)*texture(specmap,texcoord).r*spec_strength;
  vec3 base=pow(max(a.rgb*tint,vec3(0)),vec3(2.2));
- vec3 lit=base*(0.28+0.72*diffuse)+vec3(spec*diffuse);
+ float shadow=sun_visibility(world,1.0-diffuse,true);
+ vec3 lit=base*ambient_level+sun_color*(base*sun_intensity+vec3(spec))*diffuse*shadow;
+ for(int i=0;i<light_count;i++){
+   vec3 dir;vec3 radiance=local_light(i,world,dir);
+   float nd=max(0.0,dot(n,dir));
+   float highlight=pow(max(0.0,dot(n,normalize(dir+v))),gloss)*texture(specmap,texcoord).r*spec_strength;
+   lit+=(base+vec3(highlight))*radiance*nd;
+ }
  color=vec4(mix(pow(clamp(lit,0.0,1.0),vec3(1.0/2.2)),vec3(1.0,0.72,0.22),selected*0.20),1);
  picking=vec4(object_id,1);
 }"""
@@ -184,7 +193,7 @@ class Renderer:
         self.program=self.ctx.program(vertex_shader=VERTEX,fragment_shader=FRAGMENT)
         self.program["albedo"].value=0;self.program["normalmap"].value=1;self.program["specmap"].value=2
         self.instance_buffer=self.ctx.buffer(reserve=5000*40,dynamic=True)
-        self.ao=None;self.spatial_key=None;self.spatial_root=None;self.spatial_entries=()
+        self.shadows=None;self.ao=None;self.spatial_key=None;self.spatial_root=None;self.spatial_entries=()
         self.meshes={};self.radii={};self.textures={};self.targets=None;self.ids={};self.size=(0,0)
         self.white=ImageMap(1,1,b"\xff\xff\xff\xff");self.flat=ImageMap(1,1,bytes((128,128,255,255)))
     def radius(self,m):
@@ -237,10 +246,15 @@ class Renderer:
         start=perf_counter();settings=(settings or Settings()).validate();materials=materials or {}
         if not isinstance(w,int) or not isinstance(h,int) or not 1<=w<=1920 or not 1<=h<=1080:raise ValueError("viewport size out of range")
         self.prune(scene,materials);self.resize(w,h);a,b,depth,fbo=self.targets
+        if effects.shadow_size:
+            if self.shadows is None:self.shadows=gpu_shadows.ShadowMaps(self)
+            self.shadows.render(scene,camera.center,settings,effects,materials)
+        elif self.shadows is not None:self.shadows.release_targets()
         fbo.use();self.ctx.viewport=(0,0,w,h);self.ctx.enable_only(self.gl.DEPTH_TEST);self.ctx.depth_func="<"
         fbo.clear(0,0,0,0,depth=1.)
         view=basis(camera,w,h,settings);eye,right,up,back,tx,ty=view;p=self.program
         for key,value in {"eye":eye,"rightv":right,"upv":up,"backv":back,"projection":(1/tx,1/ty),"nearp":settings.near,"farp":settings.far,"sun":settings.light}.items():p[key].value=value
+        gpu_lighting.bind(p,effects);gpu_shadows.bind(p,self.shadows,bool(effects.shadow_size))
         from .spatial import Entry,build,query
         key=(scene.instances,tuple(sorted((k,id(m)) for k,m in scene.assets.items())))
         if self.spatial_key!=key:
@@ -306,6 +320,7 @@ class Renderer:
         if self.targets:
             for obj in reversed(self.targets):obj.release()
         self.meshes.clear();self.radii.clear();self.textures.clear();self.targets=None
+        if self.shadows is not None:self.shadows.close();self.shadows=None
         if self.ao is not None:self.ao.close();self.ao=None
         self.instance_buffer.release();self.program.release();self.ctx.release()
 

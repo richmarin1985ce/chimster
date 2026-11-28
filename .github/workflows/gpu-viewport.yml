@@ -1,5 +1,12 @@
 name: OpenGL viewport integration
 on:
+  push:
+    paths:
+      - 'chimster/gpu_*.py'
+      - 'chimster/screen_occlusion.py'
+      - 'chimster/render_effects.py'
+      - 'tests/test_gpu_viewport.py'
+      - '.github/workflows/gpu-viewport.yml'
   pull_request:
   workflow_dispatch:
 permissions:
