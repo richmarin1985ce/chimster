@@ -141,6 +141,11 @@ def export_esp(draft, output):
             x,y=row["grid"]
             exterior[row["world"]][(y//32,x//32)][(y//8,x//8)].append(raw)
     body=b""
+    weathers=[r for r in draft.rows.values() if r["signature"]=="WTHR"]
+    if weathers:
+        from .world_weather import encode
+        body+=g(0,b"WTHR",b"".join(encode(r,slots) for r in sorted(weathers,key=lambda r:r["key"])))
+        records+=len(weathers)
     climates=[r for r in draft.rows.values() if r["signature"]=="CLMT"]
     if climates:
         from .world_climate import encode
@@ -185,6 +190,8 @@ def export_esp(draft, output):
             actual=merged.active.get(key)
             if actual is None or any(actual.get(f)!=row.get(f) for f in ("signature","world","cell","grid","editor_id","base","name")):
                 raise ValueError("Native world edit roundtrip mismatch")
+            if row["signature"]=="WTHR" and actual.get("weather_spec")!=row.get("weather_spec"):
+                raise ValueError("Weather roundtrip mismatch")
             if row["signature"]=="REGN" and actual.get("region_spec")!=row.get("region_spec"):
                 raise ValueError("Region roundtrip mismatch")
             if row["signature"]=="CLMT" and actual.get("climate_spec")!=row.get("climate_spec"):
