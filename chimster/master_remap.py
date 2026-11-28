@@ -1,6 +1,9 @@
-"""Conservative master-table changes for a fully known top-level FNV subset."""
+"""Conservative master-table changes for known generated FNV layouts."""
 from pathlib import Path
-import struct,hashlib
+import struct,hashlib,zlib
+from .native_parser import Node,subrecords
+from .historical_schema import BASE,PARENTS,group_label
+from .world_remap_schema import PATTERNS as WORLD_PATTERNS,rewrite_world
 from .fnv_records import HEADER,scan,subs,text
 from .fnv_patch import sub
 from .fnv_bindings import Bindings
@@ -58,25 +61,61 @@ def reorder(source,output,masters,*,allow_set_change=False):
             if rec is None or rec["flags"]&0x20:raise ValueError("unresolved external reference")
         elif key not in local_ids:raise ValueError("unresolved local reference")
         return dest_id
+    def remap_typed(v,kinds):
+        target=source_slots.decode(v)
+        key=(target.origin,target.local)
+        rec=b.records.get(key)
+        actual=local_types.get(key) or (rec["signature"] if rec and not rec["flags"]&0x20 else None)
+        if actual not in kinds:raise ValueError("wrong world reference type: "+str(key))
+        return remap_link(v)
     sig,n,flags,form,*_=HEADER.unpack_from(raw)
     header=list(subs(raw[24:24+n]));tags=[k for k,_ in header]
-    if tags[:2]!=[b"HEDR",b"CNAM"] or tags[2:]!=[k for _ in old for k in (b"MAST",b"DATA")]:raise ValueError("unsupported TES4 header schema")
+    prefix=3 if tags[:3]==[b"HEDR",b"CNAM",b"SNAM"] else 2
+    if tags[:2]!=[b"HEDR",b"CNAM"] or tags[prefix:]!=[k for _ in old for k in (b"MAST",b"DATA")]:raise ValueError("unsupported TES4 header schema")
+    if prefix==3:text(header[2][1])
     if flags or form:raise ValueError("only ordinary ESP supported")
     if len(header[0][1])!=12:raise ValueError("invalid HEDR")
     text(header[1][1])
-    if any(len(v)!=8 for k,v in header[2:] if k==b"DATA"):raise ValueError("invalid master DATA")
-    body=b"".join(sub(k,v) for k,v in header[:2])+b.header()
+    if any(len(v)!=8 for k,v in header[prefix:] if k==b"DATA"):raise ValueError("invalid master DATA")
+    body=b"".join(sub(k,v) for k,v in header[:prefix])+b.header()
     result=[raw[:4]+struct.pack("<I",len(body))+raw[8:24]+body];i=24+n
     links=0
-    while i<len(raw):
+    group_changes=0;compressed_count=0
+    allowed=set(SCHEMAS)|set(PATTERNS)|set(WORLD_PATTERNS)|{b"FLST"}
+    # Exact generated exterior hierarchy only; no arbitrary group nesting.
+    child_groups={0:{1},1:{4},4:{5},5:{6},6:{9},9:set()}
+    child_records={1:{b"CELL"},4:set(),5:{b"CELL"},6:set(),9:{b"LAND",b"REFR"}}
+    def visit(i,limit,parent_kind=None,parent_label=None):
+        nonlocal links,group_changes,compressed_count
+        if limit-i<24:raise ValueError("truncated group")
         g,size,label,typ,_,_=struct.unpack_from("<4sI4sIII",raw,i)
-        if g!=b"GRUP" or typ!=0 or size<24 or i+size>len(raw) or label not in set(SCHEMAS)|set(PATTERNS)|{b"FLST"}:raise ValueError("unknown or nested group; remapping refused")
-        j=i+24;end=i+size;records=[]
+        if g!=b"GRUP" or size<24 or i+size>limit:raise ValueError("invalid group")
+        if parent_kind is None:
+            if typ!=0 or label not in allowed:raise ValueError("unsupported top-level group")
+        elif typ not in child_groups.get(parent_kind,set()) or (parent_kind==0 and parent_label!=b"WRLD"):
+            raise ValueError("unsupported nested group")
+        new_label=label
+        if typ in (1,6,9):
+            if typ==9 and label!=parent_label:raise ValueError("mismatched cell group owner")
+            old_id=struct.unpack("<I",label)[0]
+            new_label=struct.pack("<I",remap_typed(old_id,(PARENTS[BASE[typ]],)))
+            group_changes+=new_label!=label
+        j=i+24;end=i+size;records=[];previous=None
         while j<end:
             if end-j<24:raise ValueError("truncated record")
+            if raw[j:j+4]==b"GRUP":
+                kind=struct.unpack_from("<I",raw,j+12)[0]
+                if kind in (1,6) and (previous is None or raw[j+8:j+12]!=previous):
+                    raise ValueError("group owner must follow its record")
+                child,j=visit(j,end,typ,label);records.append(child);previous=None;continue
             k,n,flags,fid,*_=HEADER.unpack_from(raw,j);stop=j+24+n
-            if k!=label or stop>end or flags:raise ValueError("unsupported record")
-            parts=list(subs(raw[j+24:stop]));tags=tuple(t for t,_ in parts)
+            allowed_records={label} if typ==0 else child_records[typ]
+            if k not in allowed_records or stop>end or flags & ~(0x40000|(0x400 if k==b"CELL" else 0)):
+                raise ValueError("unsupported record")
+            compressed=bool(flags&0x40000)
+            original=raw[j+24:stop]
+            parts=list(subrecords("new-vegas",Node(k,raw[j:j+24],original)))
+            tags=tuple(t for t,_ in parts)
             if k==b"FLST":
                 if not tags or tags[0]!=b"EDID" or any(t!=b"LNAM" for t in tags[1:]):raise ValueError("unknown list fields")
                 new=[]
@@ -92,6 +131,8 @@ def reorder(source,output,masters,*,allow_set_change=False):
                         v=struct.pack("<I",after);links+=int(after!=before)
                     new.append(sub(tag,v))
                 payload=b"".join(new)
+            elif k in WORLD_PATTERNS:
+                payload,nchanged=rewrite_world(k,parts,remap_typed);links+=nchanged
             elif k in PATTERNS:
                 validate_types(k.decode("ascii"),parts)
                 payload,nchanged=rewrite(k,parts,remap_link);links+=nchanged
@@ -109,9 +150,16 @@ def reorder(source,output,masters,*,allow_set_change=False):
                         prefix=text(parts[0][1])[:1]
                         if prefix=="s":text(v)
                         elif prefix not in "if" or len(v)!=4:raise ValueError("unknown setting")
-                payload=raw[j+24:stop]
-            records.append(raw[j:j+4]+struct.pack("<III",len(payload),flags,remap(fid))+raw[j+16:j+24]+payload);j=stop
-        records=b"".join(records);result.append(raw[i:i+4]+struct.pack("<I",24+len(records))+raw[i+8:i+24]+records);i=end
+                payload=b"".join(sub(tag,value) for tag,value in parts)
+            if compressed:
+                compressed_count+=1
+                payload=struct.pack("<I",len(payload))+zlib.compress(payload)
+            records.append(raw[j:j+4]+struct.pack("<III",len(payload),flags,remap(fid))+raw[j+16:j+24]+payload)
+            previous=struct.pack("<I",fid);j=stop
+        records=b"".join(records)
+        return raw[i:i+4]+struct.pack("<I",24+len(records))+new_label+raw[i+12:i+24]+records,end
+    while i<len(raw):
+        group,i=visit(i,len(raw));result.append(group)
     if hashlib.sha256(p.read_bytes()).digest()!=hashlib.sha256(raw).digest():raise ValueError("source changed")
     b.check()
     created=False
@@ -126,4 +174,4 @@ def reorder(source,output,masters,*,allow_set_change=False):
     except Exception:
         if created:out.unlink()
         raise
-    return {"output":str(out),"records":len(report["records"]),"changed_list_references":links,"changed_embedded_references":links,"masters":after["masters"],"added_masters":added,"removed_masters":removed,"load_order_review_required":bool(added or removed or old!=b.names),"scope":"known generated top-level subset only; no opaque fields, nested groups or arbitrary local renumbering; dependency changes can alter winning overrides and runtime behavior"}
+    return {"output":str(out),"records":len(report["records"]),"changed_list_references":links,"changed_embedded_references":links,"changed_group_owners":group_changes,"compressed_records":compressed_count,"masters":after["masters"],"added_masters":added,"removed_masters":removed,"load_order_review_required":bool(added or removed or old!=b.names),"scope":"known generated flat and exterior world subset only; no opaque fields, arbitrary nesting or arbitrary local renumbering; dependency changes can alter winning overrides and runtime behavior"}
