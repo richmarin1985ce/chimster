@@ -9,7 +9,7 @@ def string(value):
     if not isinstance(value,str) or not value.strip() or "\0" in value:raise ValueError("Invalid text")
     return value.encode("cp1252")+b"\0"
 
-def misc(profile,data,revision,*,editor_id,name,value,weight,bounds,model=None):
+def misc(profile,data,revision,*,editor_id,name,value,weight,bounds,model=None,_signature=b"MISC"):
     if profile!="new-vegas":raise ValueError("Unverified template profile")
     if type(value)!=int or not 0<=value<=2147483647:raise ValueError("Invalid value")
     if type(weight) not in (int,float) or not math.isfinite(weight) or not 0<=weight<=1e6:raise ValueError("Invalid weight")
@@ -21,7 +21,8 @@ def misc(profile,data,revision,*,editor_id,name,value,weight,bounds,model=None):
         if ":" in path or path.startswith("\\") or ".." in path.split("\\") or not path.lower().endswith(".nif"):raise ValueError("Invalid relative model path")
         parts.append((b"MODL",string(path)))
     parts.append((b"DATA",struct.pack("<if",value,weight)))
-    return insert(profile,data,b"MISC",parts,revision)
+    if _signature not in (b"MISC",b"KEYM"):raise ValueError("Unsupported item type")
+    return insert(profile,data,_signature,parts,revision)
 
 def static(profile,data,revision,*,editor_id,bounds,model,passthrough_sound=None):
     """FNV STAT: public fopdoc STAT layout; no game assets bundled."""
@@ -35,3 +36,7 @@ def static(profile,data,revision,*,editor_id,bounds,model,passthrough_sound=None
         if type(passthrough_sound)!=int or not -1<=passthrough_sound<=9:raise ValueError("Invalid passthrough sound")
         parts.append((b"BRUS",struct.pack("<b",passthrough_sound)))
     return insert(profile,data,b"STAT",parts,revision)
+
+def key(profile,data,revision,**properties):
+    """KEYM DATA: signed value and float weight, per public fopdoc."""
+    return misc(profile,data,revision,_signature=b"KEYM",**properties)
