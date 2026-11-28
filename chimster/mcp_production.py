@@ -33,7 +33,7 @@ class Production:
             return a,self.project._object(a)
         if edits_json is not None and operation!="mesh-model":raise ValueError("unexpected modeling edits")
         if operation!="native-build" and master_ids:raise ValueError("unexpected masters")
-        if operation not in ("fuz","texture-material","lip-preview") and aux_id is not None:raise ValueError("unexpected auxiliary input")
+        if operation not in ("fuz","texture-material","lip-preview","native-lip") and aux_id is not None:raise ValueError("unexpected auxiliary input")
         with tempfile.TemporaryDirectory(prefix="chimster-production-") as d:
             root=Path(d)
             name="generated-"+output_id
@@ -86,7 +86,7 @@ class Production:
                 target=root/(name+".ttf")
                 summary=create(spec["family"],glyphs,target)
                 outputs.append((output_id,"other",target.name,target.read_bytes()))
-            elif operation in ("audio-normalize","audio-decode","audio-encode","lip-preview"):
+            elif operation in ("audio-normalize","audio-decode","audio-encode","lip-preview","native-lip"):
                 from .mcp_audio import normalize_pcm,lip_preview
                 from .audio import wav_info,xwma_info,convert
                 a,p=source(id,"audio",8*1024*1024)
@@ -100,7 +100,18 @@ class Production:
                     expected=".xwm" if operation=="audio-decode" else ".wav"
                     if ext!=expected or operation not in self.audio_tools:raise ValueError("unsupported input or host backend unavailable")
                     src=root/("input"+ext);src.write_bytes(p.read_bytes())
-                    if operation=="lip-preview":
+                    if operation=="native-lip":
+                        from .audio import native_lip
+                        game={"skyrim":"Skyrim","skyrimse":"Skyrim","fallout4":"Fallout4"}.get(m["game"])
+                        if not game or aux_id is None:raise ValueError("supported game and transcript required")
+                        _,q=source(aux_id,limit=16384)
+                        transcript=q.read_text(encoding="utf-8")
+                        tool,fonix=self.audio_tools[operation]
+                        target=root/(name+".lip")
+                        native_lip(src,target,tool,Path(fonix),game,transcript)
+                        summary={"format":"backend-generated native LIP","game":game,"requires_game_testing":True}
+                        kind="audio"
+                    elif operation=="lip-preview":
                         transcript=None
                         if aux_id is not None:
                             _,q=source(aux_id,limit=16384)
