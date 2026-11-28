@@ -120,6 +120,9 @@ Added native NAVM candidate generation of counts, geometry, edge/door flags, cov
 ### Native collision and registration review continuation
 Added convex collision core extraction and manifold reconstruction (three isolated local Python fixtures passed), experimental Skyrim static compressed mesh chunks/strips/big triangle reader, and native candidate batch review with reciprocal geometric seams, NAVI registration/location/grid checks and door backlink inventory. Registration manifests carry candidate payload fingerprints; no invented opaque NAVI fields. Native helper compilation, compressed/convex retail fixtures, unknown NAVI suffix/NVCI generation and playable export remain unverified. Full integration regressions not executed; no milestone score change.
 
+### Native navigation staging and collision pending items
+Added opt-in interior NAVM ESP staging, XXXX framing, stable mesh IDs, native NVDP/XNDP triangle bindings, reciprocal index diagnostics and read-only GECK-finalized-copy review. Skyrim compressed no-transform sentinel and quaternion transforms now supported in source; optional Fallout 4 native physics backend handles restricted static identity-root triangle meshes and compound transforms. Native bridge and backend integration unverified; full suite blocked by local GitHub DNS, no actual GECK execution. Referenced compressed chunks, additional primitives, fully independent NAVI generation and native runtime verification still open. Existing milestone estimates unchanged.
+
 ## Critical path
 1. Stable project FormID allocation, typed native record schema and dependency-safe edits.
 2. Integrated native interior cells, architectural assets, room/portal/trigger volumes, placed references and collision.
