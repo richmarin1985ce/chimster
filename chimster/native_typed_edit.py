@@ -45,6 +45,8 @@ def _scalar(kind,raw,value):
 def _common_kind(profile,sig,tag,parts):
     if profile=="morrowind":
         if sig in _TES3_DISPLAY and tag==b"FNAM":return "text"
+        if sig==b"GLOB" and tag==b"FLTV":
+            return {b"s":"short",b"l":"long",b"f":"float"}.get(_one(parts,b"FNAM"))
         if sig==b"GMST":
             name=_cstring(_one(parts,b"NAME"))
             return {("s",b"STRV"):"text",("i",b"INTV"):"int",("f",b"FLTV"):"float"}.get((name[:1],tag))
