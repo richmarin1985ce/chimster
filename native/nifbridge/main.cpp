@@ -165,8 +165,49 @@ static int extractCollision(const char* filename,const char* scaleArg){
     for(size_t i=0;i<hulls.size();i++){if(i)std::cout<<",";std::cout<<"[";for(size_t j=0;j<hulls[i].size();j++){if(j)std::cout<<",";auto p=hulls[i][j];std::cout<<"["<<p.x<<","<<p.y<<","<<p.z<<"]";}std::cout<<"]";}
     std::cout<<"]}\n";return 0;
 }
+// Static geometry extraction; not a lossless NIF editor.
+static int extractMesh(const char* filename){
+    require(std::filesystem::file_size(filename)<=128*1024*1024,"NIF input limit");
+    std::ifstream input(filename,std::ios::binary);NifFile nif;
+    require(bool(input)&&nif.Load(input)==0&&nif.IsValid()&&!nif.HasUnknown(),"invalid or unknown NIF");
+    const auto& ver=nif.GetHeader().GetVersion();
+    require(ver.File()==NiFileVersion::V20_2_0_7&&
+      ((ver.User()==11&&ver.Stream()==34)||(ver.User()==12&&(ver.Stream()==83||ver.Stream()==100||ver.Stream()==130))),"unsupported NIF version");
+    auto identity=[](auto* node){
+        auto m=node->GetTransformToParent().ToMatrix();
+        for(int i=0;i<16;i++)require(std::isfinite(m[i])&&std::abs(m[i]-(i%5==0?1.f:0.f))<1e-5f,"nonidentity transform unsupported");
+    };
+    auto root=nif.GetRootNode();require(root,"missing root");identity(root);
+    auto shapes=nif.GetShapes();require(!shapes.empty()&&shapes.size()<=256,"shape count limit");
+    std::ostringstream out;out<<std::setprecision(9)<<"CHIMSTER_IMPORT_1 "<<shapes.size()<<"\n";
+    size_t nv=0,nt=0;
+    for(size_t i=0;i<shapes.size();i++){
+        auto shape=shapes[i];require(nif.GetParentNode(shape)==root&&!shape->IsSkinned()&&!shape->HasSkinInstance(),"only unskinned direct root shapes supported");
+        identity(shape);
+        std::vector<Vector3> v;std::vector<Vector2> uv;std::vector<Triangle> t;
+        require(nif.GetVertsForShape(shape,v)&&nif.GetUvsForShape(shape,uv)&&shape->GetTriangles(t)&&!v.empty()&&!t.empty()&&v.size()==uv.size(),"missing geometry or UVs");
+        nv+=v.size();nt+=t.size();require(nv<=300000&&nt<=300000,"geometry limit");
+        std::string diffuse,normal;nif.GetTextureSlot(shape,diffuse,0);nif.GetTextureSlot(shape,normal,1);
+        auto alpha=nif.GetAlphaProperty(shape);
+        require(!alpha||(alpha->flags==0x1200&&alpha->threshold==128),"unsupported alpha property");
+        auto safe=[](const std::string& s){return s.size()<=1024&&std::all_of(s.begin(),s.end(),[](unsigned char c){return c>=32&&c<127;});};
+        require(safe(diffuse)&&safe(normal),"unsafe texture path");
+        out<<"shape_"<<i<<" "<<std::quoted(diffuse)<<" "<<std::quoted(normal)<<" "<<(alpha?1:0)<<" "<<v.size()<<" "<<t.size()<<"\n";
+        for(size_t j=0;j<v.size();j++){
+            auto p=v[j];auto q=uv[j];
+            require(std::isfinite(p.x)&&std::isfinite(p.y)&&std::isfinite(p.z)&&std::isfinite(q.u)&&std::isfinite(q.v),"invalid vertex/UV");
+            out<<p.x<<" "<<p.y<<" "<<p.z<<" "<<q.u<<" "<<1-q.v<<"\n";
+        }
+        for(auto f:t){
+            require(f.p1<v.size()&&f.p2<v.size()&&f.p3<v.size()&&f.p1!=f.p2&&f.p2!=f.p3&&f.p1!=f.p3,"invalid triangle");
+            out<<f.p1<<" "<<f.p2<<" "<<f.p3<<"\n";
+        }
+    }
+    std::cout<<out.str();return 0;
+}
 int main(int argc,char** argv){
  try {
+    if(argc==3&&std::string(argv[1])=="extract-mesh")return extractMesh(argv[2]);
     if(argc==4&&std::string(argv[1])=="extract-collision")return extractCollision(argv[2],argv[3]);
     require(argc>=4&&argc<=6,"usage: chimster-nifbridge GAME INPUT.cmesh OUTPUT.nif [box|compound FILE]");
     bool box=argc==5&&std::string(argv[4])=="box";
