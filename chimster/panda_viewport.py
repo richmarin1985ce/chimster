@@ -286,13 +286,16 @@ class Preview:
     def update_post(self,effects):
         # Reflection buffers and post graphs have incompatible sort/ownership
         # assumptions; retain the original water path until combined tests exist.
+        from .panda_volume import needs_volume
         mode=self.mode if self.water is None else "native"
+        if mode in ("native","filters") and self.water is None and needs_volume(effects):mode="volume"
         key=(mode,effects)
         if key!=self.post_key:
             self.close_post();self.post_key=key
             if mode!="native" and (mode!="filters" or effects.ao_strength or effects.scatter_strength):
                 from .panda_post import PBR,NativeFilters
-                try:self.post=(PBR if mode=="pbr" else NativeFilters)(self,effects)
+                from .panda_glsl_filters import GLSLFilters
+                try:self.post=(PBR if mode=="pbr" else GLSLFilters if mode=="volume" else NativeFilters)(self,effects)
                 except Exception as exc:
                     self.post_error=str(exc)[:160]
                     if mode=="filters":
@@ -301,7 +304,9 @@ class Preview:
                             self.post=GLSLFilters(self,effects)
                             self.post_error="Using GLSL filter fallback"
                         except Exception as fallback:self.post_error=("Native/GLSL filters: "+str(fallback))[:160]
-        if self.post is not None:self.post.update()
+        if self.post is not None:
+            self.post.update()
+            if getattr(self.post,"shadow_error",None):self.post_error="Volume shadows unavailable: "+self.post.shadow_error
     def close_buffer(self):
         self.close_post()
         self.close_water_targets()

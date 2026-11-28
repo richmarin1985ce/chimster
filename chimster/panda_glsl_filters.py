@@ -1,4 +1,5 @@
-"""GLSL FilterManager fallback for systems without legacy Cg filters."""
+"""GLSL FilterManager with shared world-space volumetric lighting."""
+from . import panda_volume
 VERTEX="""#version 130
 uniform mat4 p3d_ModelViewProjectionMatrix;
 in vec4 p3d_Vertex;
@@ -10,8 +11,10 @@ in vec2 uv;
 uniform sampler2D color_tex,depth_tex;
 uniform vec2 pixel,proj;
 uniform float nearp,farp,ao_strength,ao_radius,fog_density,scatter_strength,anisotropy;
-uniform vec3 fog_color,sun_view;
+uniform vec3 fog_color;
+uniform int use_volume;
 out vec4 frag;
+"""+panda_volume.GLSL+"""
 float depth(float d){return nearp*farp/(farp-d*(farp-nearp));}
 vec3 pos(vec2 q){
  float z=depth(texture(depth_tex,clamp(q,0.0,1.0)).r);
@@ -20,15 +23,16 @@ vec3 pos(vec2 q){
 void main(){
  vec4 src=texture(color_tex,uv);
  float d=texture(depth_tex,uv).r;
- if(d>=.999999){frag=src;return;}
+ if(d>=.999999&&use_volume==0){frag=src;return;}
  vec3 p=pos(uv);
+ if(d>=.999999)p=normalize(p)*volume_distance;
  vec3 dx1=pos(uv+vec2(pixel.x,0))-p,dx2=p-pos(uv-vec2(pixel.x,0));
  vec3 dy1=pos(uv+vec2(0,pixel.y))-p,dy2=p-pos(uv-vec2(0,pixel.y));
  vec3 n=cross(abs(dy1.z)<abs(dy2.z)?dy1:dy2,abs(dx1.z)<abs(dx2.z)?dx1:dx2);
  n=length(n)>1e-8?normalize(n):vec3(0,0,-1);
  float occ=0.0,weight=0.0;
  float px=clamp(ao_radius*proj.y/(p.z*pixel.y*2.0),2.0,24.0);
- if(ao_strength>0.0){
+ if(ao_strength>0.0&&d<.999999){
  for(int i=0;i<8;i++){
    vec2 dir=vec2(cos(float(i)*.785398),sin(float(i)*.785398));
    for(int j=1;j<=2;j++){
@@ -42,10 +46,7 @@ void main(){
  }
  }
  vec3 rgb=src.rgb*(1.0-ao_strength*occ/max(1.0,weight));
- // Native scene already applies distance fog. Add only forward scattering.
- float mu=dot(normalize(p),normalize(sun_view)),g2=anisotropy*anisotropy;
- float phase=(1.0-g2)/pow(max(.01,1.0+g2-2.0*anisotropy*mu),1.5);
- rgb+=fog_color*(1.0-exp(-fog_density*length(p)))*scatter_strength*phase*.12;
+ if(use_volume!=0)rgb=integrate_fog(rgb,p);
  frag=vec4(clamp(rgb,0.0,1.0),src.a);
 }"""
 
@@ -55,8 +56,10 @@ class GLSLFilters:
         from panda3d.core import Texture,Shader
         self.preview=preview;self.effects=effects
         self.manager=FilterManager(preview.output,preview.camera)
-        self.quad=None
+        self.quad=None;self.sun_depth=None;self.state=preview.root.get_state()
+        self.volume=panda_volume.needs_volume(effects);self.shadow_error=None
         try:
+            if self.volume:preview.root.clear_fog()
             color=Texture("chimster-post-color");depth=Texture("chimster-post-depth")
             depth.set_format(Texture.F_depth_component)
             for tex in (color,depth):
@@ -75,6 +78,14 @@ class GLSLFilters:
             for key in ("ao_strength","ao_radius","fog_density","scatter_strength","fog_color"):
                 quad.set_shader_input(key,getattr(effects,key))
             quad.set_shader_input("anisotropy",effects.scatter_anisotropy)
+            quad.set_shader_input("use_volume",int(self.volume))
+            # Valid sampler and uniforms even when the shadow pass is disabled.
+            quad.set_shader_input("volume_shadow",depth)
+            quad.set_shader_input("volume_shadow_enabled",0)
+            for key,val in dict(volume_shadow_origin=(0,0,0),volume_shadow_right=(1,0,0),volume_shadow_up=(0,0,1),volume_shadow_forward=(0,1,0),volume_shadow_extent=1.,volume_shadow_near=.1,volume_shadow_far=1.,volume_shadow_bias=effects.shadow_bias).items():quad.set_shader_input(key,val)
+            if self.volume and effects.shadow_size and effects.scatter_strength:
+                try:self.sun_depth=panda_volume.SunDepth(preview,effects)
+                except Exception as exc:self.shadow_error=str(exc)[:160]
         except Exception:
             self.close()
             raise
@@ -85,8 +96,9 @@ class GLSLFilters:
         h,v=lens.get_fov()
         self.quad.set_shader_input("proj",(1/tan(radians(h)/2),1/tan(radians(v)/2)))
         self.quad.set_shader_input("nearp",lens.get_near());self.quad.set_shader_input("farp",lens.get_far())
-        # Use light orientation, not the camera-relative sun anchor.
-        direction=self.preview.camera.get_relative_vector(self.preview.root,self.preview.sun.get_quat().xform(Vec3(0,-1,0)))
-        self.quad.set_shader_input("sun_view",(direction.x,direction.z,direction.y))
+        panda_volume.bind(self.quad,self.preview,self.effects)
+        if self.sun_depth is not None:self.sun_depth.bind(self.quad)
     def close(self):
+        if self.sun_depth is not None:self.sun_depth.close();self.sun_depth=None
         self.manager.cleanup();self.manager.ignore_all();self.quad=None
+        self.preview.root.set_state(self.state)
