@@ -63,3 +63,10 @@ class EffectsTests(unittest.TestCase):
                         d=tuple(corner[k]-center[k] for k in range(3))
                         self.assertLessEqual(abs(dot(d,r)),size)
                         self.assertLessEqual(abs(dot(d,u)),size)
+
+    def test_volume_segment_overlap(self):
+        from chimster.gpu_volume import sphere_segment
+        self.assertEqual(sphere_segment((0,0,0),(1,0,0),(5,0,0),.1,0,10),(4.9,5.1))
+        self.assertEqual(sphere_segment((0,0,0),(1,0,0),(0,0,0),2,0,5),(0,2))
+        self.assertIsNone(sphere_segment((0,0,0),(1,0,0),(5,3,0),1,0,10))
+        self.assertIsNone(sphere_segment((0,0,0),(1,0,0),(5,0,0),1,0,3))

@@ -142,3 +142,17 @@ class ViewportTests(unittest.TestCase):
             c,_=r.render(s,cam,96,72,m)
             self.assertEqual(a,c)
         finally:r.close()
+
+    @unittest.skipUnless(os.environ.get("CHIMSTER_TEST_GL"),"optional GL context")
+    def test_volumetric_sky_and_picking(self):
+        from chimster.render_effects import Effects
+        from chimster.scene import Scene
+        r=Renderer(backend="egl")
+        try:
+            scene=Scene({},[]);cam=Camera(zoom=4)
+            a,_=r.render(scene,cam,64,48)
+            b,_=r.render(scene,cam,64,48,effects=Effects(fog_density=.025,scatter_strength=.5))
+            self.assertNotEqual(a,b)
+            self.assertIsNone(r.pick(32,24))
+            self.assertEqual(len(b),64*48*4)
+        finally:r.close()

@@ -57,8 +57,12 @@ vec3 reflect_screen(vec3 src,vec3 p){
 void main(){
  vec4 src=texture(image,uv);
  float raw=texture(depthmap,uv).r;
- if(raw>=.999999){color=src;return;}
  vec3 pos=position_at(uv,raw);
+ if(raw>=.999999){
+   if(fog_density>0.0||volume_count>0)color=vec4(clamp(integrate_fog(src.rgb,normalize(pos)*volume_distance),0.0,1.0),src.a);
+   else color=src;
+   return;
+ }
  float occ=0.0;
  if(strength>0.0){
    vec3 n=texture(surfacemap,uv).rgb*2.0-1.0;
