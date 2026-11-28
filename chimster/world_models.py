@@ -69,6 +69,8 @@ def read_static(path, units=128):
                 mesh.vertices.append(point)
                 mesh.uv.append((float(uv[i].u),1-float(uv[i].v)) if len(uv)>i else (0,0))
             for tri in triangles:
+                if len(tri)!=3 or any(not 0<=i<len(vertices) for i in tri):
+                    raise ValueError("NIF triangle index out of range")
                 if len(set(tri))==3:
                     mesh.faces.append((tuple(offset+i for i in tri),"native_nif"))
         else:
@@ -82,10 +84,15 @@ class LooseModels:
     def __init__(self, root):
         self.root = Path(root)
         self.cache = {}
+        self.vertices = 0
     def __call__(self, model):
         key = model.replace("\\","/").casefold()
         if key not in self.cache:
             if len(self.cache)>=64:
                 raise ValueError("Model cache limit reached")
-            self.cache[key] = read_static(resolve_model(self.root,model))
+            candidate = read_static(resolve_model(self.root,model))
+            if self.vertices+len(candidate.vertices)>250000:
+                raise ValueError("Total loose model geometry budget reached")
+            self.vertices+=len(candidate.vertices)
+            self.cache[key]=candidate
         return self.cache[key]
