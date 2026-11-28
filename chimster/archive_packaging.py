@@ -28,7 +28,7 @@ def package_assets(destination,entries,**options):
     from .ba2_hash import prepare
     return package(destination,prepare(entries),**options)
 
-def package_directory(source,destination,*,compress=True,limit=256*1024*1024):
+def package_directory(source,destination,*,compress=True,limit=256*1024*1024,format='ba2'):
     root=Path(source).resolve()
     if not root.is_dir():raise ValueError("Expected asset directory")
     if Path(destination).resolve().is_relative_to(root):raise ValueError("Save archive outside source directory")
@@ -45,4 +45,27 @@ def package_directory(source,destination,*,compress=True,limit=256*1024*1024):
                 raw=stream.read(limit-total+path.stat().st_size+1)
             if len(raw)!=path.stat().st_size:raise ValueError("Asset changed during read")
             yield name,raw
+    if format=='tes3':return package_tes3(destination,assets(),limit=limit)
+    if format!='ba2':raise ValueError('Unsupported packaging format')
     return package_assets(destination,assets(),compress=compress,limit=limit)
+
+def package_tes3(destination,entries,*,limit=256*1024*1024):
+    from . import tes3_bsa_writer,tes3_bsa
+    rows=list(entries)
+    data=tes3_bsa_writer.build(rows,limit)
+    stream=io.BytesIO(data)
+    index=tes3_bsa.directory(stream)
+    if len(index)!=len(rows):raise ValueError("Directory verification failed")
+    for name,raw in rows:
+        if tes3_bsa.read(stream,index[normalize(name)],limit)!=raw:
+            raise ValueError("Payload verification failed: "+name)
+    target=Path(destination)
+    if target.suffix.lower()!=".bsa":raise ValueError("Expected BSA destination")
+    fd,temp=tempfile.mkstemp(prefix=".chimster-",dir=target.parent)
+    try:
+        with os.fdopen(fd,"wb") as out:
+            out.write(data);out.flush();os.fsync(out.fileno())
+        os.link(temp,target)
+    finally:
+        os.unlink(temp)
+    return {"path":str(target),"members":len(rows),"bytes":len(data),"roundtrip_verified":True,"retail_verified":False}
