@@ -54,3 +54,10 @@ def rewrite_world(signature,parts,remap):
             changed+=old!=new
         output.append(sub(tag,raw))
     return b"".join(output),changed
+
+def fields(signature,parts):
+    """Expose the exact same validated references to the graph/editor."""
+    parts=list(parts)
+    rewrite_world(signature,parts,lambda raw,kinds:raw)
+    return [(i,0,LINKS[signature][tag]) for i,(tag,raw) in enumerate(parts)
+            if tag in LINKS.get(signature,{})]
