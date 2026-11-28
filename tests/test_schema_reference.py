@@ -80,6 +80,6 @@ class SchemaReferenceTests(unittest.TestCase):
         ref=[(b"NAME",struct.pack("<I",3)),(b"XSCL",struct.pack("<f",1.)),(b"DATA",bytes(24))]
         edges,opaque=references("new-vegas","REFR",ref,slots)
         self.assertEqual(opaque,[])
-        self.assertEqual(edges,[(0,0,Identity("Example.esp",3),("STAT","BOOK","NOTE"))])
+        self.assertEqual(edges,[(0,0,Identity("Example.esp",3),("STAT","BOOK","NOTE","DOOR"))])
         _,opaque=references("new-vegas","REFR",ref+[(b"ZZZZ",b"x")],slots)
         self.assertIn(3,opaque)
