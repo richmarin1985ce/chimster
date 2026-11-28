@@ -23,3 +23,7 @@ def package(destination,entries,*,compress=True,limit=256*1024*1024):
     finally:
         os.unlink(temp)
     return {"path":str(target),"members":len(rows),"bytes":len(data),"roundtrip_verified":True,"retail_verified":False}
+
+def package_assets(destination,entries,**options):
+    from .ba2_hash import prepare
+    return package(destination,prepare(entries),**options)
