@@ -83,6 +83,7 @@ def named_key(signature, parts, encoding="cp1252"):
     return Tes3Key(signature, raw.decode(encoding))
 
 def references(profile, signature, parts, slots):
+    parts = list(parts)
     catalog = CATALOGS[profile]
     edges, opaque = [], []
     for i,(tag,raw) in enumerate(parts):
@@ -95,12 +96,11 @@ def references(profile, signature, parts, slots):
             edges.append((i,spec.offset,target,spec.targets))
     if profile == "new-vegas":
         from .schema_reference import inspect
-        from .record_graph import FIELDS
         extracted, unknown = inspect(signature, parts, slots)
         known = {(i,offset): (i,offset,target,kinds) for i,offset,target,kinds in edges}
         for edge in extracted:
-            spec = FIELDS.get((signature,parts[edge.field][0]))
-            kinds = tuple(sorted(spec[2])) if spec and spec[1]==edge.offset and spec[2] else ()
+            previous = known.get((edge.field,edge.offset))
+            kinds = edge.expected_types or (previous[3] if previous else ())
             known[(edge.field,edge.offset)] = (edge.field,edge.offset,edge.target,kinds)
         edges = list(known.values())
         opaque = sorted(set(opaque) & set(unknown))
