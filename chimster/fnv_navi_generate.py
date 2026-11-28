@@ -35,7 +35,7 @@ def map_entry(owner,cell,vertices):
     center=[math.fsum(v[k] for v in vertices)/len(vertices) for k in range(3)]
     return struct.pack("<IIIhh4f",0,form(owner),form(cell),0,0,*center,0.)
 
-def extend(master_parts,meshes):
+def extend(master_parts,meshes,*,registrations=None,grid_order=None):
     """Append interior entries to existing runs without changing any master payload.
 
     meshes are (raw FormID, inspected NAVM report) pairs in the SAME slot space.
@@ -63,15 +63,18 @@ def extend(master_parts,meshes):
             old_connections.add(fid);connections.append((tag,raw))
         else:raise ValueError("unsupported master NAVI order or field")
     if version is None or not old_maps or old_maps!=old_connections:raise ValueError("incomplete master NAVI map")
+    from .fnv_navi_variants import ordinary,split_neighbors
+    registrations=registrations or {}
     rows={}
     for fid,r in meshes:
         form(fid)
         if fid in old_maps or fid in rows or r["issues"]:raise ValueError("duplicate or invalid new NAVM")
         from .navmesh import topology
         if len(topology(r["vertices"],r["triangles"])["regions"])!=1:raise ValueError("island navigation variants require independent verification")
-        if r.get("flags") and any(f&0x40 for f in r["flags"]):raise ValueError("preferred navigation classification is not implemented")
+        if r.get("flags") and any(f&0x40 for f in r["flags"]) and fid not in registrations:raise ValueError("explicit preferred navigation registration required")
         rows[fid]=r
     if not rows or len(rows)>4096:raise ValueError("new NAVM count limit")
+    if not set(registrations)<=rows.keys():raise ValueError("registration references unknown mesh")
     # Check reciprocal edge ownership and full opposite-winding seam endpoints.
     external=defaultdict(list)
     for fid,r in rows.items():
@@ -92,8 +95,22 @@ def extend(master_parts,meshes):
             if max(math.dist(a,d),math.dist(b,c))>.01:raise ValueError("mismatched NAVM seam")
     new_maps=[];new_connections=[]
     for fid,r in sorted(rows.items()):
-        new_maps.append((b"NVMI",map_entry(fid,r["raw_cell"],r["vertices"])))
-        new_connections.append((b"NVCI",encode_connection(fid,(e["raw_target"] for e in r["external"]),(),(d["raw_target"] for d in r["doors"]))))
+        meta=registrations.get(fid,{})
+        if set(meta)-{"world","grid","preferred_value","preferred_neighbors"}:raise ValueError("unknown registration metadata")
+        actual=[e["raw_target"] for e in r["external"]]
+        preferred_flags=any(f&0x40 for f in r["flags"])
+        if preferred_flags and not {"preferred_value","preferred_neighbors"}<=meta.keys():raise ValueError("explicit preferred policy required")
+        if meta.get("preferred_neighbors") and "preferred_value" not in meta:raise ValueError("explicit preferred value required")
+        standard,preferred=split_neighbors(actual,meta.get("preferred_neighbors",[]))
+        if "world" in meta:
+            if "grid" not in meta or grid_order not in ("xy","yx"):raise ValueError("exterior requires reference-calibrated grid order and signed coordinates")
+            location=form(meta["world"]);grid=meta["grid"]
+            if location==r["raw_cell"]:raise ValueError("exterior location must be parent worldspace")
+        else:
+            if "grid" in meta:raise ValueError("interior grid must be zero")
+            location=r["raw_cell"];grid=(0,0)
+        new_maps.append((b"NVMI",ordinary(fid,location,r["vertices"],grid=grid,grid_order=grid_order or "xy",preferred_value=meta.get("preferred_value",0.))))
+        new_connections.append((b"NVCI",encode_connection(fid,standard,preferred,(d["raw_target"] for d in r["doors"]))))
     return head+maps+new_maps+connections+new_connections
 
 def stage_override(stage,master,output):
