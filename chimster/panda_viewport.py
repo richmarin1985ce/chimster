@@ -1,12 +1,54 @@
 """Optional Panda3D scene adapter; no Panda dependency at import time."""
-def build_scene(scene):
+from math import inf
+
+def lod_ranges(available, distances):
+    """Coalesce missing tiers using the closest available finer mesh."""
+    if len(available)!=4 or not available[0]:
+        raise ValueError("Base LOD is required")
+    if len(distances)!=3 or not 0<distances[0]<distances[1]<distances[2]<inf:
+        raise ValueError("Invalid LOD distances")
+    edges=(0,*distances,inf)
+    active=0
+    near=0
+    result=[]
+    for tier in range(1,4):
+        if available[tier]:
+            result.append((active,near,edges[tier]))
+            active=tier
+            near=edges[tier]
+    result.append((active,near,inf))
+    return result
+
+
+def texture_bytes(image):
+    """Panda RAM texture rows start at the bottom, like the ModernGL path."""
+    image.validate()
+    stride=image.width*4
+    return b"".join(image.rgba[y:y+stride] for y in range((image.height-1)*stride,-1,-stride))
+
+
+def build_scene(scene, materials=None, settings=None):
     from panda3d.core import (NodePath, GeomNode, Geom, GeomTriangles,
-        GeomVertexData, GeomVertexFormat, GeomVertexWriter)
-    from .gpu_viewport import vertex_data, default_material
+        GeomVertexData, GeomVertexFormat, GeomVertexWriter, Texture,
+        SamplerState, AlphaTestAttrib, LODNode)
+    from .gpu_viewport import vertex_data, default_material, variants, Settings
+    settings=(settings or Settings()).validate()
+    materials=dict(materials or {})
     root=NodePath("chimster")
     assets={}
-    for key in {i.asset for i in scene.instances}:
-        raw,groups=vertex_data(scene.assets[key])
+    textures={}
+    def texture(image):
+        key=id(image)
+        if key not in textures:
+            tex=Texture("chimster-diffuse")
+            tex.setup_2d_texture(image.width,image.height,Texture.T_unsigned_byte,Texture.F_rgba8)
+            tex.set_ram_image_as(texture_bytes(image),"RGBA")
+            tex.set_minfilter(SamplerState.FT_linear)
+            tex.set_magfilter(SamplerState.FT_linear)
+            textures[key]=tex
+        return textures[key]
+    def template(key,mesh):
+        raw,groups=vertex_data(mesh)
         data=GeomVertexData(key,GeomVertexFormat.get_v3n3t2(),Geom.UH_static)
         data.set_num_rows(len(raw)//8)
         pos=GeomVertexWriter(data,"vertex")
@@ -14,22 +56,45 @@ def build_scene(scene):
         uv=GeomVertexWriter(data,"texcoord")
         for j in range(0,len(raw),8):
             pos.add_data3f(*raw[j:j+3]);norm.add_data3f(*raw[j+3:j+6]);uv.add_data2f(*raw[j+6:j+8])
-        template=NodePath(key)
+        model=NodePath(key)
         for material,indices in groups.items():
             triangles=GeomTriangles(Geom.UH_static)
             for j in range(0,len(indices),3):
                 triangles.add_vertices(*indices[j:j+3])
             geom=Geom(data);geom.add_primitive(triangles)
             node=GeomNode(material);node.add_geom(geom)
-            part=template.attach_new_node(node)
-            part.set_color(*default_material(material).tint,1)
+            part=model.attach_new_node(node)
+            mat=materials.get(material,default_material(material)).validate()
+            part.set_color_scale(*mat.tint,1)
+            if mat.diffuse is not None:
+                part.set_texture(texture(mat.diffuse),1)
+            if mat.cutout>0:
+                part.set_attrib(AlphaTestAttrib.make(AlphaTestAttrib.M_greater_equal,mat.cutout))
             part.set_two_sided(True)
-        assets[key]=template
+        return model
+    for key in sorted({i.asset for i in scene.instances}):
+        options=[scene.assets[key],*variants(scene,key)]
+        models={tier:template(f"{key}:{tier}",mesh) for tier,mesh in enumerate(options) if mesh is not None}
+        assets[key]=(models,lod_ranges([m is not None for m in options],settings.lod_distances))
     for i in scene.instances:
         node=root.attach_new_node(i.id)
-        assets[i.asset].instance_to(node)
-        node.set_pos(i.x,i.y,i.z);node.set_h(i.yaw);node.set_scale(i.scale)
+        node.set_pos(i.x,i.y,i.z);node.set_h(i.yaw)
         node.set_tag("chimster_id",i.id)
+        models,ranges=assets[i.asset]
+        if len(ranges)==1:
+            target=node.attach_new_node("mesh")
+            target.set_scale(i.scale)
+            models[0].instance_to(target)
+        else:
+            lod=LODNode("distance-lod")
+            lodpath=node.attach_new_node(lod)
+            for tier,near,far in ranges:
+                # Keep distance switches in world units by scaling the mesh child,
+                # not the LOD node. A finite far limit exceeds valid scene bounds.
+                target=lodpath.attach_new_node(f"tier:{tier}")
+                target.set_scale(i.scale)
+                models[tier].instance_to(target)
+                lod.add_switch(1e9 if far==inf else far,near)
     return root
 
 
@@ -54,9 +119,11 @@ class Preview:
         from copy import deepcopy
         self.visibility_spec=deepcopy((layout,membership or {},tuple(occluders))) if layout is not None else None
         self.key=None
-    def render(self,scene,camera,w,h):
+    def render(self,scene,camera,w,h,materials=None,settings=None):
         from panda3d.core import FrameBufferProperties,WindowProperties,GraphicsPipe,Texture,GraphicsOutput
         from .gpu_viewport import basis,Settings
+        settings=(settings or Settings()).validate()
+        materials=dict(materials or {})
         if not 1<=w<=1280 or not 1<=h<=720:raise ValueError("preview size exceeds limit")
         if self.output is None or (self.output.get_x_size(),self.output.get_y_size())!=(w,h):
             self.close_buffer()
@@ -67,9 +134,9 @@ class Preview:
             self.output.add_render_texture(self.texture,GraphicsOutput.RTM_copy_ram,GraphicsOutput.RTP_color)
             region=self.output.make_display_region();region.set_camera(self.camera)
             self.output.set_clear_color((.09,.12,.16,1));self.output.set_clear_color_active(True)
-        key=(scene.instances,tuple(sorted((k,id(m)) for k,m in scene.assets.items())))
+        key=(scene.instances,tuple(sorted((k,id(m)) for k,m in scene.assets.items())),tuple(sorted(materials.items())),settings)
         if key!=self.key:
-            candidate=build_scene(scene)
+            candidate=build_scene(scene,materials,settings)
             visibility=None
             if self.visibility_spec is not None:
                 from .panda_visibility import Visibility
@@ -80,8 +147,8 @@ class Preview:
             self.visibility=visibility
             if self.model is not None:self.model.remove_node()
             self.model=candidate;self.model.reparent_to(self.root);self.key=key
-        eye,_,_,_,_,_=basis(camera,w,h,Settings())
-        self.lens.set_aspect_ratio(w/h);self.lens.set_fov(45);self.lens.set_near_far(.05,5000)
+        eye,_,_,_,_,_=basis(camera,w,h,settings)
+        self.lens.set_aspect_ratio(w/h);self.lens.set_fov(settings.fov);self.lens.set_near_far(settings.near,settings.far)
         self.visibility_report=self.visibility.update(eye) if self.visibility is not None else None
         self.camera.set_pos(*eye);self.camera.look_at(*camera.center)
         self.engine.render_frame();self.engine.sync_frame()

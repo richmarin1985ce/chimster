@@ -1,0 +1,23 @@
+name: Panda viewport scene graph
+on:
+  push:
+    paths:
+      - 'chimster/panda_*.py'
+      - 'chimster/gpu_viewport.py'
+      - 'tests/test_panda_viewport.py'
+      - '.github/workflows/panda-viewport.yml'
+  pull_request:
+    paths:
+      - 'chimster/panda_*.py'
+      - 'chimster/gpu_viewport.py'
+      - 'tests/test_panda_viewport.py'
+jobs:
+  scene-graph:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install ".[advanced-viewport]"
+      - run: python -m unittest discover -s tests -p test_panda_viewport.py -v
