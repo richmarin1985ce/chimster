@@ -9,6 +9,7 @@ from .project import atomic_json, read_json, identifier
 
 ID=re.compile(r"[0-9a-f]{32}")
 TTL=15
+VIEW_ACTIONS=("viewport-fit","viewport-left","viewport-right","viewport-up","viewport-down","viewport-zoom-in","viewport-zoom-out","viewport-show")
 
 def mailbox(instance,root=None,create=False):
     if not isinstance(instance,str) or not ID.fullmatch(instance):
@@ -24,7 +25,7 @@ def mailbox(instance,root=None,create=False):
 
 def submit(project,instance,action,revision,artifact=None,root=None):
     m=project.read()
-    if m["revision"]!=revision or action not in ("refresh","select"):
+    if m["revision"]!=revision or action not in ("refresh","select")+VIEW_ACTIONS:
         raise ValueError("stale revision or unsupported action")
     if action=="select":
         identifier(artifact)
@@ -52,5 +53,6 @@ def consume(project,instance,callback,root=None):
             if not 0<=time.time()-r["created"]<=TTL or r["project"]!=str(project.root) or r["revision"]!=m["revision"]:continue
             if r["action"]=="refresh" and r["artifact"] is None:callback("refresh",None)
             elif r["action"]=="select" and identifier(r["artifact"]) in m["artifacts"]:callback("select",r["artifact"])
+            elif r["action"] in VIEW_ACTIONS and r["artifact"] is None:callback(r["action"],None)
         except (OSError,ValueError,KeyError,TypeError,AttributeError):pass
         finally:p.unlink(missing_ok=True)
