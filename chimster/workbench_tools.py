@@ -33,6 +33,7 @@ GROUPS={
 }
 def mount(parent):
     import argparse
+    from .drop_import import path_field
     from tkinter import filedialog
     from .cli import build_parser
     parser=build_parser()
@@ -80,7 +81,12 @@ def mount(parent):
                 if flag:ttk.Checkbutton(row,variable=v).pack(side="left")
                 elif a.choices and not multi:ttk.Combobox(row,textvariable=v,values=list(a.choices),state="readonly").pack(side="left",fill="x",expand=True)
                 else:
-                    ttk.Entry(row,textvariable=v).pack(side="left",fill="x",expand=True)
+                    field=ttk.Entry(row,textvariable=v);field.pack(side="left",fill="x",expand=True)
+                    # Never drop an executable or output path into a command.
+                    if not multi and a.dest in {"source","input","plugin","manifest","scene","mesh","archive","profile","file","config","wav","lip","timeline","dictionary","model"}:
+                        path_field(field,v)
+                    elif not multi and a.dest in {"root","directory","source_root","input_dir","data_dir"}:
+                        path_field(field,v,directory=True)
                     if multi:ttk.Label(row,text="Separate values with |").pack(side="right")
                     else:
                         ttk.Button(row,text="File",command=lambda v=v:pick(v,filedialog.askopenfilename)).pack(side="right")
