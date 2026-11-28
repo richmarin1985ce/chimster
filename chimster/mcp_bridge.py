@@ -45,7 +45,7 @@ class Bridge:
         if project is not None:
             self.register("editor_context","Read active dashboard instance and selection for this explicitly scoped project.",schema(),self.editor_context)
             if self.allow_ui:
-                self.register("editor_request","Queue a dashboard refresh or artifact selection; no file writes or arbitrary UI events.",
+                self.register("editor_request","Queue refresh, select, viewport-show, viewport-fit, viewport-left/right/up/down or viewport-zoom-in/out; no scene or file changes.",
                               schema({"instance":{"type":"string","maxLength":32},"action":{"type":"string","maxLength":16},
                                       "revision":{"type":"integer","minimum":0},"artifact":{"type":"string","maxLength":80}},
                                      ["instance","action","revision"]),self.editor_request,write=True)
@@ -413,8 +413,8 @@ def main(argv=None):
     parser.add_argument("--http", type=int, metavar="PORT", help="Start authenticated read-only loopback HTTP; 0 selects an available port")
     parser.add_argument("--token-file", help="Private bearer token file for local HTTP")
     parser.add_argument("--create-token", metavar="PATH", help="Create a new private token file and exit")
-    parser.add_argument("--allow-ui", action="store_true", help="Grant local dashboard selection and refresh only; explicit project required")
-    parser.add_argument("--allow-native-edit", action="store_true", help="Grant staged FNV ESP record editing; requires --allow-edit")
+    parser.add_argument("--allow-ui", action="store_true", help="Grant local dashboard selection, refresh and camera navigation; explicit project required")
+    parser.add_argument("--allow-native-edit", action="store_true", help="Grant supported staged ESP reference/field edits; requires --allow-edit")
     parser.add_argument("--allow-edit", action="store_true", help="Explicitly allow trusted client draft replacement and session undo/redo")
     parser.add_argument("--allow-create", action="store_true", help="Explicitly allow the trusted client to create new project text artifacts")
     parser.add_argument("--register-client-config", metavar="PATH", help="Explicitly add Chimster to a closed local client JSON config, with backup")
