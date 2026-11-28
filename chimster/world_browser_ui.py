@@ -7,13 +7,14 @@ from .world_browser import Browser, label
 from .native_profiles import canonical_profile
 
 
-def mount(parent, game):
+def mount(parent, game, open_preview=None):
     state = {"paths": [], "index": None, "world": None, "cell": None,
              "worlds": [], "cells": {}, "objects": {}, "center": (0, 0)}
     status = tk.StringVar(value="New Vegas only. Add plugins in master-first load order.")
     query = tk.StringVar()
     object_query = tk.StringVar()
     world_choice = tk.StringVar()
+    radius = tk.StringVar(value="0")
     gx, gy = tk.StringVar(value="0"), tk.StringVar(value="0")
     toolbar = ttk.Frame(parent)
     toolbar.pack(fill="x")
@@ -113,6 +114,8 @@ def mount(parent, game):
             elif candidates:
                 status.set("Multiple cells occupy these coordinates; select one in the list.")
     ttk.Button(nav, text="Go", command=jump).pack(side="left")
+    ttk.Label(nav,text="Radius").pack(side="left")
+    ttk.Combobox(nav,textvariable=radius,values=("0","1","2"),state="readonly",width=3).pack(side="left")
     canvas = tk.Canvas(left, height=200, background="#20252c", highlightthickness=0)
     canvas.pack(fill="x")
     ttk.Label(right, text="Cell objects / LAND / NAVM").pack(anchor="w")
@@ -220,6 +223,23 @@ def mount(parent, game):
                     canvas.tag_bind(tag,"<Button-1>",lambda event,k=rows[0]["key"]:select_key(k))
                 if size>=19:
                     canvas.create_text(x+size/2,y+size/2,text=f"{grid[0]}\n{grid[1]}",fill="white",font=("TkDefaultFont",7),tags=(tag,))
+    def render_cell(focus=None):
+        if state['index'] is None or state['cell'] is None or open_preview is None:
+            status.set('Select a cell first.');return
+        try:
+            from .world_preview import preview
+            scene, report = preview(state['index'],state['cell'],int(radius.get()))
+            if open_preview(scene,report,focus):
+                show(report)
+        except (OSError,ValueError,TypeError,KeyError) as exc:
+            messagebox.showerror('Cell preview',str(exc),parent=parent)
+    def render_object(event=None):
+        selected=objects.selection()
+        if selected and selected[0] in state['objects']:
+            render_cell(label(state['objects'][selected[0]]['key']))
+    ttk.Button(nav,text='Load 3D',command=render_cell).pack(side='left')
+    cells.bind('<Double-1>',lambda e:render_cell())
+    objects.bind('<Double-1>',render_object)
     def profile_changed(*_):
         update_paths()
     worlds.bind("<<ComboboxSelected>>", select_world)
