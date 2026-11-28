@@ -86,8 +86,8 @@ def mount(parent):
         raw=simpledialog.askstring("Bind portal","Portal ID and placed door ID")
         if raw:
             p,d=raw.split();h.bind(active.get(),p,d);draw()
-    def open_project():
-        p=filedialog.askopenfilename(filetypes=[("Interior project","*.json")])
+    def open_project(dropped=None):
+        p=dropped if dropped is not None else filedialog.askopenfilename(filetypes=[("Interior project","*.json")])
         if p:
             path=Path(p)
             if path.stat().st_size>32*1024*1024:raise ValueError("project too large")
@@ -131,3 +131,5 @@ def mount(parent):
         if tree.selection():select(tree.selection()[0])
     canvas.bind("<Button-1>",pick);tree.bind("<<TreeviewSelect>>",on_tree)
     combo.bind("<<ComboboxSelected>>",draw);canvas.bind("<Configure>",draw);draw()
+    from .drop_import import editor_drop
+    editor_drop(parent,[([".json"],open_project,False)])
