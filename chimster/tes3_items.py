@@ -4,7 +4,7 @@ from math import isfinite
 from .native_parser import parse,subrecords
 from .native_profiles import PROFILES
 
-ITEMS={b"ENCH",b"BOOK",b"WEAP",b"ARMO",b"CLOT",b"ALCH",b"INGR",b"MISC",b"CONT",b"LEVI",b"APPA",b"LOCK",b"PROB",b"REPA",b"LIGH"}
+ITEMS={b"SPEL",b"NPC_",b"CREA",b"LEVC",b"ENCH",b"BOOK",b"WEAP",b"ARMO",b"CLOT",b"ALCH",b"INGR",b"MISC",b"CONT",b"LEVI",b"APPA",b"LOCK",b"PROB",b"REPA",b"LIGH"}
 
 def inspect(profile,data):
     if PROFILES[profile].family!="TES3":raise ValueError("Expected TES3")
@@ -14,6 +14,10 @@ def inspect(profile,data):
         row={"signature":node.signature.decode(),"raw":[],"fields":{},"issues":[]}
         for tag,v in subrecords(profile,node):
             k=tag.decode("ascii");row["raw"].append((k,v.hex()))
+            if tag==b"ENAM" and node.signature in (b"SPEL",b"ENCH",b"ALCH"):
+                try:row.setdefault("effects",[]).append(magic_effect(v))
+                except ValueError as e:row["issues"].append(str(e))
+                continue
             if tag==b"DELE":row["deleted"]=True
             if tag in (b"NAME",b"FNAM",b"MODL",b"ITEX",b"TEXT",b"SCRI",b"ENAM"):
                 row["fields"].setdefault(k,[]).append(v.rstrip(b"\0").decode("cp1252",errors="replace"))
@@ -52,6 +56,8 @@ def edit_book_data(raw,**changes):
 
 # Fixed-size TES3 data structures. Preserve flags and untouched values.
 SCHEMAS={
+ ("SPEL","SPDT"):("<3I",("type","cost","flags")),
+ ("CONT","CNDT"):("<f",("capacity",)),
  ("APPA","AADT"):("<IffI",("type","quality","weight","value")),
  ("LOCK","LKDT"):("<fIfI",("weight","value","quality","uses")),
  ("PROB","PBDT"):("<fIfI",("weight","value","quality","uses")),
@@ -76,7 +82,7 @@ def edit_properties(signature,tag,raw,**changes):
     if set(changes)-set(values) or "unknown" in changes:raise ValueError("Unsupported property")
     values.update(changes)
     for key,v in values.items():
-        if key in ("weight","speed","reach","quality"):
+        if key in ("weight","speed","reach","quality","capacity"):
             if not isfinite(v) or not 0<=v<=1e6:raise ValueError("Invalid "+key)
         elif key=="duration":
             if type(v)!=int or not -1<=v<=2147483647:raise ValueError("Invalid duration")
@@ -112,3 +118,17 @@ def edit_inventory_count(raw,count):
     inventory_entry(raw)
     if type(count)!=int or not -2147483648<=count<=2147483647:raise ValueError("Invalid count")
     return struct.pack("<i",count)+raw[4:]
+
+def magic_effect(raw):
+    if len(raw)!=24:raise ValueError("Invalid ENAM effect size")
+    effect,skill,attribute,range_,area,duration,minimum,maximum=struct.unpack("<Hbb5i",raw)
+    return dict(effect=effect,skill=skill,attribute=attribute,range=range_,area=area,duration=duration,minimum=minimum,maximum=maximum)
+
+def edit_magic_effect(raw,**changes):
+    d=magic_effect(raw)
+    if set(changes)-set(d):raise ValueError("Unknown effect property")
+    d.update(changes)
+    if any(type(v)!=int for v in d.values()):raise ValueError("Expected integer")
+    if d["range"] not in (0,1,2) or any(d[k]<0 for k in ("area","duration","minimum","maximum")) or d["minimum"]>d["maximum"]:raise ValueError("Invalid effect parameters")
+    try:return struct.pack("<Hbb5i",*(d[k] for k in ("effect","skill","attribute","range","area","duration","minimum","maximum")))
+    except struct.error as e:raise ValueError("Effect property outside native range") from e
