@@ -109,3 +109,66 @@ class ViewportTests(unittest.TestCase):
             restored,_=r.render(s,cam,96,72,m)
             self.assertEqual(restored,baseline)
         finally:r.close()
+
+    @unittest.skipUnless(os.environ.get("CHIMSTER_TEST_GL"),"optional GL context")
+    def test_reflective_material_target_and_picking(self):
+        from dataclasses import replace
+        from chimster.render_effects import Effects
+        s,m=make_demo();r=Renderer(backend="egl")
+        try:
+            cam=Camera(zoom=4)
+            a,_=r.render(s,cam,96,72,m)
+            pick=r.pick(48,36)
+            m={k:replace(v,reflectivity=.8) for k,v in m.items()}
+            b,_=r.render(s,cam,96,72,m,effects=Effects(ssr_strength=.7,ssr_steps=16))
+            self.assertEqual(len(a),len(b))
+            self.assertEqual(r.pick(48,36),pick)
+            self.assertIn(204,r.targets[2].read(alignment=1)[3::4])
+            with self.assertRaises(ValueError):Material(reflectivity=2).validate()
+        finally:r.close()
+
+    @unittest.skipUnless(os.environ.get("CHIMSTER_TEST_GL"),"optional GL context")
+    def test_ao_mask_resize_and_disable(self):
+        from chimster.render_effects import Effects
+        s,m=make_demo();r=Renderer(backend="egl")
+        try:
+            cam=Camera(zoom=4)
+            a,_=r.render(s,cam,96,72,m)
+            b,_=r.render(s,cam,96,72,m,effects=Effects(ao_strength=.8))
+            self.assertEqual(r.ao.mask.size,(96,72))
+            self.assertNotEqual(a,b)
+            r.render(s,cam,64,48,m,effects=Effects(ao_strength=.8))
+            self.assertEqual(r.ao.mask.size,(64,48))
+            c,_=r.render(s,cam,96,72,m)
+            self.assertEqual(a,c)
+        finally:r.close()
+
+    @unittest.skipUnless(os.environ.get("CHIMSTER_TEST_GL"),"optional GL context")
+    def test_volumetric_sky_and_picking(self):
+        from chimster.render_effects import Effects
+        from chimster.scene import Scene
+        r=Renderer(backend="egl")
+        try:
+            scene=Scene({},[]);cam=Camera(zoom=4)
+            a,_=r.render(scene,cam,64,48)
+            b,_=r.render(scene,cam,64,48,effects=Effects(fog_density=.025,scatter_strength=.5))
+            self.assertNotEqual(a,b)
+            self.assertIsNone(r.pick(32,24))
+            self.assertEqual(len(b),64*48*4)
+        finally:r.close()
+
+    @unittest.skipUnless(os.environ.get("CHIMSTER_TEST_GL"),"optional GL context")
+    def test_spot_shadow_depth(self):
+        from chimster.render_effects import Effects,LocalLight
+        from dataclasses import replace
+        s,m=make_demo();r=Renderer(backend="egl")
+        try:
+            light=LocalLight(position=(0,0,8),direction=(0,0,-1),radius=24,shadows=True)
+            fx=Effects(shadow_size=512,fog_density=.03,scatter_strength=.4,lights=(light,))
+            a,_=r.render(s,Camera(zoom=4),96,72,m,effects=fx)
+            self.assertEqual(r.shadows.spot_state["spot_index"],0)
+            self.assertEqual(r.shadows.spot[0].size,(512,512))
+            b,_=r.render(s,Camera(zoom=4),96,72,m,effects=replace(fx,lights=(replace(light,shadows=False),)))
+            self.assertIsNone(r.shadows.spot)
+            self.assertEqual(len(a),len(b))
+        finally:r.close()

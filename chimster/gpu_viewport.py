@@ -29,10 +29,11 @@ FRAGMENT="""#version 330
 in vec3 world, normal; in vec2 texcoord;
 uniform sampler2D albedo, normalmap, specmap;
 uniform vec3 eye, tint, sun;
-uniform float alpha_cut, normal_strength, normal_y, spec_strength, gloss;
+uniform float alpha_cut, normal_strength, normal_y, spec_strength, gloss, reflectivity;
 flat in vec3 object_id; flat in float selected;
 layout(location=0) out vec4 color;
 layout(location=1) out vec4 picking;
+layout(location=2) out vec4 surface;
 """+gpu_lighting.GLSL+gpu_shadows.GLSL+"""
 void main(){
  vec4 a=texture(albedo,texcoord);
@@ -61,13 +62,14 @@ void main(){
  float shadow=sun_visibility(world,1.0-diffuse,true);
  vec3 lit=base*ambient_level+sun_color*(base*sun_intensity+vec3(spec))*diffuse*shadow;
  for(int i=0;i<light_count;i++){
-   vec3 dir;vec3 radiance=local_light(i,world,dir);
+   vec3 dir;vec3 radiance=local_light(i,world,dir)*local_visibility(i,world);
    float nd=max(0.0,dot(n,dir));
    float highlight=pow(max(0.0,dot(n,normalize(dir+v))),gloss)*texture(specmap,texcoord).r*spec_strength;
    lit+=(base+vec3(highlight))*radiance*nd;
  }
  color=vec4(mix(pow(clamp(lit,0.0,1.0),vec3(1.0/2.2)),vec3(1.0,0.72,0.22),selected*0.20),1);
  picking=vec4(object_id,1);
+ surface=vec4(n*.5+.5,reflectivity);
 }"""
 
 @dataclass(frozen=True)
@@ -90,11 +92,16 @@ class Material:
     directx:bool=True
     spec_strength:float=.18
     gloss:float=24.
+    reflectivity:float=0.
+    metallic:float=0.
+    roughness:float=None
     def validate(self):
         for image in (self.diffuse,self.normal,self.specular):
             if image is not None:image.validate()
         if len(self.tint)!=3 or any(not isfinite(x) or not 0<=x<=1 for x in self.tint):raise ValueError("invalid tint")
         if not all(isfinite(v) for v in (self.cutout,self.normal_strength,self.spec_strength,self.gloss)) or not 0<=self.cutout<=1 or not 0<=self.normal_strength<=4 or not 0<=self.spec_strength<=1 or not 1<=self.gloss<=256:raise ValueError("invalid material")
+        if not isfinite(self.reflectivity) or not 0<=self.reflectivity<=1:raise ValueError("invalid reflectivity")
+        if not isfinite(self.metallic) or not 0<=self.metallic<=1 or self.roughness is not None and (not isfinite(self.roughness) or not .04<=self.roughness<=1):raise ValueError("invalid PBR material")
         return self
 
 def image_from_file(path):
@@ -224,8 +231,8 @@ class Renderer:
         if self.targets:
             for obj in reversed(self.targets):obj.release()
         a=self.ctx.texture((w,h),4);b=self.ctx.texture((w,h),4)
-        depth=self.ctx.depth_texture((w,h));depth.compare_func="";depth.filter=(self.gl.NEAREST,self.gl.NEAREST);depth.repeat_x=False;depth.repeat_y=False;fbo=self.ctx.framebuffer([a,b],depth)
-        self.targets=(a,b,depth,fbo);self.size=(w,h)
+        depth=self.ctx.depth_texture((w,h));depth.compare_func="";depth.filter=(self.gl.NEAREST,self.gl.NEAREST);depth.repeat_x=False;depth.repeat_y=False;surface=self.ctx.texture((w,h),4);surface.filter=(self.gl.NEAREST,self.gl.NEAREST);surface.repeat_x=False;surface.repeat_y=False;fbo=self.ctx.framebuffer([a,b,surface],depth)
+        self.targets=(a,b,surface,depth,fbo);self.size=(w,h)
     def prune(self,scene,materials):
         active={id(m) for m in scene.assets.values()}
         for key in list(self.radii):
@@ -245,10 +252,10 @@ class Renderer:
         effects=(effects or Effects()).validate()
         start=perf_counter();settings=(settings or Settings()).validate();materials=materials or {}
         if not isinstance(w,int) or not isinstance(h,int) or not 1<=w<=1920 or not 1<=h<=1080:raise ValueError("viewport size out of range")
-        self.prune(scene,materials);self.resize(w,h);a,b,depth,fbo=self.targets
+        self.prune(scene,materials);self.resize(w,h);a,b,surface,depth,fbo=self.targets
         if effects.shadow_size:
             if self.shadows is None:self.shadows=gpu_shadows.ShadowMaps(self)
-            self.shadows.render(scene,camera.center,settings,effects,materials)
+            self.shadows.render(scene,camera.center,settings,effects,materials,basis(camera,w,h,settings))
         elif self.shadows is not None:self.shadows.release_targets()
         fbo.use();self.ctx.viewport=(0,0,w,h);self.ctx.enable_only(self.gl.DEPTH_TEST);self.ctx.depth_func="<"
         fbo.clear(0,0,0,0,depth=1.)
@@ -296,13 +303,13 @@ class Renderer:
                 for mat,_,vao,count in parts:
                     m=materials.get(mat,default_material(mat)).validate()
                     self.texture(m.diffuse or self.white).use(0);self.texture(m.normal or self.flat).use(1);self.texture(m.specular or self.white).use(2)
-                    for key,value in {"tint":m.tint,"alpha_cut":m.cutout,"normal_strength":m.normal_strength if m.normal else 0.,"normal_y":-1. if m.directx else 1.,"spec_strength":m.spec_strength,"gloss":m.gloss}.items():p[key].value=value
+                    for key,value in {"tint":m.tint,"alpha_cut":m.cutout,"normal_strength":m.normal_strength if m.normal else 0.,"normal_y":-1. if m.directx else 1.,"spec_strength":m.spec_strength,"gloss":m.gloss,"reflectivity":m.reflectivity}.items():p[key].value=value
                     vao.render(self.gl.TRIANGLES,instances=len(chunk));stats["triangles"]+=count*len(chunk);stats["draw_calls"]+=1
         output=a
-        if effects.ao_strength or effects.fog_density or effects.fog_volumes:
+        if effects.ao_strength or effects.fog_density or effects.fog_volumes or effects.ssr_strength:
             from .screen_occlusion import Occlusion
             if self.ao is None:self.ao=Occlusion(self.ctx)
-            output=self.ao.render(a,depth,w,h,settings,effects,1/ty,view,self.shadows)
+            output=self.ao.render(a,depth,surface,w,h,settings,effects,1/ty,view,self.shadows)
         raw=output.read(alignment=1);stride=w*4
         raw=b"".join(raw[y:y+stride] for y in range((h-1)*stride,-1,-stride))
         stats["frame_ms"]=(perf_counter()-start)*1000;stats["renderer"]=self.ctx.info.get("GL_RENDERER","unknown")

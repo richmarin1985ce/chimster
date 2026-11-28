@@ -35,13 +35,16 @@ def texture_bytes(image):
 def build_scene(scene, materials=None, settings=None):
     from panda3d.core import (NodePath, GeomNode, Geom, GeomTriangles,
         GeomVertexData, GeomVertexFormat, GeomVertexWriter, Texture,
-        SamplerState, AlphaTestAttrib, LODNode)
+        SamplerState, AlphaTestAttrib, LODNode, GeomVertexArrayFormat, InternalName, TextureStage, Material as PandaMaterial)
     from .gpu_viewport import vertex_data, default_material, variants, Settings
     settings=(settings or Settings()).validate()
     materials=dict(materials or {})
+    from .panda_materials import tangents,normal_pixels
+    from math import sqrt
     root=NodePath("chimster")
     assets={}
     textures={}
+    normal_maps={}
     def texture(image):
         key=id(image)
         if key not in textures:
@@ -50,15 +53,22 @@ def build_scene(scene, materials=None, settings=None):
             tex.set_ram_image_as(texture_bytes(image),"RGBA")
             tex.set_minfilter(SamplerState.FT_linear)
             tex.set_magfilter(SamplerState.FT_linear)
-            textures[key]=tex
-        return textures[key]
+            textures[key]=(image,tex)
+        return textures[key][1]
     def template(key,mesh):
         raw,groups=vertex_data(mesh)
-        data=GeomVertexData(key,GeomVertexFormat.get_v3n3t2(),Geom.UH_static)
+        fmt=GeomVertexFormat()
+        arr=GeomVertexArrayFormat()
+        for name,count,kind in ((InternalName.get_vertex(),3,Geom.C_point),(InternalName.get_normal(),3,Geom.C_normal),(InternalName.get_texcoord(),2,Geom.C_texcoord),(InternalName.get_tangent(),4,Geom.C_vector)):
+            arr.add_column(name,count,Geom.NT_float32,kind)
+        fmt.add_array(arr)
+        data=GeomVertexData(key,GeomVertexFormat.register_format(fmt),Geom.UH_static)
         data.set_num_rows(len(raw)//8)
         pos=GeomVertexWriter(data,"vertex")
         norm=GeomVertexWriter(data,"normal")
         uv=GeomVertexWriter(data,"texcoord")
+        tangent=GeomVertexWriter(data,InternalName.get_tangent())
+        for value in tangents(mesh,raw):tangent.add_data4f(*value)
         for j in range(0,len(raw),8):
             pos.add_data3f(*raw[j:j+3]);norm.add_data3f(*raw[j+3:j+6]);uv.add_data2f(*raw[j+6:j+8])
         model=NodePath(key)
@@ -73,6 +83,16 @@ def build_scene(scene, materials=None, settings=None):
             part.set_color_scale(*mat.tint,1)
             if mat.diffuse is not None:
                 part.set_texture(texture(mat.diffuse),1)
+            material_state=PandaMaterial(material)
+            material_state.set_base_color((1,1,1,1))
+            material_state.set_metallic(mat.metallic)
+            material_state.set_roughness(mat.roughness if mat.roughness is not None else max(.08,min(1.,sqrt(2/(mat.gloss+2)))))
+            part.set_material(material_state)
+            if mat.normal is not None and mat.normal_strength:
+                key=(id(mat.normal),mat.directx,mat.normal_strength)
+                if key not in normal_maps:normal_maps[key]=normal_pixels(mat.normal,mat.directx,mat.normal_strength)
+                stage=TextureStage("normal");stage.set_mode(TextureStage.M_normal)
+                part.set_texture(stage,texture(normal_maps[key]))
             if mat.cutout>0:
                 part.set_attrib(AlphaTestAttrib.make(AlphaTestAttrib.M_greater_equal,mat.cutout))
             part.set_two_sided(True)
@@ -105,28 +125,74 @@ def build_scene(scene, materials=None, settings=None):
 
 class Preview:
     """Offscreen engine preview; owns its buffer, no separate application."""
-    def __init__(self):
+    def __init__(self,mode="native"):
+        if mode not in ("native","pbr","filters"):raise ValueError("Unknown Panda mode")
+        self.mode=mode;self.post=None;self.post_key=None;self.post_error=None
+        self.probes=[];self.probe_key=None;self.probe_count=0
         from panda3d.core import GraphicsEngine, GraphicsPipeSelection, NodePath
         self.engine=GraphicsEngine()
         self.pipe=GraphicsPipeSelection.get_global_ptr().make_default_pipe()
         if self.pipe is None: raise RuntimeError("No Panda3D graphics pipe")
         self.root=NodePath("preview")
-        self.model=None; self.key=None; self.output=None
+        self.model=None; self.key=None; self.output=None; self.glb_model=None
         self.visibility=None;self.visibility_spec=None;self.visibility_report=None
         from panda3d.core import Camera, PerspectiveLens, AmbientLight, DirectionalLight
         self.lens=PerspectiveLens()
         self.camera=self.root.attach_new_node(Camera("camera",self.lens))
+        self.camera.node().set_scene(self.root)
         ambient=AmbientLight("ambient");ambient.set_color((.35,.35,.35,1))
         sun=DirectionalLight("sun");sun.set_color((.8,.8,.8,1))
         a=self.root.attach_new_node(ambient);s=self.root.attach_new_node(sun)
         s.set_hpr(-35,-50,0);self.root.set_light(a);self.root.set_light(s)
-        self.ambient=a;self.sun=s;self.effect_nodes=[];self.effects_key=None;self.water=None;self.water_targets=None;self.water_error=None
+        self.ambient=a;self.sun=s;self.effect_nodes=[];self.effects_key=None;self.water=None;self.water_targets=None;self.water_error=None;self.underwater=None
+    def bake_probe(self,center,radius,size=32):
+        from .panda_probes import capture
+        if len(self.probes)>=4:raise ValueError("At most four local probes")
+        probe=capture(self,center,radius,size)
+        self.probes.append(probe);self.probe_key=None
+        return probe
+    def clear_probes(self):
+        from .panda_probes import blend_pair
+        blend_pair.cache_clear()
+        self.probes.clear();self.probe_key=None
+        from .panda_probes import apply
+        self.probe_count=apply(self.model,())
+    def save_probes(self,path):
+        from .panda_probes import save
+        save(path,self.probes)
+    def load_probes(self,path):
+        from .panda_probes import load,blend_pair
+        probes=load(path)
+        blend_pair.cache_clear();self.probes=probes;self.probe_key=None
+    def update_probes(self):
+        from .panda_probes import apply
+        active=self.mode=="pbr" and self.post is not None and not self.underwater
+        key=(id(self.model),active,tuple(id(p) for p in self.probes))
+        if key!=self.probe_key:
+            self.probe_count=apply(self.model,self.probes if active else ())
+            self.probe_key=key
+
+    def set_glb_preview(self,path=None):
+        candidate=None
+        if path is not None:
+            from .panda_gltf import load_preview
+            candidate=load_preview(path)
+        if self.glb_model is not None:self.glb_model.remove_node()
+        self.glb_model=candidate
+        if candidate is not None:
+            candidate.reparent_to(self.root)
+            # Embedded punctual lights are not silently activated.
+            candidate.clear_light()
+            return candidate.get_tight_bounds()
+        return None
+
     def configure_effects(self,effects,settings,center,eye):
         from panda3d.core import Fog,PointLight,Spotlight,PerspectiveLens,Vec3,Point3
         from .panda_water import create_water
         from time import monotonic
         key=(effects,settings.light)
         if key!=self.effects_key:
+            self.close_post()
             for node in self.effect_nodes:
                 self.root.clear_light(node);node.remove_node()
             self.effect_nodes=[]
@@ -160,13 +226,25 @@ class Preview:
             if effects.shadow_size:self.root.set_shader_auto()
             else:self.root.clear_shader()
             if effects.water_level is not None:self.water=create_water(self.root,effects)
-            self.effects_key=key
+            self.effects_key=key;self.underwater=None
         direction=Vec3(*settings.light);direction.normalize()
         from .shadow_math import snap_center
         anchor=snap_center(center,settings.light,effects.shadow_extent,effects.shadow_size)
         self.sun.set_pos(*(anchor[i]+direction[i]*effects.shadow_extent for i in range(3)))
         self.sun.look_at(Point3(*anchor),Vec3(0,0,1) if abs(direction[2])<.99 else Vec3(0,1,0))
+        below=self.water is not None and eye[2]<effects.water_level
+        if below!=self.underwater:
+            self.close_post()
+            if below or effects.fog_density:
+                fog=Fog("water-haze" if below else "preview-haze")
+                fog.set_color(*(effects.water_color if below else effects.fog_color))
+                fog.set_exp_density(effects.underwater_density if below else effects.fog_density)
+                self.root.set_fog(fog)
+            else:self.root.clear_fog()
+            self.underwater=below
         if self.water is not None:
+            self.water.set_shader_input("nearp",settings.near);self.water.set_shader_input("farp",settings.far)
+            self.water.set_shader_input("fog_density",effects.underwater_density if below else effects.fog_density)
             self.water.set_shader_input("eye",eye)
             self.water.set_shader_input("sun",settings.light)
             self.water.set_shader_input("time",monotonic()%3600)
@@ -225,12 +303,49 @@ class Preview:
         self.camera.set_pos(*eye);self.camera.look_at(*camera.center)
         self.configure_effects(effects,settings,camera.center,eye)
         self.update_water_targets(effects,w,h,eye,camera.center,up)
+        self.update_post(effects)
+        self.update_probes()
+        if self.water is not None:
+            # The volume compositor integrates to the water surface; avoid
+            # applying the same atmospheric extinction inside the water shader.
+            post=getattr(self.post,"volume_post",self.post)
+            volume=bool(getattr(post,"volume",False))
+            self.water.set_shader_input("fog_density",0. if volume else effects.underwater_density if self.underwater else effects.fog_density)
         self.engine.render_frame();self.engine.sync_frame()
         raw=bytes(self.texture.get_ram_image_as("RGBA"))
         if len(raw)!=w*h*4:raise RuntimeError("Incomplete framebuffer")
         stride=w*4
         return b"".join(raw[y:y+stride] for y in range((h-1)*stride,-1,-stride))
+    def close_post(self):
+        if self.post is not None:self.post.close();self.post=None
+        self.post_key=None;self.post_error=None
+    def update_post(self,effects):
+        # Below-water rendering retains the native underwater fog path.
+        from .panda_volume import needs_volume
+        mode="native" if self.underwater else self.mode
+        if not self.underwater and mode in ("native","filters"):
+            if effects.shadow_size and effects.shadow_cascades==2:mode="pbr"
+            elif needs_volume(effects):mode="volume"
+        key=(mode,effects,bool(self.underwater))
+        if key!=self.post_key:
+            self.close_post();self.post_key=key
+            if mode!="native" and (mode!="filters" or effects.ao_strength or effects.scatter_strength):
+                from .panda_post import PBR,NativeFilters
+                from .panda_glsl_filters import GLSLFilters
+                try:self.post=(PBR if mode=="pbr" else GLSLFilters if mode=="volume" else NativeFilters)(self,effects)
+                except Exception as exc:
+                    self.post_error=str(exc)[:160]
+                    if mode=="filters":
+                        from .panda_glsl_filters import GLSLFilters
+                        try:
+                            self.post=GLSLFilters(self,effects)
+                            self.post_error="Using GLSL filter fallback"
+                        except Exception as fallback:self.post_error=("Native/GLSL filters: "+str(fallback))[:160]
+        if self.post is not None:
+            self.post.update()
+            if getattr(self.post,"shadow_error",None):self.post_error="Volume shadows unavailable: "+self.post.shadow_error
     def close_buffer(self):
+        self.close_post()
         self.close_water_targets()
         if self.output is not None:
             self.engine.remove_window(self.output);self.output=None

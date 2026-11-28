@@ -121,11 +121,13 @@ def preview(browser, key, radius=0, models=None):
                         break
                 else:continue
                 break
+    from .native_render_records import report as render_report
+    rendering=render_report(browser,cell,refs.values(),(ox,oy,0),UNITS,environment)
     return Scene(assets,instances), {
         "cell":label(key),"cells":len(cells),"grid":grid,"land_tiles":land_count,
         "proxy_references":len(instances)-land_count-model_count,"model_references":model_count,"skipped_references":skipped,
         "origin_game_units":(ox,oy,0),"units_per_preview_unit":UNITS,
-        "issues":issues,"environment":environment,"mode":"Read-only LAND and optional static loose NIF geometry; unsupported assets use markers"
+        "issues":issues,"environment":environment,"render_preview":rendering,"mode":"Read-only LAND and optional static loose NIF geometry; unsupported assets use markers"
     }
 
 

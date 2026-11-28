@@ -1,0 +1,2 @@
+# Screen-space reflections
+ModernGL adds an opt-in per-material reflectivity field (default zero) and normal/reflectivity buffer. The bounded view-space march samples visible scene color, with depth crossing, thickness tolerance, Fresnel and edge fading. Off-screen objects and rays that miss remain unchanged. Not a substitute for planar reflections or localized cube probes. Picking attachment remains unchanged. High preset enables the effect, but a material must opt in. No paid libraries.

@@ -42,3 +42,32 @@ class EffectsTests(unittest.TestCase):
         self.assertEqual(Effects(fog_volumes=(FogVolume(),)).validate().volume_steps,8)
         for fx in (Effects(volume_steps=100),Effects(fog_falloff=-1),Effects(fog_volumes=(FogVolume(radius=0),)),Effects(fog_volumes=(FogVolume(),)*5)):
             with self.assertRaises(ValueError):fx.validate()
+
+    def test_frustum_shadow_splits(self):
+        from chimster.gpu_shadows import frustum_frames
+        from chimster.gpu_viewport import basis,Settings
+        from chimster.scene import Camera
+        from chimster.shadow_math import dot
+        s=Settings();view=basis(Camera(zoom=5),160,90,s)
+        r,u,n,views,split,overlap=frustum_frames(view,s.near,s.far,s.light,48,512,2)
+        self.assertEqual(len(views),2)
+        self.assertGreater(views[1][1],views[0][1])
+        self.assertTrue(s.near<split-overlap<split+overlap<96)
+        self.assertAlmostEqual(dot(r,u),0)
+        eye,right,up,back,tx,ty=view
+        for (a,b),(center,size) in zip(((s.near,split+overlap),(split-overlap,96)),views):
+            for z in (a,b):
+                for x in (-1,1):
+                    for y in (-1,1):
+                        corner=tuple(eye[k]-back[k]*z+right[k]*z*tx*x+up[k]*z*ty*y for k in range(3))
+                        d=tuple(corner[k]-center[k] for k in range(3))
+                        self.assertLessEqual(abs(dot(d,r)),size)
+                        self.assertLessEqual(abs(dot(d,u)),size)
+
+    def test_volume_segment_overlap(self):
+        from chimster.gpu_volume import sphere_segment
+        a,b=sphere_segment((0,0,0),(1,0,0),(5,0,0),.1,0,10)
+        self.assertAlmostEqual(a,4.9);self.assertAlmostEqual(b,5.1)
+        self.assertEqual(sphere_segment((0,0,0),(1,0,0),(0,0,0),2,0,5),(0,2))
+        self.assertIsNone(sphere_segment((0,0,0),(1,0,0),(5,3,0),1,0,10))
+        self.assertIsNone(sphere_segment((0,0,0),(1,0,0),(5,0,0),1,0,3))

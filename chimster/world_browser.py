@@ -82,6 +82,9 @@ def read_plugin(path, profile="new-vegas"):
                     from .world_regions import decode as decode_region
                     spec=decode_region(parts,slots)
                     if spec is not None:row["region_spec"]=spec
+                if profile in ("new-vegas","fallout3") and sig in ("LIGH","WATR","CELL","LGTM","WRLD"):
+                    from .native_render_records import decode as decode_render
+                    row.update(decode_render(sig,parts,slots,profile))
                 if sig == "WTHR" and profile=="new-vegas":
                     from .world_weather import decode as decode_weather
                     weather_spec=decode_weather(parts,slots)

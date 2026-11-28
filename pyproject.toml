@@ -14,7 +14,7 @@ recording = ["sounddevice>=0.4,<1"]
 archives = ["lz4>=4.3,<5"]
 textures = ["Pillow>=10,<13"]
 viewport = ["moderngl>=5.12,<6", "Pillow>=10,<13"]
-advanced-viewport = ["panda3d==1.10.16", "Pillow>=10,<13"]
+advanced-viewport = ["panda3d==1.10.16", "Pillow>=10,<13", "panda3d-simplepbr==0.13.1", "panda3d-gltf==1.3.0"]
 [project.scripts]
 chimster = "chimster.cli:main"
 chimster-audio = "chimster.audio:main"

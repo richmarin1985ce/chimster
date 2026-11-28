@@ -4,6 +4,7 @@ on:
     paths:
       - 'chimster/panda_*.py'
       - 'chimster/gpu_viewport.py'
+      - 'pyproject.toml'
       - 'tests/test_panda_viewport.py'
       - '.github/workflows/panda-viewport.yml'
   pull_request:
@@ -14,10 +15,15 @@ on:
 jobs:
   scene-graph:
     runs-on: ubuntu-latest
+    env:
+      CHIMSTER_TEST_PANDA_GL: '1'
+      LIBGL_ALWAYS_SOFTWARE: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1-mesa-dri
       - run: python -m pip install ".[advanced-viewport]"
       - run: python -m unittest discover -s tests -p test_panda_viewport.py -v
+      - run: python -m unittest discover -s tests -p test_panda_post.py -v

@@ -1,4 +1,4 @@
-"""Read-only BA2 v1 DX10 metadata; no DDS reconstruction yet."""
+"""Read-only BA2 DX10 metadata and DDS reconstruction."""
 import struct
 from .compatibility_asset_lookup import normalize
 
@@ -10,8 +10,10 @@ def exact(stream,n):
 def directory(stream):
     stream.seek(0,2);size=stream.tell();stream.seek(0)
     magic,version,kind,count,names=struct.unpack("<4sI4sIQ",exact(stream,24))
-    if magic!=b"BTDX" or version not in (1,7,8) or kind!=b"DX10":raise ValueError("Unsupported texture archive")
-    if count>1000000 or not 24+24*count<=names<=size:raise ValueError("Invalid directory extent")
+    if magic!=b"BTDX" or version not in (1,2,3,7,8) or kind!=b"DX10":raise ValueError("Unsupported texture archive")
+    header_size=36 if version==3 else 32 if version==2 else 24
+    stream.seek(header_size)
+    if count>1000000 or not header_size+24*count<=names<=size:raise ValueError("Invalid directory extent")
     rows=[]
     for _ in range(count):
         if stream.tell()+24>names:raise ValueError("Invalid texture directory")
@@ -23,7 +25,7 @@ def directory(stream):
             offset,packed,unpacked,first,last,marker=struct.unpack("<QIIHHI",exact(stream,24))
             if first>last or last>=mips or offset+(packed or unpacked)>names:raise ValueError("Invalid texture chunk")
             chunks.append({"offset":offset,"packed":packed,"unpacked":unpacked,"first_mip":first,"last_mip":last})
-        rows.append({"width":width,"height":height,"mips":mips,"dxgi_format":fmt,"flags":flags,"chunks":chunks})
+        rows.append({"width":width,"height":height,"mips":mips,"dxgi_format":fmt,"flags":flags,"chunks":chunks,**({"compression":"lz4"} if version==3 else {})})
     end=stream.tell()
     if any(c["offset"]<end for row in rows for c in row["chunks"]):raise ValueError("Chunk overlaps directory")
     stream.seek(names);result={}
@@ -41,8 +43,9 @@ def read(stream,entry,limit=64*1024*1024):
     import zlib
     w,h,mips,fmt=(entry[k] for k in ("width","height","mips","dxgi_format"))
     cube=bool(entry["flags"]&1)
+    allowed=0x801 if entry.get("compression")=="lz4" or entry["flags"]&0x800 else 1
     if cube and (w!=h or len(entry["chunks"])!=1):raise ValueError("Unsupported cubemap layout")
-    if entry["flags"]&~1 or fmt not in BLOCKS or not 1<=mips<=max(w,h).bit_length():
+    if entry["flags"]&~allowed or fmt not in BLOCKS or not 1<=mips<=max(w,h).bit_length():
         raise ValueError("Unsupported DDS texture layout")
     sizes=[max(1,((max(1,w>>i)+3)//4))*max(1,((max(1,h>>i)+3)//4))*BLOCKS[fmt] for i in range(mips)]
     if sum(sizes)*(6 if cube else 1)+148>limit:raise ValueError("Texture exceeds limit")
@@ -56,8 +59,12 @@ def read(stream,entry,limit=64*1024*1024):
         stream.seek(chunk["offset"])
         raw=exact(stream,chunk["packed"] or expected)
         if chunk["packed"]:
-            dec=zlib.decompressobj();raw=dec.decompress(raw,expected+1)
-            if not dec.eof or dec.unused_data or dec.unconsumed_tail:raise ValueError("Invalid texture compression")
+            if entry.get("compression")=="lz4":
+                from .starfield_assets import lz4_block
+                raw=lz4_block(raw,expected)
+            else:
+                dec=zlib.decompressobj();raw=dec.decompress(raw,expected+1)
+                if not dec.eof or dec.unused_data or dec.unconsumed_tail:raise ValueError("Invalid texture compression")
         if len(raw)!=expected:raise ValueError("Invalid chunk size")
         parts.append(raw);next_mip=last+1
     if next_mip!=mips:raise ValueError("Incomplete mip chain")
