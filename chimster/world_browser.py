@@ -103,6 +103,16 @@ def read_plugin(path, profile="new-vegas"):
                         row["grid"] = struct.unpack_from("<2i", grid)
                     data = fields.get(b"DATA", b"")
                     row["interior"] = bool(data and data[0] & 1)
+                if profile in ("new-vegas","fallout3"):
+                    if sig=="LTEX" and len(fields.get(b"TNAM",b""))==4:
+                        tx=slots.decode(struct.unpack("<I",fields[b"TNAM"])[0])
+                        if tx:row["texture_set"]=(tx.origin,tx.local)
+                    elif sig=="TXST":
+                        row["texture_paths"]=tuple(text_field(fields.get(t)) for t in (b"TX00",b"TX01"))
+                    elif sig=="LAND":
+                        from .world_lod_materials import landscape
+                        try:row["land_materials"]=landscape(parts,slots)
+                        except ValueError as exc:row["land_material_error"]=str(exc)
                 if sig == "LAND" and b"VHGT" in fields and profile in ("oblivion","fallout3","new-vegas","skyrim","skyrim-se"):
                     row["height_raw"] = fields[b"VHGT"]
                 if sig in PLACED:
