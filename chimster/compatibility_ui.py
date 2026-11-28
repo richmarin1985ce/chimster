@@ -38,13 +38,13 @@ def mount(parent,game=None):
             result=fn()
             if result is not None:show(result)
         except (OSError,ValueError,KeyError) as exc:messagebox.showerror("Compatibility",str(exc))
-    def choose(fn,limit=None):
-        path=filedialog.askopenfilename()
+    def choose(fn,limit=None,dropped=None):
+        path=dropped if dropped is not None else filedialog.askopenfilename()
         if path:
             with open(path,"rb") as stream:data=stream.read() if limit is None else stream.read(limit)
             return fn(Path(path),data)
-    def root():
-        path=filedialog.askdirectory()
+    def root(dropped=None):
+        path=dropped if dropped is not None else filedialog.askdirectory()
         if path:return installation(path,profile.get())
     def dependencies():
         paths=filedialog.askopenfilenames(title="Select plugins in load order; review displayed order")
@@ -184,3 +184,11 @@ def mount(parent,game=None):
         ttk.Button(actions,text=label,command=lambda f=fn:run(f)).pack(side="left")
     profile.trace_add("write",lambda *_:show(capabilities(profile.get())))
     show(capabilities(profile.get()))
+    from .drop_import import editor_drop
+    editor_drop(parent,[
+        ((".esp",".esm",".esl",".omwaddon",".omwgame"),lambda p:run(lambda:choose(lambda name,data:audit(profile.get(),data),dropped=p)),False),
+        ((".bsa",".ba2"),lambda p:run(lambda:choose(lambda name,data:archive(data),36,dropped=p)),False),
+        ((".nif",),lambda p:run(lambda:choose(lambda name,data:nif(data),256,dropped=p)),False),
+        ((".strings",".dlstrings",".ilstrings"),lambda p:run(lambda:choose(lambda name,data:{"strings":parse(data,name.suffix)},dropped=p)),False),
+        (("<directory>",),lambda p:run(lambda:root(p)),False)
+    ],confirm=False)
