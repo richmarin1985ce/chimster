@@ -93,3 +93,14 @@ def inspect_profile(profile, signature, parts, slots):
     if PROFILES[profile].schema_revision != "fnv-generated-v1":
         return [], tuple(range(len(parts)))
     return inspect(signature, parts, slots)
+
+
+def capability_manifest():
+    """Describe implemented format infrastructure, not retail certification."""
+    return {"version":1,"profiles":[
+        {"id":p.name,"family":p.family,"record_header":p.record_header,
+         "group_header":p.group_header,"light_runtime":p.light_runtime,
+         "identity_kind":"named" if p.family=="TES3" else "plugin-relative",
+         "generated_schema":p.schema_revision,
+         "retail_verified":False}
+        for p in PROFILES.values()]}
