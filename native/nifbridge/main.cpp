@@ -231,9 +231,36 @@ static int extractMesh(const char* filename){
     }
     std::cout<<out.str();return 0;
 }
+// Inventory compressed-chunk references without attempting geometry extraction.
+static int inspectChunks(const char* filename){
+    require(std::filesystem::file_size(filename)<=128*1024*1024,"NIF input limit");
+    std::ifstream input(filename,std::ios::binary);NifFile nif;
+    require(bool(input)&&nif.Load(input)==0&&nif.IsValid()&&!nif.HasUnknown(),"invalid or unknown NIF");
+    auto& h=nif.GetHeader();const auto& ver=h.GetVersion();
+    require(ver.File()==NiFileVersion::V20_2_0_7&&ver.User()==12&&(ver.Stream()==83||ver.Stream()==100),"expected Skyrim NIF");
+    std::cout<<std::setprecision(9)<<"{\"blocks\":[";bool first=true;size_t total=0;
+    for(unsigned i=0;i<h.GetNumBlocks();i++){
+        auto data=h.GetBlock<bhkCompressedMeshShapeData>(i);if(!data)continue;
+        require(data->chunks.size()<=4096&&data->transforms.size()<=65535,"chunk inventory limit");
+        total+=data->chunks.size();require(total<=16384,"total chunk inventory limit");
+        if(!first)std::cout<<",";first=false;
+        std::cout<<"{\"block\":"<<i<<",\"transform_count\":"<<data->transforms.size()<<",\"chunks\":[";
+        for(unsigned j=0;j<data->chunks.size();j++){
+            const auto& c=data->chunks[j];if(j)std::cout<<",";
+            require(std::isfinite(c.translation.x)&&std::isfinite(c.translation.y)&&std::isfinite(c.translation.z),"invalid chunk offset");
+            std::cout<<"{\"index\":"<<j<<",\"reference\":"<<c.reference<<",\"transform\":"<<c.transformIndex
+                     <<",\"offset\":["<<c.translation.x<<","<<c.translation.y<<","<<c.translation.z<<"]"
+                     <<",\"vertex_components\":"<<c.verts.size()<<",\"indices\":"<<c.indices.size()
+                     <<",\"strips\":"<<c.strips.size()<<",\"welding_entries\":"<<c.weldingInfo.size()<<"}";
+        }
+        std::cout<<"]}";
+    }
+    std::cout<<"]}\n";return 0;
+}
 int main(int argc,char** argv){
  try {
     if(argc==3&&std::string(argv[1])=="extract-mesh")return extractMesh(argv[2]);
+    if(argc==3&&std::string(argv[1])=="inspect-collision-chunks")return inspectChunks(argv[2]);
     if(argc==4&&std::string(argv[1])=="extract-collision")return extractCollision(argv[2],argv[3]);
     require(argc>=4&&argc<=6,"usage: chimster-nifbridge GAME INPUT.cmesh OUTPUT.nif [box|compound FILE]");
     bool box=argc==5&&std::string(argv[4])=="box";
