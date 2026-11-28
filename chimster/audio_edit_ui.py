@@ -54,8 +54,8 @@ def launch(parent):
         p=state["player"]
         if p and p.poll() is None:p.terminate()
         state["player"]=None
-    def open_wav():
-        path=filedialog.askopenfilename(parent=win,filetypes=[("PCM WAV","*.wav")])
+    def open_wav(dropped=None):
+        path=dropped if dropped is not None else filedialog.askopenfilename(parent=win,filetypes=[("PCM WAV","*.wav")])
         if not path:return
         clip=ae.Clip.open(path);env=clip.envelope()
         stop();state.update(clip=clip,path=path,env=env,cues=None)
@@ -73,8 +73,8 @@ def launch(parent):
         if state["cues"]:
             for i,c in enumerate(state["cues"]["mouthCues"]):cues.insert("","end",iid=str(i),values=(c["start"],c["end"],c["value"]))
         draw()
-    def load_cues():
-        clip=require();path=filedialog.askopenfilename(parent=win,filetypes=[("Preview mouth cues","*.json")])
+    def load_cues(dropped=None):
+        clip=require();path=dropped if dropped is not None else filedialog.askopenfilename(parent=win,filetypes=[("Preview mouth cues","*.json")])
         if path:state["cues"]=ae.read_cues(path,clip.duration);refresh()
     def cue_selected(*_):
         sel=cues.selection()
@@ -109,3 +109,5 @@ def launch(parent):
     def close():
         stop();win.destroy()
     win.protocol("WM_DELETE_WINDOW",close)
+    from .drop_import import editor_drop
+    editor_drop(win,[([".wav"],open_wav,False),([".json"],load_cues,False)])
