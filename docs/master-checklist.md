@@ -63,6 +63,9 @@ Section 3 now supports explicitly opted-in master addition/removal for the same 
 ### Follow-up: nested exterior world and compressed remapping
 The New Vegas master-set writer now covers the exact generated WRLD/CELL/LAND/REFR hierarchy plus TXST/LTEX and generated BOOK/NOTE layouts, with typed base-object/terrain-texture links. World and cell group owners are remapped; block/subblock coordinate labels are preserved and checked on reopen. Bounded compressed known-schema records are decoded and recompressed. Unknown layouts, unsupported hierarchy types, non-text notes, and unsupported flags remain blocked. Synthetic world insertion and compressed reference fixtures added; execution deferred. This advances the partial master-remapping milestone; estimates remain 65% compatibility and 60% records.
 
+### Follow-up: native dialogue and quest remapping
+Exact generated FNV QUST/DIAL/INFO layouts, topic-owned INFO groups and supported CTDA conditions (stage, actor, faction, reputation) are now supported by the staged master-table writer. Typed objective, quest, topic, previous-response, audio, animation and speaker references are remapped. Nonempty script source or bytecode, unrecognized condition functions and layouts remain blocked. Shared exact generated world and quest reference offsets are now also used in graph/catalog inspection. Synthetic tests cover semantic identity preservation, script rejection, unknown conditions and graph coverage; execution remains deferred. General nested interiors, native script remapping, wider cross-game schemas and independent verification remain open; same milestone estimates 65% / 60%.
+
 ## Critical path
 1. Stable project FormID allocation, typed native record schema and dependency-safe edits.
 2. Integrated native interior cells, architectural assets, room/portal/trigger volumes, placed references and collision.
