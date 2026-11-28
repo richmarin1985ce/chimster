@@ -27,3 +27,22 @@ def package(destination,entries,*,compress=True,limit=256*1024*1024):
 def package_assets(destination,entries,**options):
     from .ba2_hash import prepare
     return package(destination,prepare(entries),**options)
+
+def package_directory(source,destination,*,compress=True,limit=256*1024*1024):
+    root=Path(source).resolve()
+    if not root.is_dir():raise ValueError("Expected asset directory")
+    if Path(destination).resolve().is_relative_to(root):raise ValueError("Save archive outside source directory")
+    def assets():
+        total=0
+        for path in sorted(root.rglob("*")):
+            if path.is_symlink():raise ValueError("Symlinks are not supported")
+            if not path.is_file():continue
+            if not path.resolve().is_relative_to(root):raise ValueError("Asset outside source directory")
+            name=path.relative_to(root).as_posix()
+            total+=path.stat().st_size+36+2+len(name.encode("ascii"))
+            if total+24>limit:raise ValueError("Asset directory exceeds budget")
+            with path.open("rb") as stream:
+                raw=stream.read(limit-total+path.stat().st_size+1)
+            if len(raw)!=path.stat().st_size:raise ValueError("Asset changed during read")
+            yield name,raw
+    return package_assets(destination,assets(),compress=compress,limit=limit)
