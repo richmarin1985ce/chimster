@@ -56,9 +56,16 @@ class Baker:
             row=self.browser.active.get(Identity(*key),{})
             tx=self.browser.active.get(Identity(*row["texture_set"]),{}) if row.get("texture_set") else {}
             paths=tx.get("texture_paths",())
+            if self.browser.profile=="oblivion" and row.get("land_texture"):
+                path=row["land_texture"].replace("\\","/")
+                if path.lower().endswith(".dds"):paths=(path,path[:-4]+"_n.dds")
+                tx={"signature":"TXST"}
             try:
                 if row.get("signature")!="LTEX" or tx.get("signature")!="TXST" or not paths or not paths[0]:raise ValueError("Missing LTEX/TXST link")
-                diffuse=self.get(paths[0]);normal=self.get(paths[1]) if len(paths)>1 and paths[1] else None
+                diffuse=self.get(paths[0]);normal=None
+                if len(paths)>1 and paths[1]:
+                    try:normal=self.get(paths[1])
+                    except (OSError,ValueError) as exc:self.issues.add(str(key)+": normal unavailable: "+str(exc))
                 self.layers[key]=(diffuse,normal)
             except (OSError,ValueError,KeyError) as exc:
                 self.issues.add(str(key)+": "+str(exc));self.layers[key]=None
