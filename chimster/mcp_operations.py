@@ -54,8 +54,9 @@ class CreationSession:
         self.enabled = enabled
         self.pending = None
         self.allow_edit = allow_edit
-        self.undo = None
-        self.redo = None
+        self.undo_stack=[]
+        self.redo_stack=[]
+        self.history_head=None
 
     def preview(self, id, kind, filename, text, revision):
         identifier(id)
@@ -91,8 +92,7 @@ class CreationSession:
             p = Path(d)/filename
             p.write_bytes(raw)
             m = self.project.add(key, kind, p, revision, replace=replace)
-        self.undo = (revision,m["revision"])
-        self.redo = None
+        self.record_commit(revision,m["revision"])
         return {"id":key, "revision":m["revision"], "artifact":m["artifacts"][key],
                 "undo_target_revision":revision}
 
@@ -124,23 +124,37 @@ class CreationSession:
                 "diff":"\n".join(diff[:200])[:16000],"diff_truncated":clipped,
                 "proposal_token":token,"apply_enabled":self.allow_edit}
 
+    def record_commit(self,before,after):
+        if self.history_head!=before:
+            self.undo_stack.clear()
+        self.redo_stack.clear()
+        self.undo_stack.append((before,after))
+        self.undo_stack=self.undo_stack[-20:]
+        self.history_head=after
+
+    def history_status(self):
+        current=self.project.read()["revision"]
+        return {"revision":current,"undo_steps":len(self.undo_stack) if current==self.history_head else 0,
+                "redo_steps":len(self.redo_stack) if current==self.history_head else 0,
+                "history_conflict":self.history_head is not None and current!=self.history_head}
+
     def recover(self, direction, revision):
-        if not self.allow_edit:
+        if not self.allow_edit or direction not in ("undo","redo"):
             raise ValueError("edit permission required")
-        pair=self.undo if direction=="undo" else self.redo if direction=="redo" else None
-        if pair is None or pair[1]!=revision:
-            raise ValueError("no matching session revision")
-        if self.project.read()["revision"]!=revision:
+        if self.history_head!=revision or self.project.read()["revision"]!=revision:
             raise ValueError("intervening project changes")
-        m=self.project.rollback(pair[0],revision)
+        source=self.undo_stack if direction=="undo" else self.redo_stack
+        destination=self.redo_stack if direction=="undo" else self.undo_stack
+        if not source:raise ValueError("no matching session revision")
+        pair=source[-1]
+        target=pair[0] if direction=="undo" else pair[1]
+        m=self.project.rollback(target,revision)
+        source.pop()
+        destination.append(pair)
+        self.history_head=m["revision"]
         self.pending=None
-        if direction=="undo":
-            self.undo=None
-            self.redo=(revision,m["revision"])
-        else:
-            self.redo=None
-            self.undo=(revision,m["revision"])
-        return {"operation":direction,"revision":m["revision"],"restored_revision":pair[0]}
+        return {"operation":direction,"revision":m["revision"],"restored_revision":target,
+                "undo_steps":len(self.undo_stack),"redo_steps":len(self.redo_stack)}
 
 def inspect_plugin_artifact(project, id):
     from .core import inspect_plugin
