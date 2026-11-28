@@ -65,6 +65,8 @@ class NativeSession:
         return matches[0]
 
     def node(self,path):
+        if not path or any(type(i) is not int or i<0 for i in path):
+            raise ValueError("invalid record path")
         nodes=self.nodes
         for i in path:
             node=nodes[i]
