@@ -42,6 +42,7 @@ def build_parser():
  b=l.add_parser('benchmark'); b.add_argument('--count',type=int,default=10); b.add_argument('--size',type=int,default=64)
  b=l.add_parser('compare-traces'); b.add_argument('baseline'); b.add_argument('changed')
  b=l.add_parser('workflow'); b.add_argument('game')
+ b=l.add_parser('modern-tile'); b.add_argument('game',choices=['skyrim','skyrim-se','fallout4']); b.add_argument('kind',choices=['terrain','object']); b.add_argument('world'); b.add_argument('level',type=int,choices=[4,8,16,32]); b.add_argument('x',type=int); b.add_argument('y',type=int); b.add_argument('mesh'); b.add_argument('diffuse'); b.add_argument('normal'); b.add_argument('output'); b.add_argument('--cutout',action='store_true')
  b=l.add_parser('world-native'); b.add_argument('game'); b.add_argument('world'); b.add_argument('output'); b.add_argument('plugins',nargs='+'); b.add_argument('--size',type=int,choices=[64,128,256],default=128)
  b=l.add_parser('world-trees'); b.add_argument('game',choices=['skyrim','skyrim-se']); b.add_argument('world'); b.add_argument('output'); b.add_argument('spec'); b.add_argument('plugins',nargs='+'); b.add_argument('--data'); b.add_argument('--archive',action='append',default=[])
  b=l.add_parser('world-objects'); b.add_argument('game'); b.add_argument('world'); b.add_argument('output'); b.add_argument('plugins',nargs='+'); b.add_argument('--data'); b.add_argument('--archive',action='append',default=[]); b.add_argument('--limit',type=int,default=512); b.add_argument('--previous'); b.add_argument('--no-atlas',action='store_true')
@@ -726,6 +727,10 @@ def main(argv=None):
     result=compare(n.baseline,n.changed)
    elif n.lop=='workflow':result=workflow(n.game)
    elif n.lop=='openmw-settings':result={'settings':openmw_settings(n.distance,n.min_size)}
+   elif n.lop=='modern-tile':
+    from .scene import load_obj
+    from .modern_lod_codec import export_tile
+    result=export_tile(n.game,n.kind,n.world,n.level,n.x,n.y,load_obj(n.mesh),n.diffuse,n.normal,n.output,n.cutout)
    elif n.lop in ('world-native','world-objects','world-trees'):
     from .world_browser import Browser,label
     browser=Browser.open(n.plugins,n.game)
